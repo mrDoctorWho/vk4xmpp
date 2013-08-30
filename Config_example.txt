@@ -1,0 +1,65 @@
+# coding: utf
+
+## Connection host.
+Host = "localhost"
+
+## Connection server (usually equals host)
+Server = "localhost" 
+
+## Connection port (as you set in your jabber-server config)
+Port = 5556
+
+## Transport ID (Controls all)
+TransportID = "vk.example.com"
+
+## Connection password.
+Password = "secret"
+
+## Database file (as you like)
+DatabaseFile = "users.db"
+
+## Default status (1 — online (recommented) / 0 — offline) 
+DefaultStatus = 1
+
+## Use API feature lastMessageID (transport will save last user message id, 1 — use (recommented), 2 — not use)
+UseLastMessageID = 1
+
+
+#! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
+
+## Timeout when user considered inactive (seconds)
+USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN = 600
+
+## Max roster update timeout (when user inactive, seconds)
+MAX_ROSTER_UPDATE_TIMEOUT = 60
+
+## Default roster update timeout (when user is active)
+ROSTER_UPDATE_TIMEOUT = 6
+
+## Image that will be used if transport can't recieve image from VK.
+URL_VCARD_NO_IMAGE = "http://simpleapps.ru/sa_logo2.png"
+
+
+#! Uncomment this lines if you need write all into file (not recommented)
+#class STDout(object):
+#
+#	def __init__(self, filename = None, std = sys.stdout):
+#		self.name = std.name
+#		if not filename:
+#			filename = self.name.strip("<>")
+#		self.file = open(filename, "w", 0)
+#		self.backup = std
+#		self.isatty = lambda: False
+#		self.flush = self.file.flush
+#		self.close = self.file.close
+#
+#	def write(self, data):
+#		self.file.write(data)
+#		self.backup.write(data)
+#		self.backup.flush()
+#
+#	def writelines(self, lines):
+#		for line in lines:
+#			self.write(line + "\r\n")
+#
+#sys.stdout = sys.stderr = STDout("log.txt")
