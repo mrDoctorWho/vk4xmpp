@@ -138,15 +138,18 @@ class VKLogin(object):
 	def getFriends(self, fields = "screen_name"):
 		friendsRaw = self.method("friends.get", {"fields": fields}) # friends.getOnline
 		friendsDict = {}
-		for friend in friendsRaw:
-			id = friend["uid"]
-			name = " ".join([friend["first_name"], friend["last_name"]])
-			try:
-				friendsDict[id] = {"name": name, "online": friend["online"]}
-				friendsDict[id]["photo"] = friend.get("photo_200_orig", URL_VCARD_NO_IMAGE)
-			except KeyError:
-				continue
-				crashLog("vk.getFriend")
+		if friendsRaw:
+			for friend in friendsRaw:
+				id = friend["uid"]
+				name = " ".join([friend["first_name"], friend["last_name"]])
+				try:
+					friendsDict[id] = {"name": name, "online": friend["online"]}
+					friendsDict[id]["photo"] = friend.get("photo_200_orig", URL_VCARD_NO_IMAGE)
+				except KeyError:
+					continue
+					crashLog("vk.getFriend")
+		else:
+			crashLog("vk.getFriendsRaw")
 		return friendsDict
 
 	def msgMarkAsRead(self, list):
@@ -657,7 +660,7 @@ def hyperThread(start, end):
 def main():
 	Counter = [Number(), Number()]
 	getPid() and initDatabase(DatabaseFile)
-	globals()["Component"] = xmpp.Component(Host, debug = False)
+	globals()["Component"] = xmpp.Component(Host, debug = True)
 	Print("\n#-# Connecting: ", False)
 	if not Component.connect((Server, Port)):
 		Print("fail.\n", False)
@@ -683,6 +686,7 @@ def main():
 							Print(".", False)
 							Counter[0].plus()
 						else:
+							Print(jid)
 							Print("!", False)
 							Counter[1].plus()
 							crashlog("main.connect", 0, False)
@@ -727,8 +731,15 @@ def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 
 main()
 
+Errors = 0
 while True:
 	try:
 		Component.Process(1)
 	except KeyboardInterrupt:
 		exit()
+	except:
+		if Errors > 10:
+			exit()
+		Errors += 1
+		crashLog("Component.Process")
+		continue
