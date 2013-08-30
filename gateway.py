@@ -334,11 +334,11 @@ def msgHandler(cl, msg):
 					text, args = raw
 					args = args.strip()
 					if text == "!captcha" and args:
-						if Class.captcha:
-							Class.captcha["key"] = args
+						if Class.vk.captcha:
+							Class.vk.captcha["key"] = args
 							if Class.vk.retry():
 								body = "Captcha valid."
-								Class.captcha = {}
+								Class.vk.captcha = {}
 							else:
 								body = "Captcha invalid."
 						else:
