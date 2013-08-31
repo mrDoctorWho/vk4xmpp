@@ -1,11 +1,11 @@
 #!/usr/bin/python
 # coding:utf-8
 
-# vk4xmpp gateway, v1.3
+# vk4xmpp gateway, v1.4
 # © simpleApps, 01.08.2013
 # Program published under MIT license.
 
-import os, sys, time, signal, urllib, socket, traceback, threading
+import os, sys, time, json, signal, urllib, socket, traceback, threading
 from math import ceil
 if not hasattr(sys, "argv") or not sys.argv[0]:
 	sys.argv = ["."]
@@ -97,7 +97,8 @@ class VKLogin(object):
 	def auth(self, token = None):
 		try:
 			self.engine = api.VkApi(self.number, self.password, token = token)
-		except (ValueError, api.authError):
+			self.engine.something()
+		except (ValueError, api.authError) as e:
 			return False
 		self.Online = True
 		self.onlineMe(900)
@@ -112,16 +113,21 @@ class VKLogin(object):
 					self.captcha = {}
 				self.lastMethod = (method, values)
 				return self.engine.method(method, values)
-			except api.apiError as json:
+			except (api.apiError, api.captchaNeeded) as json:
 				json = json.message
 				if "captcha_sid" in json:
-					self.captcha = {"sid": json["captcha_sid"], "img": json["captcha_img"]}
-					raise CaptchaNeeded("Enter it. Tnx.")
+					if not self.captcha:
+						self.captcha = {"sid": json["captcha_sid"], "img": json["captcha_img"]}
+						raise CaptchaNeeded("Enter it. Tnx.")
+			except AttributeError:
+				pass
 
 	def retry(self): # it will be useful in some methods f.e. markAsRead, messages.send
 		try: 
 			if self.lastMethod: 
 				return self.method(*self.lastMethod)
+		except CaptchaNeeded:
+			raise
 		except:
 			pass # WARN
 
@@ -148,8 +154,6 @@ class VKLogin(object):
 				except KeyError:
 					continue
 					crashLog("vk.getFriend")
-		else:
-			crashLog("vk.getFriendsRaw")
 		return friendsDict
 
 	def msgMarkAsRead(self, list):
@@ -173,11 +177,14 @@ class VKLogin(object):
 
 class tUser(object):
 
-	def __init__(self, cl, data = [], source = ""): 
+	def __init__(self, cl, data = [], source = ""):
+		self.password = None
 		if data:
 			self.username, self.password = data
 		self.cl = cl
+		self.auth = False
 		self.token = None
+		self.fullJID = None
 		self.friends = None
 		self.lastMsgID = None
 		self.rosterSet = None
@@ -189,15 +196,14 @@ class tUser(object):
 		else:
 			self.jUser = source							# needed?
 	
-		with Semaphore:
-			with Database(DatabaseFile) as db:
-				base = db("select * from users where jid=?", (self.jUser,))
-				desc = db.fetchone()
-				if desc and not self.password:
+		with Database(DatabaseFile, Semaphore) as db:
+			base = db("select * from users where jid=?", (self.jUser,))
+			desc = db.fetchone()
+			if desc:
+				if not self.token or not self.password:
 					self.existsInDB = True
-					self.jUser, self.username, self.token, \
-						self.lastMsgID, self.rosterSet = desc
-				elif desc and data:
+					self.jUser, self.username, self.token, self.lastMsgID, self.rosterSet = desc
+				elif self.password or self.token:
 					self.deleteUser()
 
 	def deleteUser(self, roster = False):
@@ -222,10 +228,14 @@ class tUser(object):
 		try:
 			return self.vk.method(method, values) 											# and i know that it makes transport some slower
 		except CaptchaNeeded:																# but i should handle this exception!
-			if self.vk.captcha:
-				msgSend(self.cl, self.jUser, "WARNING: VK sent captcha to you. "\
-					"Please, go to %s and then enter code from image here. "\
-					"Example: !captcha megakey. Tnx." % self.vk.captcha["img"], TransportID) # And i hope you will understand it.
+			self.captcha()
+
+	def captcha(self):
+		if self.vk.captcha:
+			self.captcha = self.vk.captcha
+			msgSend(self.cl, self.jUser, "WARNING: VK sent captcha to you. "\
+				"Please, go to %s and then enter code from image here. "\
+				"Example: !captcha megakey. Tnx." % self.vk.captcha["img"], TransportID) # And i hope you will understand it.
 
 	def msg(self, body, uID):
 		try:
@@ -237,32 +247,32 @@ class tUser(object):
 		return Message
 
 	def connect(self):
-		auth = False
+		self.auth = False
 		try:
-			auth = self.vk.auth(self.token)
+			self.auth = self.vk.auth(self.token)
 		except api.tokenError:
+			crashLog("tUser.Connect")
 			self.deleteUser()
-		if auth:
+		except CaptchaNeeded:
+			self.rosterAdd()
+			self.captcha()
+			return True
+		if self.auth and self.vk.getToken(): #!
 			if not self.existsInDB:
-				with Semaphore:
-					with Database(DatabaseFile) as db:
-						db("insert into users values (?,?,?,?,?)", (self.jUser, self.username, 
-							self.vk.getToken(), self.lastMsgID, self.rosterSet))
+				with Database(DatabaseFile, Semaphore) as db:
+					db("insert into users values (?,?,?,?,?)", (self.jUser, self.username, 
+						self.vk.getToken(), self.lastMsgID, self.rosterSet))
 			elif self.password:
-				with Semaphore:
-					with Database(DatabaseFile) as db:
-						db("update users set token=? where jid=?", (self.vk.getToken(), self.jUser))
+				with Database(DatabaseFile, Semaphore) as db:
+					db("update users set token=? where jid=?", (self.vk.getToken(), self.jUser))
 			self.friends = self.vk.getFriends()
 			self.vk.Online = True
 		return self.vk.Online
 
-	def init(self):
-		if not self.rosterSet and self.friends:
-			self.roster(self.friends)
-			self.rosterSet = True
-			with Semaphore:
-				with Database(DatabaseFile) as db:
-					db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
+	def init(self, force = False):
+		if (self.friends and not self.rosterSet) or force:
+			if self.fullJID:
+				self.rosterAdd(self.friends)
 		self.sendInitPresence()
 		self.sendMessages()
 
@@ -276,24 +286,24 @@ class tUser(object):
 
 	def sendMessages(self):
 		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
-		messages = messages[1:]
-		messages = sorted(messages, lambda a, b: a["date"] - b["date"])
 		if messages:
-			self.lastMsgID = messages[-1]["mid"]
-			read = list()
-			for message in messages:
-				read.append(str(message.get("mid", 0)))
-				fromjid = "%s@%s" % (message["uid"], TransportID)
-				body = message["body"].replace("<br>", "\n")
-				msgSend(self.cl, self.jUser, body, fromjid, message["date"])
-			self.vk.msgMarkAsRead(read)
-			if UseLastMessageID:
-				with Semaphore:
-					with Database(DatabaseFile) as db:
+			messages = messages[1:]
+			messages = sorted(messages, lambda a, b: a["date"] - b["date"])
+			if messages:
+				self.lastMsgID = messages[-1]["mid"]
+				read = list()
+				for message in messages:
+					read.append(str(message.get("mid", 0)))
+					fromjid = "%s@%s" % (message["uid"], TransportID)
+					body = message["body"].replace("<br>", "\n")
+					msgSend(self.cl, self.jUser, body, fromjid, message["date"])
+				self.vk.msgMarkAsRead(read)
+				if UseLastMessageID:
+					with Database(DatabaseFile, Semaphore) as db:
 						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.jUser))
 
-	def roster(self, dist):
-		IQ = xmpp.Iq("set", to = self.fullJID, frm = TransportID) # jUser?
+	def rosterAdd(self, dist = {}):
+		IQ = xmpp.Iq("set", to = self.fullJID or self.jUser, frm = TransportID) # jUser?
 		Node = xmpp.Node("x", {"xmlns": xmpp.NS_ROSTERX})
 		items = list()
 		for id in dist.keys():
@@ -303,7 +313,18 @@ class tUser(object):
 		items.append(xmpp.Node("item", {"action": "add", "jid": TransportID}))
 		Node.setPayload(items)
 		IQ.addChild(node = Node)
-		self.cl.send(IQ)
+		self.cl.SendAndCallForResponse(IQ, self.rosterAnswer)
+
+	def rosterAnswer(self, some, stanza):
+		sType = stanza.getType()
+		jidFrom = stanza.getFrom()
+		if sType == "error":
+			msgSend(cl, jidFrom, "WARNING: Your client doesn't support many contacts addition!"\
+				"\nWe're recommend you to use Psi+ or Gajim.", TransportID)
+		elif sType == "result":
+			self.rosterSet = True
+			with Database(DatabaseFile, Semaphore) as db:
+				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
 	
 
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
@@ -325,6 +346,7 @@ def msgHandler(cl, msg):
 	pType = msg.getType()
 	jidFrom = msg.getFrom()
 	jidFromStr = jidFrom.getStripped()
+	fullJID = str(jidFrom)
 	if jidFromStr in Transport:
 		Class = Transport[jidFromStr]
 		jidTo = msg.getTo()
@@ -339,9 +361,21 @@ def msgHandler(cl, msg):
 					if text == "!captcha" and args:
 						if Class.vk.captcha:
 							Class.vk.captcha["key"] = args
-							if Class.vk.retry():
+							retry = False
+							try:
+								retry = Class.vk.retry()
+							except CaptchaNeeded:
+								Class.captcha()
+							if retry:
 								body = "Captcha valid."
 								Class.vk.captcha = {}
+								if not Class.auth:
+									try:
+										Class.connect()
+										Class.fullJID = fullJID
+										Class.init(True)
+									except:
+										crashLog("msgHnd.auth")
 							else:
 								body = "Captcha invalid."
 						else:
@@ -434,6 +468,19 @@ def iqHandler(cl, iq):
 		else:
 			raise xmpp.NodeProcessed()
 
+URL_ACCEPT_APP = "https://oauth.vk.com/authorize?scope=69634&redirect_uri="\
+				 "https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token"
+
+def shortenUrl(url):
+	data = urllib.urlencode(dict(format = "json", url = url))
+	try:
+		data = urllib.urlopen("http://is.gd/create.php?%s" % data).read()
+		data = json.loads(data)
+		answer = data.get("shorturl", url)
+	except:
+		answer = url
+	return answer
+
 def iqRegisterHandler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
@@ -445,35 +492,73 @@ def iqRegisterHandler(cl, iq):
 	result = iq.buildReply("result")
 
 	if iType == "get" and jidToStr == TransportID and not IQChildren:
-		instr = xmpp.Node("instructions")
-		instr.setData("Enter phone number (like +71234567890) and password."\
-			"\nNOTE: Your password will be NOT saved. \nTransport saves only API key.")
-		phone = xmpp.Node("phone")
-		password = xmpp.Node("password")
-		result.setQueryPayload((instr, phone, password))
+		data = xmpp.Node("x")
+		data.setNamespace(xmpp.NS_DATA)
+		instr= data.addChild(node=xmpp.Node("instructions"))
+		instr.setData("Enter phone number (like +71234567890) and password (or access-token)"\
+			"\nIf your need automatic authorization, mark checkbox and enter password of your VK account.")
+		link = data.addChild(node=xmpp.DataField("link"))
+		link.setLabel("If you won't get access-token automatically, please, follow authorization link below and authorize app,\n"\
+					  "and then paste url to password field. Autorization page")
+		link.setType("url")
+		link.setValue(shortenUrl(URL_ACCEPT_APP))
+		phone = data.addChild(node=xmpp.DataField("phone"))
+		phone.setLabel("Type phone")
+		phone.setType("text-single")
+		phone.setValue("+")
+		use_password = data.addChild(node=xmpp.DataField("use_password"))
+		use_password.setLabel("Try to get access-token automatically? (NOT recommented)")
+		use_password.setType("boolean")
+		use_password.setValue("0")
+		password = data.addChild(node=xmpp.DataField("password"))
+		password.setLabel("Type password or url (recommented) or access-token")
+		password.setType("text-private")
+		result.setQueryPayload((data,))
 
 	elif iType == "set" and jidToStr == TransportID and IQChildren:
+		phone, password, usePassword, token = False, False, False, False
 		Query = iq.getTag("query")
-		if Query.getTag("phone") and Query.getTag("password"):
-			phone = Query.getTagData("phone")
-			password = Query.getTagData("password")
+		if Query.getTag("x"):
+			for node in iq.getTags("query", namespace=xmpp.NS_REGISTER):
+				for node in node.getTags("x", namespace=xmpp.NS_DATA):
+					phone = node.getTag("field", attrs={"var": "phone"})
+					phone = phone and phone.getTagData("value")
+					password = node.getTag("field", attrs={"var": "password"})
+					password = password and password.getTagData("value")
+					usePassword = node.getTag("field", attrs={"var": "use_password"})
+					usePassword = usePassword and usePassword.getTagData("value")
+
 			if not phone:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Phone incorrect.")
 			if not password:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Null password")
+			if usePassword:
+				usePassword = int(usePassword)
+			if not usePassword:
+				token = password
+				password = None
+			
+			user = tUser(cl, (phone, password), (fullJID, jidFromStr))
+			if not usePassword:
+				try:
+					token = token.split("#access_token=")[1].split("&")[0].strip()
+				except (IndexError, AttributeError):
+					pass
+				user.token = token
+			if not user.connect():
+				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Incorrect password or access token!")
 			else:
-				user = tUser(cl, (phone, password), (fullJID, jidFromStr)) 
-				if not user.connect(): 
-					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Incorrect password!!!")
+				try: 
+					user.init()
+				except CaptchaNeeded:
+					pass#user.captcha()
+				except:
+					crashLog("iq.user.init")
+					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Initialization failed.")
 				else:
-					try: 
-						user.init()
-					except:
-						result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Initialization failed")
-					else:
-						Transport[jidFromStr] = user
-						updateTransportsList(Transport[jidFromStr]) #$
-					
+					Transport[jidFromStr] = user
+					updateTransportsList(Transport[jidFromStr]) #$
+						
 		elif Query.getTag("remove"): # Maybe exits a better way for it
 			if jidFromStr in Transport:
 				Class = Transport[jidFromStr]
@@ -484,6 +569,7 @@ def iqRegisterHandler(cl, iq):
 			result = iqBuildError(iq, 0, "Feature not implemented.")
 	cl.send(result)
 
+import traceback
 def iqDiscoHandler(cl, iq):
 	jidFromStr = iq.getFrom().getStripped()
 	jidToStr = iq.getTo().getStripped()
@@ -660,7 +746,7 @@ def hyperThread(start, end):
 def main():
 	Counter = [Number(), Number()]
 	getPid() and initDatabase(DatabaseFile)
-	globals()["Component"] = xmpp.Component(Host, debug = True)
+	globals()["Component"] = xmpp.Component(Host, debug = False)
 	Print("\n#-# Connecting: ", False)
 	if not Component.connect((Server, Port)):
 		Print("fail.\n", False)
@@ -686,10 +772,9 @@ def main():
 							Print(".", False)
 							Counter[0].plus()
 						else:
-							Print(jid)
 							Print("!", False)
 							Counter[1].plus()
-							crashlog("main.connect", 0, False)
+							crashLog("main.connect", 0, False)
 							msgSend(Component, jid, "Auth failed! Please register again. This incident will be reported.", TransportID)
 					except:
 						crashLog("main.init")
@@ -707,6 +792,7 @@ def main():
 			Component.RegisterHandler("iq", iqHandler)
 			Component.RegisterHandler("presence", prsHandler)
 			Component.RegisterHandler("message", msgHandler)
+			Component.RegisterDisconnectHandler(lambda: crashLog("main.Disconnect"))
 			Component.RegisterDefaultHandler(lambda x, y: None)
 			signal.signal(signal.SIGTERM, exit)
 			Print("\n#-# Finished.")
