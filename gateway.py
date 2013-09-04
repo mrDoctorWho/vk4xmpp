@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # coding:utf-8
 
-# vk4xmpp gateway, v1.4
+# vk4xmpp gateway, v1.6
 # © simpleApps, 01.08.2013
 # Program published under MIT license.
 
@@ -11,8 +11,8 @@ if not hasattr(sys, "argv") or not sys.argv[0]:
 	sys.argv = ["."]
 
 try:
-	__file__ = os.path.abspath(sys.argv[0])
-	os.chdir(os.path.dirname(__file__))
+	__file__ = os.path.dirname(os.path.abspath(sys.argv[0]))
+	os.chdir(__file__)
 except OSError:
 	print "#! Incorrect launch!"
 	time.sleep(6)
@@ -30,13 +30,16 @@ import xmpp
 ## other.
 from itypes import Database, Number
 from writer import *
+from stext import *
+from stext import _
 import vk_api as api
 
 Transport = {}
 TransportsList = []
+WhiteList = []
 TransportFeatures = [ xmpp.NS_DISCO_INFO,
 					  xmpp.NS_DISCO_ITEMS,
-		#			  xmpp.NS_STATS, # later
+					  xmpp.NS_STATS,
 					  xmpp.NS_VCARD, 
 					  xmpp.NS_REGISTER,
 					  xmpp.NS_GATEWAY ]
@@ -50,6 +53,7 @@ Semaphore = threading.Semaphore()
 SLICE_STEP = 8
 pidFile = "pidFile.txt"
 Config = "Config.txt"
+DefLang = "ru"
 if os.path.exists(Config):
 	try:
 		execfile(Config)
@@ -58,6 +62,7 @@ if os.path.exists(Config):
 		crashLog("config.load")
 else:
 	Print("#-# Config file doesn't exists.")
+setVars("ru", __file__)
 
 def initDatabase(filename):
 	if not os.path.exists(filename):
@@ -65,6 +70,32 @@ def initDatabase(filename):
 			db("create table users (jid text, username text, token text, lastMsgID integer, rosterSet bool)")
 			db.commit()
 	return True
+
+
+def startThr(Thr, Number = 0):
+	if Number > 2:
+		raise RuntimeError("exit")
+	try:
+		Thr.start()
+	except threading.ThreadError:
+		startThr(Thr, (Number + 1))
+	except:
+		crashLog("startThr")
+
+def threadRun(func, args = [], name = None):
+	Thr = threading.Thread(target = func, args = args, name = name)
+	try:
+		Thr.start()
+	except threading.ThreadError:
+		try:
+			startThr(Thr)
+		except RuntimeError:
+			try:
+				Thr.run()
+			except KeyboardInterrupt:
+				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
+	except:
+		crashLog("threadRun")
 
 def crashLog(name, text = 0, fixMe = True):
 	if fixMe:
@@ -82,63 +113,70 @@ def crashLog(name, text = 0, fixMe = True):
 		fixme("crashlog")
 		wException(None, sys.stdout)
 
-class CaptchaNeeded(Exception):
-	pass
-
 class VKLogin(object):
 
 	def __init__(self, number, password = None):
 		self.number = number
 		self.password = password
 		self.Online = False
-		self.captcha = {}
 		self.lastMethod = None
 
 	def auth(self, token = None):
 		try:
 			self.engine = api.VkApi(self.number, self.password, token = token)
-			self.engine.something()
+			self.checkData()
 		except (ValueError, api.authError) as e:
 			return False
 		self.Online = True
 		self.onlineMe(900)
 		return self.Online
 
-	def method(self, method, values = {}):
-		if self.Online:
-			try:
-				if "key" in self.captcha:
-					values["captcha_key"] = self.captcha["key"]
-					values["captcha_sid"] = self.captcha["sid"]
-					self.captcha = {}
-				self.lastMethod = (method, values)
-				return self.engine.method(method, values)
-			except (api.apiError, api.captchaNeeded) as json:
-				json = json.message
-				if "captcha_sid" in json:
-					if not self.captcha:
-						self.captcha = {"sid": json["captcha_sid"], "img": json["captcha_img"]}
-						raise CaptchaNeeded("Enter it. Tnx.")
-			except AttributeError:
-				pass
+	def checkData(self):
+		if not self.engine.token and self.password:
+			self.engine.vk_login()
+			self.engine.api_login()
+			self.checkToken()
 
-	def retry(self): # it will be useful in some methods f.e. markAsRead, messages.send
-		try: 
-			if self.lastMethod: 
-				return self.method(*self.lastMethod)
-		except CaptchaNeeded:
-			raise
-		except:
-			pass # WARN
+		elif self.engine.token:
+			if not self.checkToken():
+				raise api.tokenError("Token for user %s invalid: " % self.number, self.engine.token)
+		else: 
+			raise api.tokenError("%s, Where are your token?" % self.number)
+
+	def checkToken(self):
+		try:
+			self.method("isAppUser")
+		except api.apiError:
+			return False
+		return True
+
+	def executeMe(self, func, method, args = {}):
+		try:
+			return func(method, args)
+		except api.apiError as e:
+			if e.message == "Logged out":
+				pass
+		except api.captchaNeeded:
+			self.captchaChallenge()
+			return {}
+
+	def method(self, method, args = {}, force = False):
+		result = {}
+		if not self.engine.captcha or force:
+			result = self.executeMe(self.engine.method, method, args)
+		return result
+
+	def captchaChallenge(self):
+		if self.engine.captcha:
+			msgSend(Component, self.jUser, _("WARNING: VK sent captcha to you."\
+											 "Please, go to %s and enter text from image to chat."\
+											 "Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"], TransportID)
 
 	def disconnect(self):
-		if self.Online:
-			self.method("account.setOffline")
-			self.Online = False
+		self.method("account.setOffline")
+		self.Online = False
 
 	def getToken(self):
-		if not self.Online:
-			token = "nil_token"
 		return self.engine.token
 
 	def getFriends(self, fields = "screen_name"):
@@ -178,24 +216,25 @@ class VKLogin(object):
 class tUser(object):
 
 	def __init__(self, cl, data = [], source = ""):
-		self.password = None
+		self.password = False
 		if data:
 			self.username, self.password = data
 		self.cl = cl
 		self.auth = False
-		self.token = None
-		self.fullJID = None
-		self.friends = None
-		self.lastMsgID = None
-		self.rosterSet = None
-		self.existsInDB = None
+		self.token = False
+		self.fullJID = False
+		self.friends = False
+		self.lastStatus = False
+		self.lastMsgID = False
+		self.rosterSet = False
+		self.existsInDB = False
 		self.last_activity = time.time()
 		self.vk = VKLogin(self.username, self.password)
 		if len(source) == 2:							# Is it 
 			self.fullJID, self.jUser = source			# really
 		else:
 			self.jUser = source							# needed?
-	
+		self.vk.jUser = self.jUser
 		with Database(DatabaseFile, Semaphore) as db:
 			base = db("select * from users where jid=?", (self.jUser,))
 			desc = db.fetchone()
@@ -204,7 +243,7 @@ class tUser(object):
 					self.existsInDB = True
 					self.jUser, self.username, self.token, self.lastMsgID, self.rosterSet = desc
 				elif self.password or self.token:
-					self.deleteUser()
+					threadRun(self.deleteUser)
 
 	def deleteUser(self, roster = False):
 		with Database(DatabaseFile) as db:
@@ -218,31 +257,19 @@ class tUser(object):
 				unSubed = xmpp.Presence(self.fullJID, "unsubscribed", frm = jid)
 				self.cl.send(unSubed)
 			self.vk.Online = False
-		updateTransportsList(self, False) #$
+		updateTransportsList(self, False) # may cause NameError at start
 		try: 
 			del Transport[self.jUser] #?
 		except KeyError:
 			pass
 
-	def method(self, method, values = {}): 													# yep, i know that it func exists in self.vk, but
-		try:
-			return self.vk.method(method, values) 											# and i know that it makes transport some slower
-		except CaptchaNeeded:																# but i should handle this exception!
-			self.captcha()
-
-	def captcha(self):
-		if self.vk.captcha:
-			self.captcha = self.vk.captcha
-			msgSend(self.cl, self.jUser, "WARNING: VK sent captcha to you. "\
-				"Please, go to %s and then enter code from image here. "\
-				"Example: !captcha megakey. Tnx." % self.vk.captcha["img"], TransportID) # And i hope you will understand it.
-
 	def msg(self, body, uID):
 		try:
 			self.last_activity = time.time()
-			self.method("account.setOnline")
-			Message = self.method("messages.send", {"user_id": uID, "message": body, "type": 0})
+			self.vk.method("account.setOnline")
+			Message = self.vk.method("messages.send", {"user_id": uID, "message": body, "type": 0})
 		except:
+			crashLog("messages.send")
 			Message = False
 		return Message
 
@@ -253,10 +280,12 @@ class tUser(object):
 		except api.tokenError:
 			crashLog("tUser.Connect")
 			self.deleteUser()
-		except CaptchaNeeded:
-			self.rosterAdd()
-			self.captcha()
-			return True
+		except:
+			crashLog("tUser.connect")
+			return False
+#		except CaptchaNeeded:
+#			self.rosterAdd()
+#			return True
 		if self.auth and self.vk.getToken(): #!
 			if not self.existsInDB:
 				with Database(DatabaseFile, Semaphore) as db:
@@ -271,18 +300,21 @@ class tUser(object):
 
 	def init(self, force = False):
 		if (self.friends and not self.rosterSet) or force:
-			if self.fullJID:
-				self.rosterAdd(self.friends)
-		self.sendInitPresence()
-		self.sendMessages()
+			self.rosterSubscribe(self.friends)
+		threadRun(self.sendInitPresence)
+		threadRun(self.sendMessages) # is it valid?
 
 	def sendInitPresence(self):
 		self.cl.send(xmpp.protocol.Presence(self.jUser, frm = TransportID))
 		if self.friends:
-			for uid in self.friends:
-				jid = "%s@%s" % (uid, TransportID)
+			for uid in self.friends.keys():
+				jid = vk2xmpp(uid)
 				pType = "unavailable" if not self.friends[uid]["online"] else None
-				self.cl.send(xmpp.protocol.Presence(self.jUser, pType, frm = jid))
+				nickName = self.friends[uid]["name"]
+				Presence = xmpp.protocol.Presence(self.jUser, pType, frm = jid)
+				Presence.setTag("nick", namespace = xmpp.NS_NICK)
+				Presence.setTagData("nick", nickName)
+				self.cl.send(Presence)
 
 	def sendMessages(self):
 		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
@@ -302,35 +334,22 @@ class tUser(object):
 					with Database(DatabaseFile, Semaphore) as db:
 						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.jUser))
 
-	def rosterAdd(self, dist = {}):
-		IQ = xmpp.Iq("set", to = self.fullJID or self.jUser, frm = TransportID) # jUser?
-		Node = xmpp.Node("x", {"xmlns": xmpp.NS_ROSTERX})
-		items = list()
-		for id in dist.keys():
-			jid = "%s@%s" % (id, TransportID)
-			item = xmpp.Node("item", {"action": "add", "jid": jid, "name": dist[id]["name"]})
-			items.append(item)
-		items.append(xmpp.Node("item", {"action": "add", "jid": TransportID}))
-		Node.setPayload(items)
-		IQ.addChild(node = Node)
-		self.cl.SendAndCallForResponse(IQ, self.rosterAnswer)
-
-	def rosterAnswer(self, some, stanza):
-		sType = stanza.getType()
-		jidFrom = stanza.getFrom()
-		if sType == "error":
-			msgSend(cl, jidFrom, "WARNING: Your client doesn't support many contacts addition!"\
-				"\nWe're recommend you to use Psi+ or Gajim.", TransportID)
-		elif sType == "result":
-			self.rosterSet = True
-			with Database(DatabaseFile, Semaphore) as db:
-				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
-	
+	def rosterSubscribe(self, dist = {}):
+		Presence = xmpp.Presence(self.jUser, "subscribe")
+		Presence.setTag("nick", namespace = xmpp.NS_NICK)
+		for id in dist.keys() + [TransportID]:
+			nickName = self.friends.get(id, {}).get("name")
+			Presence.setTagData("nick", nickName)
+			Presence.setFrom(vk2xmpp(id))
+			self.cl.send(Presence)
+			time.sleep(0.2)
+		self.rosterSet = True
+		with Database(DatabaseFile, Semaphore) as db:
+			db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
 
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	msg = xmpp.Message(jidTo, body, "chat", frm = jidFrom)
-	if timestamp:
-		msg.setTimestamp(timestamp)
+	msg.setTimestamp(timestamp)
 	cl.send(msg)
 
 def msgRecieved(msg, jidFrom, jidTo):
@@ -343,47 +362,44 @@ def msgRecieved(msg, jidFrom, jidTo):
 		return answer
 
 def msgHandler(cl, msg):
-	pType = msg.getType()
+	mType = msg.getType()
 	jidFrom = msg.getFrom()
 	jidFromStr = jidFrom.getStripped()
-	fullJID = str(jidFrom)
-	if jidFromStr in Transport:
+	if jidFromStr in Transport and mType == "chat":
 		Class = Transport[jidFromStr]
 		jidTo = msg.getTo()
 		body = msg.getBody()
 		if body:
-			answer = None
+			answer= None
 			if jidTo == TransportID:
 				raw = body.split(None, 1)
 				if len(raw) > 1:
 					text, args = raw
 					args = args.strip()
 					if text == "!captcha" and args:
-						if Class.vk.captcha:
-							Class.vk.captcha["key"] = args
+						if Class.vk.engine.captcha:
+							Class.vk.engine.captcha["key"] = args
 							retry = False
 							try:
-								retry = Class.vk.retry()
-							except CaptchaNeeded:
-								Class.captcha()
+								retry = Class.vk.engine.retry()
+							except api.captchaNeeded:
+								Class.vk.captchaChallenge()
 							if retry:
-								body = "Captcha valid."
-								Class.vk.captcha = {}
+								answer = _("Captcha valid.")
 								if not Class.auth:
 									try:
 										Class.connect()
-										Class.fullJID = fullJID
+										Class.fullJID = jidFrom
 										Class.init(True)
 									except:
 										crashLog("msgHnd.auth")
 							else:
-								body = "Captcha invalid."
+								answer = _("Captcha invalid.")
 						else:
-							body = "Not now. Ok?"
-					else:
-						body = "Incorrect command or args."
-					answer = msgRecieved(msg, jidFrom, jidTo)
-					msgSend(cl, jidFromStr, body, jidTo)
+							answer = _("Not now. Ok?")
+					if answer:
+						msgSend(cl, jidFromStr, answer, jidTo)
+						answer = msgRecieved(msg, jidFrom, jidTo)
 			else:
 				uID = jidTo.getNode()
 				vkMessage = Class.msg(body, uID)
@@ -410,6 +426,8 @@ def vk2xmpp(id):
 			id = id.split("@")[0]
 			if isNumber(id):
 				id = int(id)
+	elif id == TransportID:
+		return id
 	else:
 		id = u"%s@%s" % (id, TransportID)
 	return id
@@ -423,10 +441,12 @@ def prsHandler(cl, prs):
 	if jidFromStr in Transport:
 		Class = Transport[jidFromStr]
 		if pType in ("available", "probe", None):
-			if not Class.vk.Online:
+			if not Class.vk.Online and Class.lastStatus != pType:
 				Class.vk.Online = True
 				Class.vk.onlineMe()
-			Class.sendInitPresence()
+				Class.sendInitPresence()
+			else:
+				raise xmpp.NodeProcessed()
 
 		elif pType == "unavailable":
 			Class.vk.disconnect()
@@ -442,6 +462,9 @@ def prsHandler(cl, prs):
 					if id in Class.friends:
 						if Class.friends[id]["online"]:
 							cl.send(xmpp.Presence(jidFrom, frm = jidTo))
+#		else:
+#			raise xmpp.NodeProcessed()
+		Class.lastStatus = pType
 
 def iqBuildError(stanza, error = None, text = None):
 	if not error:
@@ -455,10 +478,16 @@ def iqBuildError(stanza, error = None, text = None):
 
 def iqHandler(cl, iq):
 	ns = iq.getQueryNS()
+	if WhiteList:
+		jidFrom = iq.getFrom()
+		if jidFrom and jidFrom.getDomain() not in WhiteList:
+			iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list")
 	if ns == xmpp.NS_REGISTER:
 		iqRegisterHandler(cl, iq)
 	elif ns == xmpp.NS_GATEWAY:
 		iqGatewayHandler(cl, iq)
+	elif ns == xmpp.NS_STATS:
+		iqStatsHandler(cl, iq)
 	elif ns in (xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS):
 		iqDiscoHandler(cl, iq)
 	else:
@@ -487,7 +516,6 @@ def iqRegisterHandler(cl, iq):
 	jidFromStr = jidFrom.getStripped()
 	jidToStr = jidTo.getStripped()
 	iType = iq.getType()
-	fullJID = str(jidFrom)
 	IQChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
 
@@ -495,23 +523,23 @@ def iqRegisterHandler(cl, iq):
 		data = xmpp.Node("x")
 		data.setNamespace(xmpp.NS_DATA)
 		instr= data.addChild(node=xmpp.Node("instructions"))
-		instr.setData("Enter phone number (like +71234567890) and password (or access-token)"\
-			"\nIf your need automatic authorization, mark checkbox and enter password of your VK account.")
+		instr.setData(_("Enter phone number (like +71234567890) and password (or access-token)"\
+			"\nIf your need automatic authorization, mark checkbox and enter password of your VK account."))
 		link = data.addChild(node=xmpp.DataField("link"))
-		link.setLabel("If you won't get access-token automatically, please, follow authorization link below and authorize app,\n"\
-					  "and then paste url to password field. Autorization page")
+		link.setLabel(_("If you won't get access-token automatically, please, follow authorization link below and authorize app,\n"\
+					  "and then paste url to password field. Autorization page"))
 		link.setType("url")
 		link.setValue(shortenUrl(URL_ACCEPT_APP))
 		phone = data.addChild(node=xmpp.DataField("phone"))
-		phone.setLabel("Type phone")
+		phone.setLabel(_("Type phone"))
 		phone.setType("text-single")
 		phone.setValue("+")
 		use_password = data.addChild(node=xmpp.DataField("use_password"))
-		use_password.setLabel("Try to get access-token automatically? (NOT recommented)")
+		use_password.setLabel(_("Try to get access-token automatically? (NOT recommented, password required)"))
 		use_password.setType("boolean")
 		use_password.setValue("0")
 		password = data.addChild(node=xmpp.DataField("password"))
-		password.setLabel("Type password or url (recommented) or access-token")
+		password.setLabel(_("Type password or url (recommented) or access-token"))
 		password.setType("text-private")
 		result.setQueryPayload((data,))
 
@@ -529,16 +557,16 @@ def iqRegisterHandler(cl, iq):
 					usePassword = usePassword and usePassword.getTagData("value")
 
 			if not phone:
-				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Phone incorrect.")
+				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 			if not password:
-				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Null password")
+				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Null password"))
 			if usePassword:
 				usePassword = int(usePassword)
 			if not usePassword:
 				token = password
 				password = None
 			
-			user = tUser(cl, (phone, password), (fullJID, jidFromStr))
+			user = tUser(cl, (phone, password), (jidFrom, jidFromStr))
 			if not usePassword:
 				try:
 					token = token.split("#access_token=")[1].split("&")[0].strip()
@@ -546,15 +574,15 @@ def iqRegisterHandler(cl, iq):
 					pass
 				user.token = token
 			if not user.connect():
-				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Incorrect password or access token!")
+				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 			else:
 				try: 
 					user.init()
-				except CaptchaNeeded:
-					pass#user.captcha()
+				except api.captchaNeeded:
+					user.vk.captchaChallenge()
 				except:
 					crashLog("iq.user.init")
-					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Initialization failed.")
+					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 				else:
 					Transport[jidFromStr] = user
 					updateTransportsList(Transport[jidFromStr]) #$
@@ -562,31 +590,77 @@ def iqRegisterHandler(cl, iq):
 		elif Query.getTag("remove"): # Maybe exits a better way for it
 			if jidFromStr in Transport:
 				Class = Transport[jidFromStr]
-				Class.fullJID = fullJID
+				Class.fullJID = jidFrom
 				Class.deleteUser(True)
 				result.setPayload([], add = 0)
 		else:
-			result = iqBuildError(iq, 0, "Feature not implemented.")
+			result = iqBuildError(iq, 0, _("Feature not implemented."))
 	cl.send(result)
 
-import traceback
+def calcStats():
+	countTotal = 0
+	countOnline = 0
+	with Database(DatabaseFile, Semaphore) as db:
+		db("select count(*) from users")
+		countTotal = db.fetchone()[0]
+	for key in TransportsList:
+		if hasattr(key, "vk") and key.vk.Online:
+			countOnline += 1
+	return (countOnline, countTotal)
+
+def iqStatsHandler(cl, iq):
+	jidToStr = iq.getTo()
+	iType = iq.getType()
+	IQChildren = iq.getQueryChildren()
+	result = iq.buildReply("result")
+	if iType == "get" and jidToStr == TransportID:
+		payload = list()
+		if not IQChildren:
+			total = xmpp.Node("stat", attrs={"name": "users/total"})
+			online = xmpp.Node("stat", attrs={"name": "users/online"})
+			payload = [total, online]
+		else:
+			stats = calcStats()
+			for n in [child for child in IQChildren if child.getName()=='stat']:
+				if n.getAttr('name') == 'users/online':
+					stat = xmpp.Node('stat', attrs={'units':'users'})
+					stat.setAttr('name','users/online')
+					stat.setAttr('value', stats[0])
+					payload.append(stat)
+				elif n.getAttr('name') == 'users/total':
+					stat = xmpp.Node('stat', attrs={'units':'users'})
+					stat.setAttr('name','users/total')
+					stat.setAttr('value', stats[1])
+					payload.append(stat)
+				else:
+					s = xmpp.Node('stat', attrs={'name':n.getAttr('name')})
+					err = xmpp.Node('error', attrs={'code':'404'})
+					err.setData('Not Found')
+					s = xmpp.Node('stat', attrs={'name':n.getAttr('name')})
+					s.addChild(node=err)
+					payload.append(s)
+		if payload:
+			result.setQueryPayload(payload)
+			cl.send(result)
+
 def iqDiscoHandler(cl, iq):
 	jidFromStr = iq.getFrom().getStripped()
 	jidToStr = iq.getTo().getStripped()
 	iType = iq.getType()
 	ns = iq.getQueryNS()
 	Node = iq.getTagAttr("query", "node")
-	result = iq.buildReply("result")
 	if iType == "get":
 		if ns == xmpp.NS_DISCO_INFO:
 			if not Node and jidToStr == TransportID:
 				QueryPayload = []
+				result = iq.buildReply("result")
 				QueryPayload.append(xmpp.Node("identity", attrs = IDentifier))
 				for key in TransportFeatures:
 					xNode = xmpp.Node("feature", attrs = {"var": key})
 					QueryPayload.append(xNode)	
 				result.setQueryPayload(QueryPayload)
-			cl.send(result)
+				cl.send(result)
+	raise xmpp.NodeProcessed()
 
 def iqGatewayHandler(cl, iq):
 	jidTo = iq.getTo()
@@ -622,9 +696,10 @@ def vCardGetPhoto(url):
 		if data:
 			data = data.encode("base64")
 			return data
+	except IOError:
+		pass
 	except:
 		crashLog("vcard.getPhoto")
-		return ""
 
 def iqVcardBuild(tags):
 	vCard = xmpp.Node("vCard", attrs = {"xmlns": xmpp.NS_VCARD})
@@ -637,10 +712,13 @@ def iqVcardBuild(tags):
 	return vCard
 
 
-DESC = "© simpleApps, 2013."\
+DESC = _("© simpleApps, 2013."\
 	   "\nYou can support developing of any project"\
 	   " via donation by WebMoney:"\
-	   "\nZ405564701378 | R330257574689."
+	   "\nZ405564701378 | R330257574689.")
+ProblemReport = _("If you found any problems, please contact us:\n"\
+				"http://github.com/mrDoctorWho/vk4xmpp • xmpp:simpleapps@conference.jabber.ru")
+
 def iqVcardHandler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
@@ -665,14 +743,14 @@ def iqVcardHandler(cl, iq):
 					name = Friends[id]["name"]
 					photo = Friends[id]["photo"]
 					vCard = iqVcardBuild({"NICKNAME": name, "PHOTO": photo,
-										  "DESC": "Contact uses VK4XMPP Transport\n%s" % DESC})
+										  "DESC": _("Contact uses VK4XMPP Transport\n%s") % DESC})
 					result.setPayload([vCard])
 				else:
-					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "User is not your friend.")
+					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("User is not your friend."))
 			else:
-				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "Your friend-list is null.")
+				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Your friend-list is null."))
 		else:
-			result = iqBuildError(iq, xmpp.ERR_REGISTRATION_REQUIRED, "You're not registered for this action.")
+			result = iqBuildError(iq, xmpp.ERR_REGISTRATION_REQUIRED, _("You're not registered for this action."))
 	else:
 		raise xmpp.NodeProcessed()
 	cl.send(result)
@@ -689,7 +767,7 @@ def updateTransportsList(user, add=True): #$
 		start = lengthOfTransportsList
 		lengthOfTransportsList += SLICE_STEP
 		end = lengthOfTransportsList
-		threading.Thread(target = hyperThread, args = (start, end)).start()
+		threadRun(hyperThread, (start, end), "updateTransportsList")
 	elif length <= lengthOfTransportsList - SLICE_STEP:
 		lengthOfTransportsList -= SLICE_STEP
 
@@ -744,7 +822,7 @@ def hyperThread(start, end):
 
 
 def main():
-	Counter = [Number(), Number()]
+	Counter = [0, 0]
 	getPid() and initDatabase(DatabaseFile)
 	globals()["Component"] = xmpp.Component(Host, debug = False)
 	Print("\n#-# Connecting: ", False)
@@ -770,31 +848,31 @@ def main():
 							if DefaultStatus == 1: # 1 — online, 0 — offline
 								Transport[jid].init()
 							Print(".", False)
-							Counter[0].plus()
+							Counter[0] += 1
 						else:
 							Print("!", False)
-							Counter[1].plus()
+							Counter[1] += 1
 							crashLog("main.connect", 0, False)
-							msgSend(Component, jid, "Auth failed! Please register again. This incident will be reported.", TransportID)
+							msgSend(Component, jid, _("Auth failed! Please register again. This incident will be reported."), TransportID)
 					except:
 						crashLog("main.init")
 						continue
 			Print("\n#-# Connected %s/%s users." % (str(Counter[0]), len(TransportsList)))
-			if str(Counter[1]) != "0":
+			if Counter[1]:
 				Print("#-# Failed to connect %s users." % str(Counter[1]))
 
 			globals()["lengthOfTransportsList"] = int(ceil(float(len(TransportsList)) / SLICE_STEP) * SLICE_STEP)
-
-			for start in xrange(0, lengthOfTransportsList, SLICE_STEP):
-				end = start + SLICE_STEP
-				threading.Thread(target = hyperThread, args = (start, end)).start()
 
 			Component.RegisterHandler("iq", iqHandler)
 			Component.RegisterHandler("presence", prsHandler)
 			Component.RegisterHandler("message", msgHandler)
 			Component.RegisterDisconnectHandler(lambda: crashLog("main.Disconnect"))
 			Component.RegisterDefaultHandler(lambda x, y: None)
-			signal.signal(signal.SIGTERM, exit)
+
+			for start in xrange(0, lengthOfTransportsList, SLICE_STEP):
+				end = start + SLICE_STEP
+				threadRun(hyperThread, (start, end), "main.init-%d" % start)
+
 			Print("\n#-# Finished.")
 
 def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
@@ -815,17 +893,21 @@ def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 	Print("\n")
 	os._exit(1)
 
-main()
+if __name__ == "__main__":
+	signal.signal(signal.SIGTERM, exit)
+	main()
+	Errors = 0
 
-Errors = 0
-while True:
-	try:
-		Component.Process(1)
-	except KeyboardInterrupt:
-		exit()
-	except:
-		if Errors > 10:
+	while True:
+		try:
+			Component.Process(1)
+		except KeyboardInterrupt:
 			exit()
-		Errors += 1
-		crashLog("Component.Process")
-		continue
+		except IOError:
+			os.execl(sys.execute)
+		except:
+			if Errors > 10:
+				exit()
+			Errors += 1
+			crashLog("Component.Process")
+			continue

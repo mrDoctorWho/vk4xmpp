@@ -24,6 +24,8 @@ DefaultStatus = 1
 ## Use API feature lastMessageID (transport will save last user message id, 1 — use (recommented), 2 — not use)
 UseLastMessageID = 1
 
+## Language (ru/en)
+DefLang = "ru"
 
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 
