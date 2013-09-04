@@ -27,6 +27,10 @@ UseLastMessageID = 1
 ## Language (ru/en)
 DefLang = "ru"
 
+## White list (put here servers which you want allow to access transport). Save it as [] if you won't block any servers.
+WhiteList = []
+
+
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 
 ## Timeout when user considered inactive (seconds)
