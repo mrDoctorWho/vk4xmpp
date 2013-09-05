@@ -19,3 +19,5 @@ User is not your friend.=Пользователь не ваш друг!
 Your friend-list is null.=Ваш список друзей пуст!
 You're not registered for this action.=Вы должны быть зарегистрированы для этого дейстия.
 Auth failed! Please register again. This incident will be reported.=Авторизация не удалась. Пожалуйста, зарегистрируйтесь заново. Об этом инциденте будет сообщено.
+\LForward messages:=\LПересланные сообщения:
+\LAttachments:=\LВложения:

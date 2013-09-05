@@ -6,6 +6,7 @@
 # Program published under MIT license.
 
 import os, sys, time, json, signal, urllib, socket, traceback, threading
+from datetime import datetime
 from math import ceil
 if not hasattr(sys, "argv") or not sys.argv[0]:
 	sys.argv = ["."]
@@ -29,6 +30,7 @@ import xmpp
 
 ## other.
 from itypes import Database, Number
+from webtools import *
 from writer import *
 from stext import *
 from stext import _
@@ -67,7 +69,7 @@ setVars(DefLang, __file__)
 import logging
 
 logger = logging.getLogger("vk4xmpp")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 loggerHandler = logging.FileHandler("vk4xmpp.log")
 Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", "[%d.%m.%Y %H:%M:%S]")
 loggerHandler.setFormatter(Formatter)
@@ -179,9 +181,9 @@ class VKLogin(object):
 		try:
 			return func(method, args)
 		except api.apiError as e:
-			logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
 			if e.message == "Logged out":
-				pass
+				return {}
+			logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
 		except api.captchaNeeded:
 			logger.error("VKLogin: running captcha challenge for %s" % self.jidFrom)
 			self.captchaChallenge()
@@ -213,11 +215,10 @@ class VKLogin(object):
 	def getFriends(self, fields = "screen_name"):
 		friendsRaw = self.method("friends.get", {"fields": fields}) # friends.getOnline
 		friendsDict = {}
-		logger.debug("VKLogin: requesing friends for %s" % self.jidFrom)
 		if friendsRaw:
 			for friend in friendsRaw:
 				id = friend["uid"]
-				name = " ".join([friend["first_name"], friend["last_name"]])
+				name = u"%s %s" % (friend["first_name"], friend["last_name"])
 				try:
 					friendsDict[id] = {"name": name, "online": friend["online"]}
 					friendsDict[id]["photo"] = friend.get("photo_200_orig", URL_VCARD_NO_IMAGE)
@@ -231,7 +232,6 @@ class VKLogin(object):
 		self.method("messages.markAsRead", {"message_ids": list})
 
 	def getMessages(self, lastjoinTime = 0, count = 5, lastMsgID = 0):
-		logger.debug("VKLogin: requesing messages for %s" % self.jidFrom)
 		values = {"out": 0, "time_offset": lastjoinTime, 
 							"filters": 1, "count": count}
 		if lastMsgID:
@@ -253,10 +253,10 @@ class tUser(object):
 		if data:
 			self.username, self.password = data
 		self.cl = cl
+		self.friends = {}
 		self.auth = False
 		self.token = False
 		self.fullJID = False
-		self.friends = False
 		self.lastStatus = False
 		self.lastMsgID = False
 		self.rosterSet = False
@@ -340,10 +340,10 @@ class tUser(object):
 
 	def init(self, force = False):
 		logger.debug("tUser: called init for user %s" % self.jUser)
-		friends = self.vk.getFriends()
-		if friends and not self.rosterSet or force:
+		self.friends = self.vk.getFriends()
+		if self.friends and not self.rosterSet or force:
 			logger.debug("tUser: calling subscribe with force:%s for %s" % (force, self.jUser))
-			self.rosterSubscribe(friends)
+			self.rosterSubscribe(self.friends)
 		threadRun(self.sendInitPresence)
 		threadRun(self.sendMessages) # is it valid?
 
@@ -371,7 +371,30 @@ class tUser(object):
 				for message in messages:
 					read.append(str(message.get("mid", 0)))
 					fromjid = "%s@%s" % (message["uid"], TransportID)
-					body = message["body"].replace("<br>", "\n")
+					body = uHTML(message["body"])
+					if message.has_key("attachments"):
+						body += _("\nAttachments:")
+						attachments = message["attachments"]
+						for att in attachments:
+							key = att.get("type", {})
+							if att[key].has_key("url"):
+								body += "\n" + att[key]["url"]
+					if message.has_key("fwd_messages"):
+						body += _("\nForward messages")
+						fwd_messages = sorted(message["fwd_messages"], lambda a, b: a["date"] - b["date"])
+						for fwd in fwd_messages:
+							idFrom = fwd["uid"]
+							date = fwd["date"]
+							fwdBody = uHTML(fwd["body"])
+							date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
+							if idFrom not in self.friends:
+								name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": idFrom})
+								if name:
+									name = name.pop()
+									name = u"%s %s" % (name["first_name"], name["last_name"])
+							else:
+								name =  self.friends[idFrom]
+							body += "\n[%s] <%s> %s" % (date, name, fwdBody)
 					msgSend(self.cl, self.jUser, body, fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
@@ -381,15 +404,18 @@ class tUser(object):
 	def rosterSubscribe(self, dist = {}):
 		Presence = xmpp.Presence(self.jUser, "subscribe")
 		Presence.setTag("nick", namespace = xmpp.NS_NICK)
-		for id in dist.keys() + [TransportID]:
-			nickName = self.friends.get(id, {}).get("name")
+		for id in dist.keys():
+			nickName = self.friends[id]["name"]
 			Presence.setTagData("nick", nickName)
 			Presence.setFrom(vk2xmpp(id))
 			Sender(self.cl, Presence)
 			time.sleep(0.2)
-		self.rosterSet = True
-		with Database(DatabaseFile, Semaphore) as db:
-			db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
+		Presence.setFrom(TransportID)
+		Sender(self.cl, Presence)
+		if dist:
+			self.rosterSet = True
+			with Database(DatabaseFile, Semaphore) as db:
+				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
 
 	def tryAgain(self):
 		if not self.auth:
@@ -403,6 +429,7 @@ class tUser(object):
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
+		time.sleep(0.001)
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
@@ -509,7 +536,7 @@ def prsHandler(cl, prs):
 			else:
 				raise xmpp.NodeProcessed()
 
-		elif pType == "unavailable":
+		elif pType == "unavailable" and Class.lastStatus != pType:
 			Sender(cl, xmpp.Presence(jidFromStr, "unavailable", frm = TransportID))
 			Class.vk.disconnect()
 
@@ -524,8 +551,6 @@ def prsHandler(cl, prs):
 					if id in Class.friends:
 						if Class.friends[id]["online"]:
 							Sender(cl, xmpp.Presence(jidFrom, frm = jidTo))
-#		else:
-#			raise xmpp.NodeProcessed()
 		Class.lastStatus = pType
 
 def iqBuildError(stanza, error = None, text = None):
@@ -955,7 +980,7 @@ def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 			for id in friends:
 				jid = vk2xmpp(id)
 				Presence.setFrom(jid)
-				Send(Component, Presence)
+				Sender(Component, Presence)
 				Print(".", False)
 	Print("\n")
 	os._exit(1)

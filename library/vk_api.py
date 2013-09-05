@@ -3,7 +3,7 @@
 # Modifications © simpleApps.
 
 import re, time
-import requests, webtools
+import requests, urllib, webtools
 
 class VkApi:
 	def __init__(self, number, password = None, 
@@ -16,6 +16,7 @@ class VkApi:
 		self.token = token
 		self.captcha = {}
 		self.settings = {}
+		self.last = []
 		self.lastMethod = None
 
 		self.app_id = app_id
@@ -103,7 +104,7 @@ class VkApi:
 				  "redirect_uri": "https://oauth.vk.com/blank.html"}
 
 		token = None
-		GET = self.http.get(url, params = values)
+		GET = self.http.get(url, data = values)
 		getUrl = GET.url
 		if "access_token" in getUrl:
 			token = getUrl.split("=")[1].split("&")[0]
@@ -124,8 +125,12 @@ class VkApi:
 			values["captcha_sid"] = self.captcha["sid"]
 			values["captcha_key"] = self.captcha["key"]
 		self.lastMethod = (method, values)
-##		print "method %s with values %s" % (method, str(values))
 		## This code can be useful when we're loaded too high
+		self.last.append(time.time())
+		if len(self.last) > 2:
+			if (self.last.pop() - self.last.pop(0)) < 1.1:
+##				print "sleeping because too fat %s" % str(self.last)
+				time.sleep(1)
 		try:
 			json = self.http.post(url, values).json()
 		except requests.ConnectionError:
@@ -134,7 +139,9 @@ class VkApi:
 				json = self.http.post(url, values).json()
 			except:
 				return {}
-##		print "response:%s"% str(json)
+##		if method == "messages.get":
+##			print "method %s with values %s" % (method, str(values))
+##			print "response for method %s: %s" % (method, str(json))
 		if json.has_key("response"):
 			return json["response"]
 
