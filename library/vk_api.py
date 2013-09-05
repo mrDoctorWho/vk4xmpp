@@ -104,7 +104,7 @@ class VkApi:
 				  "redirect_uri": "https://oauth.vk.com/blank.html"}
 
 		token = None
-		GET = self.http.get(url, data = values)
+		GET = self.http.get(url, params = values)
 		getUrl = GET.url
 		if "access_token" in getUrl:
 			token = getUrl.split("=")[1].split("&")[0]
@@ -124,6 +124,7 @@ class VkApi:
 		if self.captcha and self.captcha.has_key("key"):
 			values["captcha_sid"] = self.captcha["sid"]
 			values["captcha_key"] = self.captcha["key"]
+			self.captcha = {}
 		self.lastMethod = (method, values)
 		## This code can be useful when we're loaded too high
 		self.last.append(time.time())
