@@ -1,13 +1,16 @@
 # coding: utf
 
 ## Connection host.
+## For Prosody shald be "vk.example.com"
 Host = "localhost"
 
 ## Connection server (usually equals host)
+## For Prosody shald be "example.com"
 Server = "localhost" 
 
 ## Connection port (as you set in your jabber-server config)
-Port = 5556
+## Default value for Prosody is 5347
+Port = 5556 
 
 ## Transport ID (Controls all)
 TransportID = "vk.example.com"
@@ -27,7 +30,8 @@ UseLastMessageID = 1
 ## Language (ru/en)
 DefLang = "ru"
 
-## White list (put here servers which you want allow to access transport). Save it as [] if you won't block any servers.
+## White list. Put here servers which you want allow to access transport. F.e.: ['yourserver1.tld','yourserver2.tld']
+## Save it as [] if you won't block any servers.
 WhiteList = []
 
 
@@ -43,7 +47,7 @@ MAX_ROSTER_UPDATE_TIMEOUT = 60
 ROSTER_UPDATE_TIMEOUT = 6
 
 ## Image that will be used if transport can't recieve image from VK.
-URL_VCARD_NO_IMAGE = "http://simpleapps.ru/sa_logo2.png"
+URL_VCARD_NO_IMAGE = "http://isida-bot.com/images/vk4xmpp.png"
 
 
 #! Uncomment this lines if you need write all into file (not recommented)
