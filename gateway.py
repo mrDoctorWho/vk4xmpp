@@ -198,9 +198,28 @@ class VKLogin(object):
 	def captchaChallenge(self):
 		if self.engine.captcha:
 			logger.debug("VKLogin: sending message with captcha to %s" % self.jidFrom)
-			msgSend(Component, self.jidFrom, _("WARNING: VK sent captcha to you."\
-											 " Please, go to %s and enter text from image to chat."\
-											 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"], TransportID)
+			body = _("WARNING: VK sent captcha to you."\
+					 " Please, go to %s and enter text from image to chat."\
+					 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
+			msg = xmpp.Message(self.jidFrom, body, "chat", frm = TransportID)
+			msg.setTimestamp(0)	
+			msg.setTag('x',namespace=xmpp.NS_OOB)
+			msg.getTag('x',namespace=xmpp.NS_OOB).setTagData('url',self.engine.captcha["img"])
+			msg.setTag('captcha',namespace=xmpp.NS_CAPTCHA)
+			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA)
+			base64_date = vCardGetPhoto(self.engine.captcha["img"])
+			base64_hash = hashlib.sha1(base64_date.decode('base64')).hexdigest()
+			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
+				addChild('field', {'type':'hidded', 'var':'FORM_TYPE'},payload = [xmpp.Node('value',payload=[xmpp.NS_CAPTCHA])])			
+			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
+				addChild('field', {'type':'hidded', 'var':'from'},payload = [xmpp.Node('value',payload=[TransportID])])
+			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
+				addChild('field', {'label':_('Enter shown text'), 'var':'ocr'},payload = [\
+					xmpp.Node('required'),\
+					xmpp.Node('media',{'xmlns':xmpp.NS_MEDIA},payload=[xmpp.Node('uri',{'type':'image/jpg'},payload = ['cid:sha1+%s@bob.xmpp.org' % base64_hash])])])
+			msg.setTag('data', {'cid':'sha1+%s@bob.xmpp.org' % base64_hash, 'type':'image/jpg', 'max-age':'0'},namespace=xmpp.NS_URN_OOB)
+			msg.getTag('data', {'cid':'sha1+%s@bob.xmpp.org' % base64_hash, 'type':'image/jpg', 'max-age':'0'},namespace=xmpp.NS_URN_OOB).setData(base64_date)
+			Sender(Component, msg)
 		else:
 			logger.error("VKLogin: captchaChallenge called with no captcha for user %s" % self.jidFrom)
 
@@ -465,6 +484,8 @@ def msgHandler(cl, msg):
 				if len(raw) > 1:
 					text, args = raw
 					args = args.strip()
+					#if text == "!exec" and args:
+					#	answer = eval(args) # REMOVE IT!!!
 					if text == "!captcha" and args:
 						if Class.vk.engine.captcha:
 							logger.debug("user %s called captcha challenge" % jidFromStr)
@@ -568,6 +589,48 @@ def iqHandler(cl, iq):
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
 			Sender(cl, iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
 			raise xmpp.NodeProcessed()
+
+	if iq.getTagAttr('captcha','xmlns') == xmpp.NS_CAPTCHA and iq.getType() == 'set':
+		jidFrom = iq.getFrom()
+		jidFromStr = jidFrom.getStripped()
+		if jidFromStr in Transport:
+			Class = Transport[jidFromStr]
+			jidTo = iq.getTo()
+			args = iq.getTag('captcha').getTag('x',namespace=xmpp.NS_DATA).getTag('field',attrs={'var':'ocr'}).getTagData('value')
+			if args:
+				answer= None
+				if jidTo == TransportID:				
+					if Class.vk.engine.captcha:
+						logger.debug("user %s called captcha challenge" % jidFromStr)
+						Class.vk.engine.captcha["key"] = args
+						retry = False
+						try:
+							logger.debug("retrying for user %s" % jidFromStr)
+							retry = Class.vk.engine.retry()
+						except api.captchaNeeded:
+							logger.error("retry for user %s failed!" % jidFromStr)
+							Class.vk.captchaChallenge()
+						if retry:
+							logger.debug("retry for user %s OK" % jidFromStr)
+							answer = _("Captcha valid.")
+							Class.tryAgain()
+						else:
+							answer = _("Captcha invalid.")
+					else:
+						answer = _("Not now. Ok?")
+								
+					if answer:
+						msgSend(cl, jidFromStr, answer, jidTo)
+						answer = msgRecieved(iq, jidFrom, jidTo) # Fix it!
+				else:
+					uID = jidTo.getNode()
+					vkMessage = Class.msg(body, uID)
+					if vkMessage:
+						answer = msgRecieved(iq, jidFrom, jidTo) # Fix it!
+				if answer:
+					Sender(cl, answer)
+			raise xmpp.NodeProcessed()
+
 	if ns == xmpp.NS_REGISTER:
 		iqRegisterHandler(cl, iq)
 	elif ns == xmpp.NS_GATEWAY:
