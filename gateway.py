@@ -57,6 +57,7 @@ pidFile = "pidFile.txt"
 Config = "Config.txt"
 DefLang = "ru"
 DEBUG_XMPPPY = False
+starttime = int(time.time())
 
 if os.path.exists(Config):
 	try:
@@ -650,14 +651,17 @@ def iqHandler(cl, iq):
 		iqStatsHandler(cl, iq)
 	elif ns == xmpp.NS_VERSION:
 		iqVersionHandler(cl, iq)
+	elif ns == xmpp.NS_LAST:
+		iqUptimeHandler(cl, iq)
+	elif iq.getTag(name='ping', namespace=xmpp.NS_PING):
+		iqPingHandler(cl, iq)
 	elif ns in (xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS):
 		iqDiscoHandler(cl, iq)
 	else:
 		Tag = iq.getTag("vCard")
 		if Tag and Tag.getNamespace() == xmpp.NS_VCARD:
 			iqVcardHandler(cl, iq)
-		else:
-			raise xmpp.NodeProcessed()
+	raise xmpp.NodeProcessed()
 
 URL_ACCEPT_APP = "https://oauth.vk.com/authorize?scope=69634&redirect_uri="\
 				 "https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token"
@@ -775,16 +779,34 @@ def calcStats():
 			countOnline += 1
 	return (countOnline, countTotal)
 
-def iqVersionHandler(cl, iq):
-	jidToStr = iq.getTo()
+def iqPingHandler(cl, iq):
 	iType = iq.getType()
-	IQChildren = iq.getQueryChildren()
+	result = iq.buildReply("result")
+	if iType == "get":
+		Sender(cl, result)
+		raise xmpp.NodeProcessed()
+
+def iqUptimeHandler(cl, iq):
+	jidToStr = iq.getFrom()
+	iType = iq.getType()
+	if iType == "get":
+		iD = iq.getID()
+		result=xmpp.Iq(to=jidToStr, typ='result')
+		result.setAttr(key='id', val=iD)
+		result.setTag('query',namespace=xmpp.NS_LAST,attrs={'seconds':str(int(time.time())-starttime)})
+		result.setTagData('query',IDentifier['name'])
+		Sender(cl, result)
+		raise xmpp.NodeProcessed()
+
+def iqVersionHandler(cl, iq):
+	iType = iq.getType()
 	result = iq.buildReply("result")
 	if iType == "get":
 		result.getTag('query').setTagData(tag='name', val=IDentifier['name'])
 		result.getTag('query').setTagData(tag='version', val=GATEWAY_REV)
 		result.getTag('query').setTagData(tag='os', val='%s %s / Python %s' % (os.uname()[0],os.uname()[2],'%s.%s.%s' % sys.version_info[:3]))
 		Sender(cl, result)
+		raise xmpp.NodeProcessed()
 
 def iqStatsHandler(cl, iq):
 	jidToStr = iq.getTo()
@@ -820,6 +842,7 @@ def iqStatsHandler(cl, iq):
 		if payload:
 			result.setQueryPayload(payload)
 			Sender(cl, result)
+			raise xmpp.NodeProcessed()
 
 def iqDiscoHandler(cl, iq):
 	jidFromStr = iq.getFrom().getStripped()
