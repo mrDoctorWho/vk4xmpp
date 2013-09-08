@@ -905,7 +905,7 @@ def iqVcardHandler(cl, iq):
 				if id in Friends.keys():
 					name = Friends[id]["name"]
 					photo = Friends[id]["photo"]
-					vCard = iqVcardBuild({"NICKNAME": name, "PHOTO": photo,
+					vCard = iqVcardBuild({"NICKNAME": name, "PHOTO": photo, "URL": "http://vk.com/id%s" % id,
 										  "DESC": _("Contact uses VK4XMPP Transport\n%s") % DESC})
 					result.setPayload([vCard])
 				else:
