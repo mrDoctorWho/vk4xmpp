@@ -584,6 +584,7 @@ def iqBuildError(stanza, error = None, text = None):
 
 def iqHandler(cl, iq):
 	ns = iq.getQueryNS()
+	
 	if WhiteList:
 		jidFrom = iq.getFrom()
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
@@ -814,6 +815,13 @@ def iqDiscoHandler(cl, iq):
 					QueryPayload.append(xNode)	
 				result.setQueryPayload(QueryPayload)
 				Sender(cl, result)
+		elif ns == xmpp.NS_DISCO_ITEMS:
+			if not Node and jidToStr == TransportID:
+				QueryPayload = []
+				result = iq.buildReply("result")
+				QueryPayload.append(xmpp.Node("identity", attrs = IDentifier))
+				result.setQueryPayload(QueryPayload)
+				Sender(cl, result)
 	raise xmpp.NodeProcessed()
 
 def iqGatewayHandler(cl, iq):
@@ -978,7 +986,7 @@ def hyperThread(start, end):
 def main():
 	Counter = [0, 0]
 	getPid() and initDatabase(DatabaseFile)
-	globals()["Component"] = xmpp.Component(Host, debug = False)
+	globals()["Component"] = xmpp.Component(Host, debug = DEBUG_XMPPPY)
 	Print("\n#-# Connecting: ", False)
 	if not Component.connect((Server, Port)):
 		Print("fail.\n", False)
