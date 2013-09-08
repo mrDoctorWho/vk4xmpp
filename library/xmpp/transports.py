@@ -106,9 +106,15 @@ class TCPsocket(PlugIn):
 		""" Try to connect to the given host/port. Does not lookup for SRV record.
 			Returns non-empty string on success. """
 		try:
-			if not server: server=self._server
-			self._sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			self._sock.connect((server[0], int(server[1])))
+			if not server: server=self._server			
+			if ':' in server[0]:
+				# ipv6
+				self._sock=socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+				self._sock.connect((server[0], int(server[1]),0,0))
+			else:
+				# ipv4
+				self._sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				self._sock.connect((server[0], int(server[1])))
 			self._send=self._sock.sendall
 			self._recv=self._sock.recv
 			self.DEBUG("Successfully connected to remote host %s"%`server`,'start')
