@@ -56,6 +56,8 @@ SLICE_STEP = 8
 pidFile = "pidFile.txt"
 Config = "Config.txt"
 DefLang = "ru"
+DEBUG_XMPPPY = False
+
 if os.path.exists(Config):
 	try:
 		execfile(Config)
@@ -202,7 +204,6 @@ class VKLogin(object):
 					 " Please, go to %s and enter text from image to chat."\
 					 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
 			msg = xmpp.Message(self.jidFrom, body, "chat", frm = TransportID)
-			msg.setTimestamp(0)	
 			msg.setTag('x',namespace=xmpp.NS_OOB)
 			msg.getTag('x',namespace=xmpp.NS_OOB).setTagData('url',self.engine.captcha["img"])
 			msg.setTag('captcha',namespace=xmpp.NS_CAPTCHA)
