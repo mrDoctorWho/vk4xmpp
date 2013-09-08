@@ -558,9 +558,7 @@ def iqBuildError(stanza, error = None, text = None):
 		error = xmpp.ERR_FEATURE_NOT_IMPLEMENTED
 	error = xmpp.Error(stanza, error, True)
 	if text:
-		error.setTagData("error", text)
-		errTag = error.getTag("error")
-		errTag.setTagData("text", text)
+		error.getTag("error").setTagData("text", text)
 	return error
 
 def iqHandler(cl, iq):
@@ -568,7 +566,8 @@ def iqHandler(cl, iq):
 	if WhiteList:
 		jidFrom = iq.getFrom()
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
-			iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list")
+			Sender(cl, iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
+			raise xmpp.NodeProcessed()
 	if ns == xmpp.NS_REGISTER:
 		iqRegisterHandler(cl, iq)
 	elif ns == xmpp.NS_GATEWAY:
@@ -616,7 +615,7 @@ def iqRegisterHandler(cl, iq):
 		link = data.addChild(node=xmpp.DataField("link"))
 		link.setLabel(_("If you won't get access-token automatically, please, follow authorization link below and authorize app,\n"\
 					  "and then paste url to password field. Autorization page"))
-		link.setType("url")
+		link.setType("text-single")
 		link.setValue(shortenUrl(URL_ACCEPT_APP))
 		phone = data.addChild(node=xmpp.DataField("phone"))
 		phone.setLabel(_("Type phone"))
@@ -822,7 +821,7 @@ def iqVcardHandler(cl, iq):
 		if jidToStr == TransportID:
 			vcard = iqVcardBuild({"NICKNAME": "VK4XMPP Transport",
 								  "DESC": DESC,
-								  "PHOTO": "http://simpleapps.ru/sa_logo2.png",
+								  "PHOTO": "http://isida-bot.com/images/vk4xmpp.png",
 								  "URL": "http://simpleapps.ru"})
 			result.setPayload([vcard])
 		
@@ -883,10 +882,10 @@ def getPid():
 					os.kill(oldPid, 15)
 					time.sleep(2)
 					os.kill(oldPid, 9)
-					Print("%d killed.\n" % oldPid, False)
 				except OSError:
 					pass
-		wFile(pidFile, str(nowPid))
+				Print("%d killed.\n" % oldPid, False)
+	wFile(pidFile, str(nowPid))
 	return True
 
 def hyperThread(start, end):
@@ -983,6 +982,10 @@ def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 				Sender(Component, Presence)
 				Print(".", False)
 	Print("\n")
+	try:
+		os.remove(pidFile)
+	except:
+		pass
 	os._exit(1)
 
 if __name__ == "__main__":

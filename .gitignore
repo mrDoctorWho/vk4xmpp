@@ -1,0 +1,6 @@
+*.pyc
+Config.txt
+crash*
+pidFile.txt
+users.db
+vk4xmpp.log
