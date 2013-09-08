@@ -77,6 +77,15 @@ Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", 
 loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
+def gateway_rev():
+	from popen2 import Popen3 as popen
+	res = popen("git describe --always && git log --pretty=format:''", True)
+	while res.poll() == -1: pass
+	rev = res.fromchild.readlines()
+	return 'rev.%s-%s' % (len(rev),rev[0])
+	
+GATEWAY_REV = gateway_rev()
+
 def initDatabase(filename):
 	if not os.path.exists(filename):
 		with Database(filename) as db:
@@ -639,6 +648,8 @@ def iqHandler(cl, iq):
 		iqGatewayHandler(cl, iq)
 	elif ns == xmpp.NS_STATS:
 		iqStatsHandler(cl, iq)
+	elif ns == xmpp.NS_VERSION:
+		iqVersionHandler(cl, iq)
 	elif ns in (xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS):
 		iqDiscoHandler(cl, iq)
 	else:
@@ -763,6 +774,17 @@ def calcStats():
 		if hasattr(key, "vk") and key.vk.Online:
 			countOnline += 1
 	return (countOnline, countTotal)
+
+def iqVersionHandler(cl, iq):
+	jidToStr = iq.getTo()
+	iType = iq.getType()
+	IQChildren = iq.getQueryChildren()
+	result = iq.buildReply("result")
+	if iType == "get":
+		result.getTag('query').setTagData(tag='name', val=IDentifier['name'])
+		result.getTag('query').setTagData(tag='version', val=GATEWAY_REV)
+		result.getTag('query').setTagData(tag='os', val='%s %s / Python %s' % (os.uname()[0],os.uname()[2],'%s.%s.%s' % sys.version_info[:3]))
+		Sender(cl, result)
 
 def iqStatsHandler(cl, iq):
 	jidToStr = iq.getTo()
