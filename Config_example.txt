@@ -49,6 +49,9 @@ ROSTER_UPDATE_TIMEOUT = 6
 ## Image that will be used if transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://isida-bot.com/images/vk4xmpp.png"
 
+## Debug xmpppy library
+DEBUG_XMPPPY = False
+
 
 #! Uncomment this lines if you need write all into file (not recommented)
 #class STDout(object):

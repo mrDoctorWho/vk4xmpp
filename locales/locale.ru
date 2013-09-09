@@ -21,3 +21,4 @@ You're not registered for this action.=Вы должны быть зарегис
 Auth failed! Please register again. This incident will be reported.=Авторизация не удалась. Пожалуйста, зарегистрируйтесь заново. Об этом инциденте будет сообщено.
 \LForward messages:=\LПересланные сообщения:
 \LAttachments:=\LВложения:
+Enter shown text=Введите показанный текст
