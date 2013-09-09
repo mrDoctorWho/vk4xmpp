@@ -1,10 +1,11 @@
 # coding: utf
 
-## Connection host (as is for ejabberd, for prosody should be "vk.example.com")
+## Connection host.
+## For Prosody shald be "vk.example.com"
 Host = "localhost"
 
 ## Connection server (usually equals host)
-## For Prosody should be "example.com"
+## For Prosody shald be "example.com"
 Server = "localhost" 
 
 ## Connection port (as you set in your jabber-server config)
@@ -33,6 +34,10 @@ DefLang = "ru"
 ## Save it as [] if you won't block any servers.
 WhiteList = []
 
+## Watcher list. Put here jid(s) of transport admin for notifications of registration. F.e.: ['admin@yourserver1.tld','name@yourserver2.tld']
+## Save it as [] if you won't watch any registration.
+WatcherList = []
+
 
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 
@@ -50,3 +55,28 @@ URL_VCARD_NO_IMAGE = "http://isida-bot.com/images/vk4xmpp.png"
 
 ## Debug xmpppy library
 DEBUG_XMPPPY = False
+
+
+#! Uncomment this lines if you need write all into file (not recommented)
+#class STDout(object):
+#
+#	def __init__(self, filename = None, std = sys.stdout):
+#		self.name = std.name
+#		if not filename:
+#			filename = self.name.strip("<>")
+#		self.file = open(filename, "w", 0)
+#		self.backup = std
+#		self.isatty = lambda: False
+#		self.flush = self.file.flush
+#		self.close = self.file.close
+#
+#	def write(self, data):
+#		self.file.write(data)
+#		self.backup.write(data)
+#		self.backup.flush()
+#
+#	def writelines(self, lines):
+#		for line in lines:
+#			self.write(line + "\r\n")
+#
+#sys.stdout = sys.stderr = STDout("log.txt")
