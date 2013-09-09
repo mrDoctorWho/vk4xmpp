@@ -436,6 +436,7 @@ class tUser(object):
 			Sender(self.cl, Presence)
 			time.sleep(0.2)
 		Presence.setFrom(TransportID)
+		Presence.setTagData("nick", IDentifier['name'])
 		Sender(self.cl, Presence)
 		if dist:
 			self.rosterSet = True
