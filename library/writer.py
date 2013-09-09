@@ -1,7 +1,35 @@
 # /* encoding: utf-8 */
 # © simpleApps, 2010
 
-import sys, traceback
+import os, sys, time, logging, traceback
+
+logger = logging.getLogger("vk4xmpp")
+
+fixme = lambda msg: Print("\n#! fixme: \"%s\"." % msg)
+
+def wFile(filename, data, mode = "w"):
+	with open(filename, mode, 0) as file:
+		file.write(data)
+
+def rFile(filename):
+	with open(filename, "r") as file:
+		return file.read()
+
+def crashLog(name, text = 0, fixMe = True):
+	logger.error("writing crashlog %s" % name)
+	if fixMe:
+		fixme(name)
+	try:
+		File = "crash/%s.txt" % name
+		if not os.path.exists("crash"): 
+			os.makedirs("crash")
+		Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
+		exception = wException(True)
+		if exception:
+			wFile(File, Timestamp + exception, "a")
+	except:
+		fixme("crashlog")
+		wException()
 
 def Print(text, line = True):
 	try:
@@ -10,13 +38,14 @@ def Print(text, line = True):
 		else:
 			sys.stdout.write(text)
 			sys.stdout.flush()
-	except:
+	except (IOError, OSError):
 		pass
 
-fixme = lambda msg: Print("\n#! fixme: \"%s\"." % msg)
-
-def wException(limit = None, file = None):
+def wException(File = False):
 	try:
-		traceback.print_exc(limit, file) # May cause IOError/OSError and maybe something more
-	except:
+		exception = str(traceback.format_exc())
+		if not File:
+			Print(exception)
+		return exception
+	except (IOError, OSError):
 		pass

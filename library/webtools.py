@@ -7,8 +7,6 @@
 
 import urllib, urllib2, re
 
-UserAgents = {"OperaMini": "Opera/9.60 (J2ME/MIDP; Opera Mini/4.2.13337/724; U; ru)"} # Opera Mini 4.2 User-Agent
-
 ## HTML Unescape and <br> tag replace.
 import htmlentitydefs
 
@@ -45,24 +43,13 @@ def uHTML(data):
 	data = re.sub("</?br */?>", "\n", data)
 	return data
 	
-## Opening urls.
-read_link = lambda link: urllib.urlopen(link).read()
-
-def read_url(link, Browser = None):
-	req = urllib2.Request(link)
-	if Browser:
-		req.add_header("User-agent", Browser)
-	site = urllib2.urlopen(req)
-	data = site.read()
-	return data
-
-## Parsing.
-def re_search(body, s0, s2, s1 = "(?:.|\s)+"):
-	comp = re.compile("%s(%s?)%s" % (s0, s1, s2), 16)
-	body = comp.search(body)
-	if body:
-		body = (body.group(1)).strip()
-	return body
+def regexp(reg, string, findall = 1):
+	reg = re.compile(reg, re.IGNORECASE | re.DOTALL)
+	if findall:
+		reg = reg.findall(string)
+	else:
+		return reg.search(string)
+	return reg
 
 ## Get HTML tag.
 def getTagData(tag, data, close_tag = 0):
@@ -86,16 +73,6 @@ def getTagArg(tag, argv, data, close_tag = 0):
 def stripTags(data, subBy = str(), pattern = "<[^<>]+>"):
 	pattern = re.compile(pattern)
 	return pattern.sub(subBy, data)
-
-## IDNA tool.
-def IDNA(text, encode = True):
-	if "://" in text:
-		text = text.split("://")[1]
-	if encode:
-		text = unicode(text).encode("idna")
-	else:
-		text = unicode(text).decode("idna")
-	return text
 	
 ## Format size.
 def byteFormat(size):
