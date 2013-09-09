@@ -34,6 +34,7 @@ from webtools import *
 from writer import *
 from stext import *
 from stext import _
+from hashlib import sha1 as hashlib_sha1
 import vk_api as api
 
 Transport = {}
@@ -219,7 +220,7 @@ class VKLogin(object):
 			msg.setTag('captcha',namespace=xmpp.NS_CAPTCHA)
 			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA)
 			base64_date = vCardGetPhoto(self.engine.captcha["img"])
-			base64_hash = hashlib.sha1(base64_date.decode('base64')).hexdigest()
+			base64_hash = hashlib_sha1(base64_date.decode('base64')).hexdigest()
 			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
 				addChild('field', {'type':'hidded', 'var':'FORM_TYPE'},payload = [xmpp.Node('value',payload=[xmpp.NS_CAPTCHA])])			
 			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
