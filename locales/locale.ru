@@ -22,3 +22,5 @@ Auth failed! Please register again. This incident will be reported.=Автори
 \LForward messages:=\LПересланные сообщения:
 \LAttachments:=\LВложения:
 Enter shown text=Введите показанный текст
+New user registered: %s=Зарегистрирован новый пользователь: %s
+User remove registration: %s=Пользователь удалил регистрацию: %s

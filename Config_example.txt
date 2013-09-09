@@ -34,6 +34,10 @@ DefLang = "ru"
 ## Save it as [] if you won't block any servers.
 WhiteList = []
 
+## Watcher list. Put here jid(s) of transport admin for notifications of registration. F.e.: ['admin@yourserver1.tld','name@yourserver2.tld']
+## Save it as [] if you won't watch any registration.
+WatcherList = []
+
 
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 

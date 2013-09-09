@@ -57,7 +57,7 @@ class VkApi:
 			raise authError("Authorization error (bad password)")
 
 		if "security_check" in response.url:
-			number_hash = regexp(r"security_check.*?hash: '(.*?)'\};", response.text)[0]
+			number_hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", response.text)[0]
 
 			code = self.number[2:-2]			
 			if len(self.number) == 12:
@@ -163,16 +163,6 @@ class VkApi:
 	def retry(self):
 		if self.lastMethod: 
 			return self.method(*self.lastMethod)
-
-def regexp(reg, string, findall = 1):
-	u""" Поиск по регулярке """
-
-	reg = re.compile(reg, re.IGNORECASE | re.DOTALL)
-	if findall:
-		reg = reg.findall(string)
-	else:
-		return reg.search(string)
-	return reg
 
 
 class vkApiError(Exception):
