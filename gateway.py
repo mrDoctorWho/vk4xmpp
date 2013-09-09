@@ -86,7 +86,8 @@ def gateway_rev():
 	rev = res.fromchild.readlines()
 	return 'rev.%s-%s' % (len(rev),rev[0])
 	
-GATEWAY_REV = gateway_rev()
+try: GATEWAY_REV = gateway_rev()
+except: GATEWAY_REV = 'unknown'
 
 def initDatabase(filename):
 	if not os.path.exists(filename):
