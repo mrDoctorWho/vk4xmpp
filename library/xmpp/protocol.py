@@ -143,6 +143,9 @@ NS_MUC_FILTER		= 'http://jabber.ru/muc-filter'
 NS_URN_TIME			= 'urn:xmpp:time'										# XEP-0202
 NS_RECEIPTS			= 'urn:xmpp:receipts'									# XEP-0184
 NS_OOB				= 'jabber:x:oob'										# XEP-0066
+NS_CAPTCHA			= 'urn:xmpp:captcha'									# XEP-0158
+NS_MEDIA			= 'urn:xmpp:media-element'								# XEP-0158
+NS_URN_OOB			= 'urn:xmpp:bob'										# XEP-0158
 
 STREAM_NOT_AUTHORIZED			= NS_XMPP_STREAMS+" not-authorized"
 STREAM_REMOTE_CONNECTION_FAILED	= NS_XMPP_STREAMS+" remote-connection-failed"
