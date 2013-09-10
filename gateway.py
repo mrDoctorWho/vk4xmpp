@@ -684,7 +684,7 @@ def iqRegisterHandler(cl, iq):
 		use_password = data.addChild(node=xmpp.DataField("use_password"))
 		use_password.setLabel(_("Try to get access-token automatically? (NOT recommented, password required)"))
 		use_password.setType("boolean")
-##		use_password.setValue("0")
+		use_password.setValue("0")
 		password = data.addChild(node=xmpp.DataField("password"))
 		password.setLabel(_("Type password or url (recommented) or access-token"))
 		password.setType("text-private")
