@@ -143,6 +143,7 @@ class VkApi:
 ##		if method == "messages.get":
 ##			print "method %s with values %s" % (method, str(values))
 ##			print "response for method %s: %s" % (method, str(json))
+
 		if json.has_key("response"):
 			return json["response"]
 
@@ -154,6 +155,8 @@ class VkApi:
 				return self.method(method, values)
 			elif eCode == 5: # auth failed
 				raise apiError("Logged out")
+			elif eCode == 9:
+				return {}
 			if eCode == 14:
 				if "captcha_sid" in error: # maybe we need check if exists self.captcha
 					self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
