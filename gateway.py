@@ -676,7 +676,7 @@ def iqRegisterHandler(cl, iq):
 		link.setLabel(_("If you won't get access-token automatically, please, follow authorization link below and authorize app,\n"\
 					  "and then paste url to password field. Autorization page"))
 		link.setType("text-single")
-		link.setValue(shortenUrl(URL_ACCEPT_APP))
+		link.setValue(URL_ACCEPT_APP)
 		phone = data.addChild(node=xmpp.DataField("phone"))
 		phone.setLabel(_("Type phone"))
 		phone.setType("text-single")
