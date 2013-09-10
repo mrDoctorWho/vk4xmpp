@@ -448,7 +448,7 @@ class tUser(object):
 		try:
 			if not self.vk.Online:
 				self.connect()
-			Class.init(True)
+			self.init(True)
 		except:
 			crashLog("tryAgain")
 
