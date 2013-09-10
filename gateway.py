@@ -773,8 +773,8 @@ def calcStats():
 def iqPingHandler(cl, iq):
 	iType = iq.getType()
 	if iType == "get":
-		Sender(cl, iq.buildReplu("result"))
-		raise xmpp.NodeProcessed()
+		Sender(cl, iq.buildReply("result"))
+	raise xmpp.NodeProcessed()
 
 def iqUptimeHandler(cl, iq):
 	jidToStr = iq.getFrom()
