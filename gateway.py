@@ -512,7 +512,7 @@ def msgHandler(cl, msg):
 					text, args = raw
 					args = args.strip()
 					if text == "!captcha" and args:
-						captchaAccept(args, jidTo, jidFromStr)
+						captchaAccept(cl, args, jidTo, jidFromStr)
 						answer = msgRecieved(msg, jidFrom, jidTo)
 			else:
 				uID = jidTo.getNode()
@@ -588,7 +588,7 @@ def iqBuildError(stanza, error = None, text = None):
 		eTag.setTagData("text", text)
 	return error
 
-def captchaAccept(args, jidTo, jidFromStr):
+def captchaAccept(cl, args, jidTo, jidFromStr):
 	if args:
 		answer = None
 		Class = Transport[jidFromStr]
@@ -630,7 +630,7 @@ def iqHandler(cl, iq):
 				cxTag = cTag.getTag("x", {}, xmpp.NS_DATA)
 				fcxTag = cxTag.getTag("field", {"var": "ocr"})
 				cValue = fcxTag.getTagData('value')
-				captchaAccept(cValue, jidTo, jidFromStr)
+				captchaAccept(cl, cValue, jidTo, jidFromStr)
 
 	ns = iq.getQueryNS()
 	if ns == xmpp.NS_REGISTER:
