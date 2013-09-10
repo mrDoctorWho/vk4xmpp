@@ -437,7 +437,7 @@ class tUser(object):
 									name = name.pop()
 									name = u"%s %s" % (name["first_name"], name["last_name"])
 							else:
-								name =  self.friends[idFrom]
+								name = self.friends[idFrom]["name"]
 							body += "\n[%s] <%s> %s" % (date, name, fwdBody)
 					msgSend(self.cl, self.jUser, body, fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
