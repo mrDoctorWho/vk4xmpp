@@ -15,10 +15,9 @@ def rFile(name):
 def _(what):
 	name = "%s/locales/locale.%s" % (path, locale)
 	what = what.replace("\n", "\L")
-	if locale == "en" or not os.path.exists(name):
-		return what
-	data = rFile(name)
-	for line in data.splitlines():
-		if line.startswith(what):
-			return line.split("=")[1].replace("\\L", "\n")
-	return what
+	if locale != "en" and os.path.exists(name):
+		data = rFile(name)
+		for line in data.splitlines():
+			if line.startswith(what):
+				what = line.split("=")[1]
+	return what.replace("\L", "\n")

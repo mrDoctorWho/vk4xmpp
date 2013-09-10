@@ -39,8 +39,8 @@ import vk_api as api
 
 Transport = {}
 TransportsList = []
-WhiteList = []
 WatcherList = []
+WhiteList = []
 
 TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
 					  xmpp.NS_DISCO_INFO,
@@ -65,7 +65,7 @@ DefLang = "ru"
 
 DEBUG_XMPPPY = False
 
-starttime = int(time.time())
+startTime = int(time.time())
 
 if os.path.exists(Config):
 	try:
@@ -86,18 +86,16 @@ Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", 
 loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
-def gateway_rev():
+def gatewayRev():
 	revNumber, rev = 0, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
-	else:
-		revNumber, rev = 'xx','unknown'
 	return "#%s-%s" % (revNumber, rev)
 
 OS = "{0} {2:.16} [{4}]".format(*os.uname())
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
-GATEWAY_REV = gateway_rev()
+Revision = gatewayRev()
 
 def initDatabase(filename):
 	if not os.path.exists(filename):
@@ -208,26 +206,31 @@ class VKLogin(object):
 			body = _("WARNING: VK sent captcha to you."\
 					 " Please, go to %s and enter text from image to chat."\
 					 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
+			Types = (dict(type = "form"), dict(type = "hidden", var = "form"))
 			msg = xmpp.Message(self.jidFrom, body, "chat", frm = TransportID)
-			msg.setTag('x',namespace=xmpp.NS_OOB)
-			msg.getTag('x',namespace=xmpp.NS_OOB).setTagData('url',self.engine.captcha["img"])
-			msg.setTag('captcha',namespace=xmpp.NS_CAPTCHA)
-			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA)
-			base64_date = vCardGetPhoto(self.engine.captcha["img"])
-			base64_hash = sha1(base64_date.decode('base64')).hexdigest()
-			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
-				addChild('field', {'type':'hidded', 'var':'FORM_TYPE'},payload = [xmpp.Node('value',payload=[xmpp.NS_CAPTCHA])])
-			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
-				addChild('field', {'type':'hidded', 'var':'from'},payload = [xmpp.Node('value',payload=[TransportID])])
-			msg.getTag('captcha',namespace=xmpp.NS_CAPTCHA).setTag('x',attrs={'type':'form'},namespace=xmpp.NS_DATA).\
-				addChild('field', {'label':_('Enter shown text'), 'var':'ocr'},payload = [\
-					xmpp.Node('required'),\
-					xmpp.Node('media',{'xmlns':xmpp.NS_MEDIA},payload=[xmpp.Node('uri',{'type':'image/jpg'},payload = ['cid:sha1+%s@bob.xmpp.org' % base64_hash])])])
-			msg.setTag('data', {'cid':'sha1+%s@bob.xmpp.org' % base64_hash, 'type':'image/jpg', 'max-age':'0'},namespace=xmpp.NS_URN_OOB)
-			msg.getTag('data', {'cid':'sha1+%s@bob.xmpp.org' % base64_hash, 'type':'image/jpg', 'max-age':'0'},namespace=xmpp.NS_URN_OOB).setData(base64_date)
+			msg.setTag("x", {}, xmpp.NS_OOB)
+			xTag = msg.getTag("x", {}, xmpp.NS_OOB)
+			xTag.setTagData("url", self.engine.captcha["img"])
+			msg.setTag("captcha", {}, xmpp.NS_CAPTCHA)
+			cTag = msg.getTag("captcha", {}, xmpp.NS_CAPTCHA)
+			cTag.setTag("x", Types[0], xmpp.NS_DATA)
+			imgData = vCardGetPhoto(self.engine.captcha["img"], False)
+			imgHash = sha1(imgData).hexdigest()
+			imgEncoded = imgData.encode("base64")
+			cxTag = cTag.setTag("x", Types[0], xmpp.NS_DATA)
+			cxTag.addChild("field", dict(type = "hidden", var = "FORM_TYPE"), 
+									[xmpp.Node("value", payload = [xmpp.NS_CAPTCHA])])
+			cxTag.addChild("field", dict(type = "hidden", var = "from"),
+									[xmpp.Node("value", payload = [TransportID])])
+			cxTag.addChild("field", {"label": _("Enter shown text"), "var": "ocr"}, 
+									[xmpp.Node("required"),	xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA}, 
+									[xmpp.Node("uri", {"type": "image/jpg"}, ["cid:sha1+%s@bob.xmpp.org" % imgHash])])])
+			msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type":"image/jpg", "max-age":"0"}, xmpp.NS_URN_OOB)
+			obTag = msg.getTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
+			obTag.setData(imgEncoded)
 			Sender(Component, msg)
 		else:
-			logger.error("VKLogin: captchaChallenge called with no captcha for user %s" % self.jidFrom)
+			logger.error("VKLogin: captchaChallenge called without captcha for user %s" % self.jidFrom)
 
 	def disconnect(self):
 		logger.debug("VKLogin: user %s is gone!" % self.jidFrom)
@@ -386,7 +389,7 @@ class tUser(object):
 				Sender(self.cl, Presence)
 
 	def sendMessages(self):
-		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
+		messages = self.vk.getMessages(None, 200, lastMsgID = 0)#self.lastMsgID) # messages.getLastActivity
 		if messages:
 			messages = messages[1:]
 			messages = sorted(messages, lambda a, b: a["date"] - b["date"])
@@ -401,9 +404,25 @@ class tUser(object):
 						body += _("\nAttachments:")
 						attachments = message["attachments"]
 						for att in attachments:
-							key = att.get("type", {})
-							if att[key].has_key("url"):
-								body += "\n" + att[key]["url"]
+							key = att.get("type")
+							if key == "wall":
+								continue	
+							elif key == "photo":
+								keys = ("src_big", "url", "src_xxxbig", "src_xxbig", "src_xbig", "src", "src_small")
+								for dKey in keys:
+									if att[key].has_key(dKey):
+										body += "\n" + att[key][dKey]
+										break
+							elif key == "video":
+								body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
+							elif key == "audio":
+								body += "\nAudio: %(performer)s — %(title)s — %(url)s"
+							elif key == "doc":
+								body += "\nDocument: %(title)s — %(url)s"
+							else:
+								body += "\nUnknown attachment: " + str(att[key])
+							body = body % att.get(key, {})
+
 					if message.has_key("fwd_messages"):
 						body += _("\nForward messages")
 						fwd_messages = sorted(message["fwd_messages"], lambda a, b: a["date"] - b["date"])
@@ -436,7 +455,7 @@ class tUser(object):
 			Sender(self.cl, Presence)
 			time.sleep(0.2)
 		Presence.setFrom(TransportID)
-		Presence.setTagData("nick", IDentifier['name'])
+		Presence.setTagData("nick", IDentifier["name"])
 		Sender(self.cl, Presence)
 		if dist:
 			self.rosterSet = True
@@ -455,6 +474,7 @@ class tUser(object):
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
+		gc.collect() 		## maybe it's wrong place, because collect() takes many cpu time, but when we have many users we'll collect more
 		time.sleep(0.001)
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
@@ -491,29 +511,8 @@ def msgHandler(cl, msg):
 				if len(raw) > 1:
 					text, args = raw
 					args = args.strip()
-					#if text == "!exec" and args:
-					#	answer = eval(args) # REMOVE IT!!!
 					if text == "!captcha" and args:
-						if Class.vk.engine.captcha:
-							logger.debug("user %s called captcha challenge" % jidFromStr)
-							Class.vk.engine.captcha["key"] = args
-							retry = False
-							try:
-								logger.debug("retrying for user %s" % jidFromStr)
-								retry = Class.vk.engine.retry()
-							except api.captchaNeeded:
-								logger.error("retry for user %s failed!" % jidFromStr)
-								Class.vk.captchaChallenge()
-							if retry:
-								logger.debug("retry for user %s OK" % jidFromStr)
-								answer = _("Captcha valid.")
-								Class.tryAgain()
-							else:
-								answer = _("Captcha invalid.")
-						else:
-							answer = _("Not now. Ok?")
-					if answer:
-						msgSend(cl, jidFromStr, answer, jidTo)
+						captchaAccept(args, jidTo, jidFromStr)
 						answer = msgRecieved(msg, jidFrom, jidTo)
 			else:
 				uID = jidTo.getNode()
@@ -589,49 +588,51 @@ def iqBuildError(stanza, error = None, text = None):
 		eTag.setTagData("text", text)
 	return error
 
+def captchaAccept(args, jidTo, jidFromStr):
+	if args:
+		answer = None
+		Class = Transport[jidFromStr]
+		if Class.vk.engine.captcha:
+			logger.debug("user %s called captcha challenge" % jidFromStr)
+			Class.vk.engine.captcha["key"] = args
+			retry = False
+			try:
+				logger.debug("retrying for user %s" % jidFromStr)
+				retry = Class.vk.engine.retry()
+			except api.captchaNeeded:
+				logger.error("retry for user %s failed!" % jidFromStr)
+				Class.vk.captchaChallenge()
+			if retry:
+				logger.debug("retry for user %s OK" % jidFromStr)
+				answer = _("Captcha valid.")
+				Class.tryAgain()
+			else:
+				answer = _("Captcha invalid.")
+		else:
+			answer = _("Not now. Ok?")
+		if answer:
+			msgSend(cl, jidFromStr, answer, jidTo)
+		
+
 def iqHandler(cl, iq):
-	ns = iq.getQueryNS()
+	jidFrom = iq.getFrom()
+	jidFromStr = jidFrom.getStripped()
 	if WhiteList:
-		jidFrom = iq.getFrom()
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
 			Sender(cl, iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
 			raise xmpp.NodeProcessed()
 
-	if iq.getTagAttr('captcha','xmlns') == xmpp.NS_CAPTCHA and iq.getType() == 'set':
-		jidFrom = iq.getFrom()
-		jidFromStr = jidFrom.getStripped()
+	if iq.getType == "set" and iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
 		if jidFromStr in Transport:
-			Class = Transport[jidFromStr]
 			jidTo = iq.getTo()
-			args = iq.getTag('captcha').getTag('x',namespace=xmpp.NS_DATA).getTag('field',attrs={'var':'ocr'}).getTagData('value')
-			if args:
-				answer = None
-				if jidTo == TransportID:
-					if Class.vk.engine.captcha:
-						logger.debug("user %s called captcha challenge" % jidFromStr)
-						Class.vk.engine.captcha["key"] = args
-						retry = False
-						try:
-							logger.debug("retrying for user %s" % jidFromStr)
-							retry = Class.vk.engine.retry()
-						except api.captchaNeeded:
-							logger.error("retry for user %s failed!" % jidFromStr)
-							Class.vk.captchaChallenge()
-						if retry:
-							logger.debug("retry for user %s OK" % jidFromStr)
-							answer = _("Captcha valid.")
-							Class.tryAgain()
-						else:
-							answer = _("Captcha invalid.")
-					else:
-						answer = _("Not now. Ok?")
-					if answer:
-						msgSend(cl, jidFromStr, answer, jidTo)
-						answer = msgRecieved(iq, jidFrom, jidTo) # Fix it
-				if answer:
-					Sender(cl, answer)
-			raise xmpp.NodeProcessed()
+			if jidTo == TransportID:
+				cTag = iq.getTag("captcha")
+				cxTag = cTag.getTag("x", {}, xmpp.NS_DATA)
+				fcxTag = cxTag.getTag("field", {"var": "ocr"})
+				cValue = fcxTag.getTagData('value')
+				captchaAccept(cValue, jidTo, jidFromStr)
 
+	ns = iq.getQueryNS()
 	if ns == xmpp.NS_REGISTER:
 		iqRegisterHandler(cl, iq)
 	elif ns == xmpp.NS_GATEWAY:
@@ -642,32 +643,22 @@ def iqHandler(cl, iq):
 		iqVersionHandler(cl, iq)
 	elif ns == xmpp.NS_LAST:
 		iqUptimeHandler(cl, iq)
-	elif iq.getTag(name='ping', namespace=xmpp.NS_PING):
-		iqPingHandler(cl, iq)
 	elif ns in (xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS):
 		iqDiscoHandler(cl, iq)
 	else:
-		Tag = iq.getTag("vCard")
+		Tag = iq.getTag("vCard") or iq.getTag("ping")
 		if Tag and Tag.getNamespace() == xmpp.NS_VCARD:
 			iqVcardHandler(cl, iq)
+		elif Tag and Tag.getNamespace == xmpp.NS_PING:
+			Sender(cl, iq.buildReply("result"))
+
 	raise xmpp.NodeProcessed()
 
-URL_ACCEPT_APP = "https://oauth.vk.com/authorize?scope=69634&redirect_uri="\
-				 "https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token"
-
-def shortenUrl(url):
-	data = urllib.urlencode(dict(format = "json", url = url))
-	try:
-		data = urllib.urlopen("http://is.gd/create.php?%s" % data).read()
-		data = json.loads(data)
-		answer = data.get("shorturl", url)
-	except:
-		answer = url
-	return answer
+URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html"
 
 def iqRegisterHandler(cl, iq):
-	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
+	jidFrom = iq.getFrom()
 	jidFromStr = jidFrom.getStripped()
 	jidToStr = jidTo.getStripped()
 	iType = iq.getType()
@@ -693,7 +684,7 @@ def iqRegisterHandler(cl, iq):
 		use_password = data.addChild(node=xmpp.DataField("use_password"))
 		use_password.setLabel(_("Try to get access-token automatically? (NOT recommented, password required)"))
 		use_password.setType("boolean")
-		use_password.setValue("0")
+##		use_password.setValue("0")
 		password = data.addChild(node=xmpp.DataField("password"))
 		password.setLabel(_("Type password or url (recommented) or access-token"))
 		password.setType("text-private")
@@ -703,27 +694,26 @@ def iqRegisterHandler(cl, iq):
 		phone, password, usePassword, token = False, False, False, False
 		Query = iq.getTag("query")
 		if Query.getTag("x"):
-			for node in iq.getTags("query", namespace=xmpp.NS_REGISTER):
-				for node in node.getTags("x", namespace=xmpp.NS_DATA):
-					phone = node.getTag("field", attrs={"var": "phone"})
+			for node in iq.getTags("query", namespace = xmpp.NS_REGISTER):
+				for node in node.getTags("x", namespace = xmpp.NS_DATA):
+					phone = node.getTag("field", {"var": "phone"})
 					phone = phone and phone.getTagData("value")
-					password = node.getTag("field", attrs={"var": "password"})
+					password = node.getTag("field", {"var": "password"})
 					password = password and password.getTagData("value")
-					usePassword = node.getTag("field", attrs={"var": "use_password"})
+					usePassword = node.getTag("field", {"var": "use_password"})
 					usePassword = usePassword and usePassword.getTagData("value")
 
 			if not phone:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 			if not password:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Null password"))
-			if usePassword:
-				logger.debug("user %s want to use password" % jidFromStr)
-				usePassword = int(usePassword)
+			usePassword = int(usePassword)
 			if not usePassword:
-				logger.debug("user %s wont to use password" % jidFromStr)
+				logger.debug("user %s won't to use password" % jidFromStr)
 				token = password
 				password = None
-
+			else:
+				logger.debug("user %s want to use password" % jidFromStr)
 			user = tUser(cl, (phone, password), (jidFrom, jidFromStr))
 			if not usePassword:
 				try:
@@ -768,23 +758,17 @@ def calcStats():
 	for key in TransportsList:
 		if hasattr(key, "vk") and key.vk.Online:
 			countOnline += 1
-	return (countOnline, countTotal)
-
-def iqPingHandler(cl, iq):
-	iType = iq.getType()
-	if iType == "get":
-		Sender(cl, iq.buildReply("result"))
-	raise xmpp.NodeProcessed()
+	return [countOnline, countTotal]
 
 def iqUptimeHandler(cl, iq):
-	jidToStr = iq.getFrom()
+	jidFrom = iq.getFrom()
 	iType = iq.getType()
 	if iType == "get":
-		iD = iq.getID()
-		result=xmpp.Iq(to=jidToStr, typ='result')
-		result.setAttr(key='id', val=iD)
-		result.setTag('query',namespace=xmpp.NS_LAST,attrs={'seconds':str(int(time.time())-starttime)})
-		result.setTagData('query',IDentifier['name'])
+		uptime = int(time.time() - startTime)
+		result = xmpp.Iq("result", to = jidFrom)
+		result.setID(iq.getID())
+		result.setTag("query", {"seconds": str(uptime)}, xmpp.NS_LAST)
+		result.setTagData("query", IDentifier["name"])
 		Sender(cl, result)
 	raise xmpp.NodeProcessed()
 
@@ -794,10 +778,19 @@ def iqVersionHandler(cl, iq):
 	if iType == "get":
 		Query = result.getTag("query")
 		Query.setTagData("name", IDentifier["name"])
-		Query.setTagData("version", GATEWAY_REV)
+		Query.setTagData("version", Revision)
 		Query.setTagData("os", "%s / %s" % (OS, Python))
 		Sender(cl, result)
 	raise xmpp.NodeProcessed()
+
+sDict = {
+		  "users/total": "users",
+		  "users/online": "users",
+		  "memory/virtual": "bytes",
+		  "memory/real": "bytes",
+		  "cpu/percent": "percent",
+		  "cpu/time": "seconds"
+		  }
 
 def iqStatsHandler(cl, iq):
 	jidToStr = iq.getTo()
@@ -805,61 +798,31 @@ def iqStatsHandler(cl, iq):
 	IQChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
 	if iType == "get" and jidToStr == TransportID:
-		payload = list()
+		QueryPayload = list()
 		if not IQChildren:
-			total = xmpp.Node("stat", attrs={"name": "users/total"})
-			online = xmpp.Node("stat", attrs={"name": "users/online"})
-			mem_virt = xmpp.Node("stat", attrs={"name": "memory/virtual"})
-			mem_real = xmpp.Node("stat", attrs={"name": "memory/real"})
-			cpu_persent = xmpp.Node("stat", attrs={"name": "cpu/persent"})
-			cpu_time = xmpp.Node("stat", attrs={"name": "cpu/time"})
-			payload = [total, online, mem_virt, mem_real, cpu_persent, cpu_time]
+			for key in sDict.keys():
+				Node = xmpp.Node("stat", {"name": key})
+				QueryPayload.append(Node)
 		else:
-			stats = calcStats()
+			users = calcStats()
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
-			mem_virt, mem_real, cpu_persent, cpu_time = shell[1].split()
-			for n in [child for child in IQChildren if child.getName()=='stat']:
-				if n.getAttr('name') == 'users/online':
-					stat = xmpp.Node('stat', attrs={'units':'users'})
-					stat.setAttr('name','users/online')
-					stat.setAttr('value', stats[0])
-					payload.append(stat)
-				elif n.getAttr('name') == 'users/total':
-					stat = xmpp.Node('stat', attrs={'units':'users'})
-					stat.setAttr('name','users/total')
-					stat.setAttr('value', stats[1])
-					payload.append(stat)
-				elif n.getAttr('name') == 'memory/virtual':
-					stat = xmpp.Node('stat', attrs={'units':'bytes'})
-					stat.setAttr('name','memory/virtual')
-					stat.setAttr('value', mem_virt)
-					payload.append(stat)
-				elif n.getAttr('name') == 'memory/real':
-					stat = xmpp.Node('stat', attrs={'units':'bytes'})
-					stat.setAttr('name','memory/real')
-					stat.setAttr('value', mem_real)
-					payload.append(stat)
-				elif n.getAttr('name') == 'cpu/persent':
-					stat = xmpp.Node('stat', attrs={'units':'persent'})
-					stat.setAttr('name','cpu/persent')
-					stat.setAttr('value', cpu_persent)
-					payload.append(stat)
-				elif n.getAttr('name') == 'cpu/time':
-					stat = xmpp.Node('stat', attrs={'units':'seconds'})
-					stat.setAttr('name','cpu/time')
-					stat.setAttr('value', cpu_time)
-					payload.append(stat)
-				else:
-					s = xmpp.Node('stat', attrs={'name':n.getAttr2('name')})
-					err = xmpp.Node('error', attrs={'code':'404'})
-					err.setData('Not Found')
-					s = xmpp.Node('stat', attrs={'name':n.getAttr('name')})
-					s.addChild(node=err)
-					payload.append(s)
-		if payload:
-			result.setQueryPayload(payload)
+			memVirt, memReal, cpuPercent, cpuTime = shell[1].split()
+			stats = {"users": users, "bytes": [memVirt, memReal], 
+					 "percent": [cpuPercent], "seconds": [cpuTime]}
+			for Child in IQChildren:
+				if Child.getName() != "stat":
+					continue
+				name = Child.getAttr("name")
+				if name in sDict:
+					attr = sDict[name]
+					value = stats[attr].pop(0)
+					Node = xmpp.Node("stat", {"units": attr})
+					Node.setAttr("name", name)
+					Node.setAttr("value", value)
+					QueryPayload.append(Node)
+		if QueryPayload:
+			result.setQueryPayload(QueryPayload)
 			Sender(cl, result)
-			raise xmpp.NodeProcessed()
 
 def iqDiscoHandler(cl, iq):
 	jidFromStr = iq.getFrom().getStripped()
@@ -868,23 +831,19 @@ def iqDiscoHandler(cl, iq):
 	ns = iq.getQueryNS()
 	Node = iq.getTagAttr("query", "node")
 	if iType == "get":
-		if ns == xmpp.NS_DISCO_INFO:
-			if not Node and jidToStr == TransportID:
-				QueryPayload = []
-				result = iq.buildReply("result")
-				QueryPayload.append(xmpp.Node("identity", attrs = IDentifier))
+		if not Node and jidToStr == TransportID:
+			QueryPayload = []
+			result = iq.buildReply("result")
+			QueryPayload.append(xmpp.Node("identity", IDentifier))
+			if ns == xmpp.NS_DISCO_INFO:
 				for key in TransportFeatures:
-					xNode = xmpp.Node("feature", attrs = {"var": key})
+					xNode = xmpp.Node("feature", {"var": key})
 					QueryPayload.append(xNode)
 				result.setQueryPayload(QueryPayload)
-				Sender(cl, result)
-		elif ns == xmpp.NS_DISCO_ITEMS:
-			if not Node and jidToStr == TransportID:
-				QueryPayload = []
-				result = iq.buildReply("result")
-				QueryPayload.append(xmpp.Node("identity", attrs = IDentifier))
+			elif ns == xmpp.NS_DISCO_ITEMS:
+				QueryPayload.append(xmpp.Node("identity", IDentifier))
 				result.setQueryPayload(QueryPayload)
-				Sender(cl, result)
+			Sender(cl, result)
 	raise xmpp.NodeProcessed()
 
 def iqGatewayHandler(cl, iq):
@@ -895,9 +854,9 @@ def iqGatewayHandler(cl, iq):
 	if jidToStr == TransportID:
 		result = iq.buildReply("result")
 		if iType == "get" and not IQChildren:
-			query = xmpp.Node('query', attrs={'xmlns':xmpp.NS_GATEWAY})
-			query.setTagData('desc', "Enter phone number")
-			query.setTag('prompt')
+			query = xmpp.Node("query", {"xmlns": xmpp.NS_GATEWAY})
+			query.setTagData("desc", "Enter phone number")
+			query.setTag("prompt")
 			result.setPayload([query])
 
 		elif IQChildren and iType == "set":
@@ -914,20 +873,20 @@ def iqGatewayHandler(cl, iq):
 			raise xmpp.NodeProcessed()
 		Sender(cl, result)
 
-def vCardGetPhoto(url):
+def vCardGetPhoto(url, encode = True):
 	try:
 		opener = urllib.urlopen(url)
 		data = opener.read()
-		if data:
+		if data and encode:
 			data = data.encode("base64")
-			return data
+		return data
 	except IOError:
 		pass
 	except:
 		crashLog("vcard.getPhoto")
 
 def iqVcardBuild(tags):
-	vCard = xmpp.Node("vCard", attrs = {"xmlns": xmpp.NS_VCARD})
+	vCard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
 	for key in tags.keys():
 		if key == "PHOTO":
 			binVal = vCard.setTag("PHOTO")
@@ -955,7 +914,7 @@ def iqVcardHandler(cl, iq):
 		if jidToStr == TransportID:
 			vcard = iqVcardBuild({"NICKNAME": "VK4XMPP Transport",
 								  "DESC": DESC,
-								  "PHOTO": "http://isida-bot.com/images/vk4xmpp.png",
+								  "PHOTO": "http://simpleApps.ru/vk4xmpp.png",
 								  "URL": "http://simpleapps.ru"})
 			result.setPayload([vcard])
 
