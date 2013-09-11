@@ -708,7 +708,7 @@ def iqRegisterHandler(cl, iq):
 			if not password:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Null password"))
 			if not isNumber(usePassword):
-				if usePassword.lower() == "true":
+				if usePassword and usePassword.lower() == "true":
 					usePassword = 1
 				else:
 					usePassword = 0
