@@ -269,9 +269,9 @@ class VKLogin(object):
 		return self.method("messages.get", values)
 
 	def onlineMe(self, timeout = 900):
-		self.method("account.setOnline")
 		gc.collect(	)					# only this line is needed part of all transport code. ITS A MAGIC DUDE!
 		if self.Online:					# config
+			self.method("account.setOnline")
 			threading.Timer(timeout, self.onlineMe, (timeout,)).start()
 
 class tUser(object):
@@ -389,7 +389,7 @@ class tUser(object):
 				Sender(self.cl, Presence)
 
 	def sendMessages(self):
-		messages = self.vk.getMessages(None, 200, lastMsgID = 0)#self.lastMsgID) # messages.getLastActivity
+		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
 		if messages:
 			messages = messages[1:]
 			messages = sorted(messages, lambda a, b: a["date"] - b["date"])
@@ -398,7 +398,7 @@ class tUser(object):
 				read = list()
 				for message in messages:
 					read.append(str(message.get("mid", 0)))
-					fromjid = "%s@%s" % (message["uid"], TransportID)
+					fromjid = vk2xmpp(message["uid"])
 					body = uHTML(message["body"])
 					if message.has_key("attachments"):
 						body += _("\nAttachments:")
@@ -805,7 +805,8 @@ def iqStatsHandler(cl, iq):
 	if iType == "get" and jidToStr == TransportID:
 		QueryPayload = list()
 		if not IQChildren:
-			for key in sDict.keys():
+			keys = sorted(sDict.keys(), reverse = True)
+			for key in keys:
 				Node = xmpp.Node("stat", {"name": key})
 				QueryPayload.append(Node)
 		else:
