@@ -294,6 +294,7 @@ class tUser(object):
 			self.fullJID, self.jUser = source			# really
 		else:
 			self.jUser = source							# needed?
+		self.resources = []
 		self.vk = VKLogin(self.username, self.password, self.jUser)
 		logger.debug("initializing tUser for %s" % self.jUser)
 		with Database(DatabaseFile, Semaphore) as db:
@@ -553,18 +554,24 @@ def prsHandler(cl, prs):
 	jidToStr = jidTo.getStripped()
 	if jidFromStr in Transport:
 		Class = Transport[jidFromStr]
+		Resource = jidFrom.getResource()
 		if pType in ("available", "probe", None):
 			if not Class.vk.Online and Class.lastStatus != pType:
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
-				Class.vk.Online = True
-				Class.vk.onlineMe()
+				if Resource not in Class.resources:
+					Class.resources.apend(Resource)
+					Class.vk.Online = True
+					Class.vk.onlineMe()
 				Class.sendInitPresence()
 			else:
 				raise xmpp.NodeProcessed()
 
 		elif pType == "unavailable" and Class.lastStatus != pType:
-			Sender(cl, xmpp.Presence(jidFromStr, "unavailable", frm = TransportID))
-			Class.vk.disconnect()
+			if Resource in Class.resources:
+				Class.resources.remove(Resource)
+			Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID)) # jidFromStr?
+			if not Class.resources:
+				Class.vk.disconnect()
 
 		elif pType == "subscribe":
 			if jidToStr == TransportID:
@@ -622,14 +629,14 @@ def iqHandler(cl, iq):
 			Sender(cl, iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
 			raise xmpp.NodeProcessed()
 
-	if iq.getType == "set" and iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
+	if iq.getType() == "set" and iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
 		if jidFromStr in Transport:
 			jidTo = iq.getTo()
 			if jidTo == TransportID:
 				cTag = iq.getTag("captcha")
 				cxTag = cTag.getTag("x", {}, xmpp.NS_DATA)
 				fcxTag = cxTag.getTag("field", {"var": "ocr"})
-				cValue = fcxTag.getTagData('value')
+				cValue = fcxTag.getTagData("value")
 				captchaAccept(cl, cValue, jidTo, jidFromStr)
 
 	ns = iq.getQueryNS()
