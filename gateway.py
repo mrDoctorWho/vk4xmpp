@@ -559,7 +559,7 @@ def prsHandler(cl, prs):
 			if not Class.vk.Online and Class.lastStatus != pType:
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 				if Resource not in Class.resources:
-					Class.resources.apend(Resource)
+					Class.resources.append(Resource)
 					Class.vk.Online = True
 					Class.vk.onlineMe()
 				Class.sendInitPresence()
