@@ -385,7 +385,6 @@ class tUser(object):
 			Presence.setTagData("nick", self.friends[uid]["name"])
 			Sender(self.cl, Presence)
 		Presence = xmpp.protocol.Presence(self.jUser, frm = TransportID)
-		Presence.setTagData("nick", IDentifier["name"])
 		Sender(self.cl, Presence)
 
 	def sendOutPresence(self, target):
@@ -584,8 +583,14 @@ def prsHandler(cl, prs):
 		elif pType == "unavailable":
 			if Resource in Class.resources:
 				Class.resources.remove(Resource)
-			Class.sendOutPresence(jidFrom) # jidFromStr?
 			if not Class.resources:
+				Class.vk.disconnect()
+			else:
+				Class.sendOutPresence(jidFrom) # jidFromStr?
+	
+		elif pType == "error":
+			eCode = iq.getErrorCode()
+			if eCode == "404":
 				Class.vk.disconnect()
 
 		elif pType == "subscribe":
@@ -728,8 +733,6 @@ def iqRegisterHandler(cl, iq):
 					usePassword = node.getTag("field", {"var": "use_password"})
 					usePassword = usePassword and usePassword.getTagData("value")
 
-			if not phone:
-				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 			if not password:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Null password"))
 			if not isNumber(usePassword):
@@ -744,6 +747,8 @@ def iqRegisterHandler(cl, iq):
 				password = None
 			else:
 				logger.debug("user %s want to use password" % jidFromStr)
+				if not phone:
+					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 			user = tUser(cl, (phone, password), (jidFrom, jidFromStr))
 			if not usePassword:
 				try:
@@ -1128,6 +1133,8 @@ if __name__ == "__main__":
 			gc.collect()
 		except KeyboardInterrupt:
 			exit()
+		except xmpp.StreamError:
+			pass
 		except IOError:
 			os.execl(sys.execute)
 		except:
