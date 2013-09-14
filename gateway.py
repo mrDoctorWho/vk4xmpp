@@ -379,15 +379,42 @@ class tUser(object):
 	def sendInitPresence(self):
 		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jUser, "exists" if self.friends else "null"))
 		Sender(self.cl, xmpp.protocol.Presence(self.jUser, frm = TransportID))
-		if self.friends:
-			for uid in self.friends.keys():
-				jid = vk2xmpp(uid)
-				pType = "unavailable" if not self.friends[uid]["online"] else None
-				nickName = self.friends[uid]["name"]
-				Presence = xmpp.protocol.Presence(self.jUser, pType, frm = jid)
-				Presence.setTag("nick", namespace = xmpp.NS_NICK)
-				Presence.setTagData("nick", nickName)
-				Sender(self.cl, Presence)
+		for uid in self.friends.keys():
+			jid = vk2xmpp(uid)
+			pType = "unavailable" if not self.friends[uid]["online"] else None
+			nickName = self.friends[uid]["name"]
+			Presence = xmpp.protocol.Presence(self.jUser, pType, frm = jid)
+			Presence.setTag("nick", namespace = xmpp.NS_NICK)
+			Presence.setTagData("nick", nickName)
+			Sender(self.cl, Presence)
+
+	def parseAttachments(self, msg):
+		body = str()
+		if msg.has_key("attachments"):
+			if msg["body"]:
+				body += _("\nAttachments:")
+			attachments = msg["attachments"]
+			for att in attachments:
+				key = att.get("type")
+				if key == "wall":
+					continue	
+				elif key == "photo":
+					keys = ("src_big", "url", "src_xxxbig", "src_xxbig", "src_xbig", "src", "src_small")
+					for dKey in keys:
+						if att[key].has_key(dKey):
+							body += "\n" + att[key][dKey]
+							break
+				elif key == "video":
+					body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
+				elif key == "audio":
+					body += "\nAudio: %(performer)s — %(title)s — %(url)s"
+				elif key == "doc":
+					body += "\nDocument: %(title)s — %(url)s"
+				else:
+					body += "\nUnknown attachment: " + str(att[key])
+				body = body % att.get(key, {})
+		return body
+
 
 	def sendMessages(self):
 		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
@@ -401,31 +428,9 @@ class tUser(object):
 					read.append(str(message.get("mid", 0)))
 					fromjid = vk2xmpp(message["uid"])
 					body = uHTML(message["body"])
-					if message.has_key("attachments"):
-						body += _("\nAttachments:")
-						attachments = message["attachments"]
-						for att in attachments:
-							key = att.get("type")
-							if key == "wall":
-								continue	
-							elif key == "photo":
-								keys = ("src_big", "url", "src_xxxbig", "src_xxbig", "src_xbig", "src", "src_small")
-								for dKey in keys:
-									if att[key].has_key(dKey):
-										body += "\n" + att[key][dKey]
-										break
-							elif key == "video":
-								body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
-							elif key == "audio":
-								body += "\nAudio: %(performer)s — %(title)s — %(url)s"
-							elif key == "doc":
-								body += "\nDocument: %(title)s — %(url)s"
-							else:
-								body += "\nUnknown attachment: " + str(att[key])
-							body = body % att.get(key, {})
-
+					body += self.parseAttachments(message)
 					if message.has_key("fwd_messages"):
-						body += _("\nForward messages")
+						body += _("\nForward messages:")
 						fwd_messages = sorted(message["fwd_messages"], lambda a, b: a["date"] - b["date"])
 						for fwd in fwd_messages:
 							idFrom = fwd["uid"]
@@ -440,6 +445,7 @@ class tUser(object):
 							else:
 								name = self.friends[idFrom]["name"]
 							body += "\n[%s] <%s> %s" % (date, name, fwdBody)
+							body += self.parseAttachments(fwd)
 					msgSend(self.cl, self.jUser, body, fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
@@ -556,17 +562,18 @@ def prsHandler(cl, prs):
 		Class = Transport[jidFromStr]
 		Resource = jidFrom.getResource()
 		if pType in ("available", "probe", None):
-			if not Class.vk.Online and Class.lastStatus != pType:
+			if not Class.vk.Online:
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 				if Resource not in Class.resources:
 					Class.resources.append(Resource)
-					Class.vk.Online = True
-					Class.vk.onlineMe()
-				Class.sendInitPresence()
+					if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
+						Class.vk.Online = True
+						Class.vk.onlineMe()
+					Class.sendInitPresence()
 			else:
 				raise xmpp.NodeProcessed()
 
-		elif pType == "unavailable" and Class.lastStatus != pType:
+		elif pType == "unavailable":
 			if Resource in Class.resources:
 				Class.resources.remove(Resource)
 			Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID)) # jidFromStr?
