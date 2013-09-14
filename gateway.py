@@ -589,7 +589,7 @@ def prsHandler(cl, prs):
 				Class.sendOutPresence(jidFrom) # jidFromStr?
 	
 		elif pType == "error":
-			eCode = iq.getErrorCode()
+			eCode = prs.getErrorCode()
 			if eCode == "404":
 				Class.vk.disconnect()
 
