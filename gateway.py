@@ -379,8 +379,8 @@ class tUser(object):
 	def sendInitPresence(self):
 		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jUser, "exists" if self.friends else "null"))
 		for uid in self.friends.keys():
-			pType = "unavailable" if not self.friends[uid]["online"] else None
-			Presence = xmpp.protocol.Presence(self.jUser, frm = vk2xmpp(uid))
+			pType = None if self.friends[uid]["online"] else "unavailable"
+			Presence = xmpp.protocol.Presence(self.jUser, pType, frm = vk2xmpp(uid))
 			Presence.setTag("nick", namespace = xmpp.NS_NICK)
 			Presence.setTagData("nick", self.friends[uid]["name"])
 			Sender(self.cl, Presence)

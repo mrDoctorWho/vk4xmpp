@@ -451,7 +451,7 @@ class Protocol(Node):
 		self.setAttr('from', JID(val))
 	def setType(self,val):
 		""" Set the value of the 'type' attribute. """
-		if val: self.setAttr('type', val)
+		self.setAttr('type', val)
 	def setID(self,val):
 		""" Set the value of the 'id' attribute. """
 		self.setAttr('id', val)
@@ -470,7 +470,7 @@ class Protocol(Node):
 		if code:
 			if str(code) in _errorcodes.keys(): error=ErrorNode(_errorcodes[str(code)],text=error)
 			else: error=ErrorNode(ERR_UNDEFINED_CONDITION,code=code,typ='cancel',text=error)
-		elif isinstance(error, (str, unicode)): error=ErrorNode(error)
+		elif type(error) in [type(''),type(u'')]: error=ErrorNode(error)
 		self.setType('error')
 		self.addChild(node=error)
 	def setTimestamp(self,val=None):
