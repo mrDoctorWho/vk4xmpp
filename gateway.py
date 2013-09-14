@@ -490,7 +490,6 @@ class tUser(object):
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
-		gc.collect() 		## maybe it's wrong place, because collect() takes many cpu time, but when we have many users we'll collect more
 		time.sleep(0.001)
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
@@ -1126,6 +1125,7 @@ if __name__ == "__main__":
 	while True:
 		try:
 			Component.iter(6)
+			gc.collect()
 		except KeyboardInterrupt:
 			exit()
 		except IOError:
