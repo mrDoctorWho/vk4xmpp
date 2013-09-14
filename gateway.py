@@ -671,7 +671,7 @@ def iqHandler(cl, iq):
 		Tag = iq.getTag("vCard") or iq.getTag("ping")
 		if Tag and Tag.getNamespace() == xmpp.NS_VCARD:
 			iqVcardHandler(cl, iq)
-		elif Tag and Tag.getNamespace == xmpp.NS_PING:
+		elif Tag and Tag.getNamespace() == xmpp.NS_PING:
 			Sender(cl, iq.buildReply("result"))
 
 	raise xmpp.NodeProcessed()
