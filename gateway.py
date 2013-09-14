@@ -378,14 +378,23 @@ class tUser(object):
 
 	def sendInitPresence(self):
 		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jUser, "exists" if self.friends else "null"))
-		Sender(self.cl, xmpp.protocol.Presence(self.jUser, frm = TransportID))
+		Presence = xmpp.protocol.Presence(self.jUser, frm = TransportID)
 		for uid in self.friends.keys():
-			jid = vk2xmpp(uid)
-			pType = "unavailable" if not self.friends[uid]["online"] else None
-			nickName = self.friends[uid]["name"]
-			Presence = xmpp.protocol.Presence(self.jUser, pType, frm = jid)
+			Presence.setType("unavailable" if not self.friends[uid]["online"] else None)
 			Presence.setTag("nick", namespace = xmpp.NS_NICK)
-			Presence.setTagData("nick", nickName)
+			Presence.setTagData("nick", self.friends[uid]["name"])
+			Presence.setFrom(vk2xmpp(uid))
+			Sender(self.cl, Presence)
+		Presence.setTagData("nick", IDentifier["name"])
+		Sender(self.cl, Presence)
+
+	def sendOutPresence(self, target):
+		pType = "unavailable"
+		logger.debug("tUser: sending out presence to %s" % self.jUser)
+		Presence = xmpp.protocol.Presence(target, pType, frm = TransportID)
+		Sender(self.cl, Presence)
+		for uid in self.friends.keys():
+			Presence.setFrom(vk2xmpp(uid))
 			Sender(self.cl, Presence)
 
 	def parseAttachments(self, msg):
@@ -576,7 +585,7 @@ def prsHandler(cl, prs):
 		elif pType == "unavailable":
 			if Resource in Class.resources:
 				Class.resources.remove(Resource)
-			Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID)) # jidFromStr?
+			Class.sendOutPresence(jidFrom) # jidFromStr?
 			if not Class.resources:
 				Class.vk.disconnect()
 
