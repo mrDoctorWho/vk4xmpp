@@ -382,7 +382,7 @@ class tUser(object):
 		for uid in self.friends.keys():
 			pType = None if self.friends[uid]["online"] else "unavailable"
 			Presence = xmpp.protocol.Presence(self.jUser, pType, frm = vk2xmpp(uid))
-			if pType:
+			if not pType:
 				Presence.setTag("nick", namespace = xmpp.NS_NICK)
 				Presence.setTagData("nick", self.friends[uid]["name"])
 			Sender(self.cl, Presence)
@@ -491,7 +491,7 @@ class tUser(object):
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
-		time.sleep(0.001)
+		time.sleep(0.0001)
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
@@ -573,8 +573,8 @@ def prsHandler(cl, prs):
 		Class = Transport[jidFromStr]
 		Resource = jidFrom.getResource()
 		if pType in ("available", "probe", None):
-			logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 			if Resource not in Class.resources:
+				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 				Class.resources.append(Resource)
 				if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
 					Class.vk.Online = True
@@ -584,10 +584,10 @@ def prsHandler(cl, prs):
 		elif pType == "unavailable":
 			if Resource in Class.resources:
 				Class.resources.remove(Resource)
-			if not Class.resources:
-				Class.vk.disconnect()
-			else:
-				Class.sendOutPresence(jidFrom) # jidFromStr?
+				if not Class.resources:
+					Class.vk.disconnect()
+				else:
+					Class.sendOutPresence(jidFrom)
 	
 		elif pType == "error":
 			eCode = prs.getErrorCode()
@@ -822,8 +822,8 @@ def iqVersionHandler(cl, iq):
 sDict = {
 		  "users/total": "users",
 		  "users/online": "users",
-		  "memory/virtual": "Kb",
-		  "memory/real": "Kb",
+		  "memory/virtual": "KB",
+		  "memory/real": "KB",
 		  "cpu/percent": "percent",
 		  "cpu/time": "seconds"
 		  }

@@ -24,17 +24,20 @@ class VkApi:
 
 		self.http = requests.Session()
 		self.http.proxies = proxies
-		self.http.headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0) Gecko/20130309 Firefox/21.0",
-							 "Accept-Language":"ru-RU, utf-8"}
+		self.http.headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
+												" Gecko/20130309 Firefox/21.0",
+							 "Accept-Language": "ru-RU, utf-8"
+							 }
 		self.http.verify = False
 
 
 	def vk_login(self, cSid=None, cKey = None):
 		url = "https://login.vk.com/"
-		values = {"act": "login",
-				  "utf8": "1",
-				  "email": self.number,
-				  "pass": self.password}
+		values = { "act": "login",
+				   "utf8": "1",
+				   "email": self.number,
+				   "pass": self.password 
+				   }
 
 		if cSid and cKey:
 			values["captcha_sid"] = cSid
@@ -46,8 +49,9 @@ class VkApi:
 			remixsid = self.http.cookies["remixsid"]
 			self.settings["remixsid"] = remixsid
 
-			self.settings["forapilogin"] = {"p": self.http.cookies["p"],
-											"l": self.http.cookies["l"] }
+			self.settings["forapilogin"] = { "p": self.http.cookies["p"],
+											 "l": self.http.cookies["l"] 
+											}
 
 			self.sid = remixsid
 
@@ -68,12 +72,13 @@ class VkApi:
 				if self.number.startswith("+"):
 					code = self.number[4:-2] 
 
-			values = {"act": "security_check",
-					  "al": "1",
-					  "al_page": "3",
-					  "code": code,
-					  "hash": number_hash,
-					  "to": ""}
+			values = { "act": "security_check",
+					   "al": "1",
+					   "al_page": "3",
+					   "code": code,
+					   "hash": number_hash,
+					   "to": ""
+					  }
 			response = self.http.post("https://vk.com/login.php", values)
 			if response.text.split("<!>")[4] == "4":
 				return
@@ -97,11 +102,12 @@ class VkApi:
 
 	def api_login(self):
 		url = "https://oauth.vk.com/authorize"
-		values = {"display": "mobile",
-				  "scope": self.scope,
-				  "client_id": self.app_id,
-				  "response_type": "token",
-				  "redirect_uri": "https://oauth.vk.com/blank.html"}
+		values = { "display": "mobile",
+				   "scope": self.scope,
+				   "client_id": self.app_id,
+				   "response_type": "token",
+				   "redirect_uri": "https://oauth.vk.com/blank.html"
+				   }
 
 		token = None
 		GET = self.http.get(url, params = values)
@@ -131,7 +137,7 @@ class VkApi:
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
 ##				print "sleeping because too fat %s" % str(self.last)
-				time.sleep(1)
+				time.sleep(0.4)
 		try:
 			json = self.http.post(url, values).json()
 		except requests.ConnectionError:
