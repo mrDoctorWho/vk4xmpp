@@ -63,7 +63,8 @@ class Dispatcher(PlugIn):
 		self.RegisterProtocol('iq',Iq)
 		self.RegisterProtocol('presence',Presence)
 		self.RegisterProtocol('message',Message)
-		self.RegisterDefaultHandler(self.returnStanzaHandler)
+		if self._defaultHandler: 
+			self.RegisterDefaultHandler(self.returnStanzaHandler)
 		self.RegisterHandler('error',self.streamErrorHandler,xmlns=NS_STREAMS)
 
 	def plugin(self, owner):
@@ -100,7 +101,7 @@ class Dispatcher(PlugIn):
 		self._owner.send("<?xml version='1.0'?>%s>"%str(self._metastream)[:-2])
 
 	def _check_stream_start(self,ns,tag,attrs):
-		if ns<>NS_STREAMS or tag<>'stream':
+		if ns != NS_STREAMS or tag != 'stream':
 			raise ValueError('Incorrect stream start: (%s,%s). Terminating.'%(tag,ns))
 
 	def iter(self, timeout=8):
@@ -122,7 +123,7 @@ class Dispatcher(PlugIn):
 		"""
 		for handler in self._cycleHandlers:
 			handler(self)
-		if len(self._pendingExceptions) > 0:
+		if self._pendingExceptions:
 			_pendingException = self._pendingExceptions.pop()
 			raise _pendingException[0], _pendingException[1], _pendingException[2]
 		if self._owner.Connection.pending_data(timeout):
@@ -131,7 +132,7 @@ class Dispatcher(PlugIn):
 			except IOError:
 				return None
 			self.Stream.Parse(data)
-			if len(self._pendingExceptions) > 0:
+			if self._pendingExceptions:
 				_pendingException = self._pendingExceptions.pop()
 				raise _pendingException[0], _pendingException[1], _pendingException[2]
 			if data:
@@ -213,7 +214,7 @@ class Dispatcher(PlugIn):
 
 	def returnStanzaHandler(self,conn,stanza):
 		""" Return stanza back to the sender with <feature-not-implemennted/> error set. """
-		if stanza.getType() in ['get','set']:
+		if stanza.getType() in ('get','set'):
 			conn.send(Error(stanza,ERR_FEATURE_NOT_IMPLEMENTED))
 
 	def streamErrorHandler(self,conn,error):
@@ -356,8 +357,8 @@ class Dispatcher(PlugIn):
 	def send(self,stanza):
 		""" Serialise stanza and put it on the wire. Assign an unique ID to it before send.
 			Returns assigned ID."""
-		if type(stanza) in [type(''), type(u'')]: return self._owner_send(stanza)
-		if not isinstance(stanza,Protocol): _ID=None
+		if isinstance(stanza, (str, unicode)): return self._owner_send(stanza)
+		if not isinstance(stanza, Protocol): _ID=None
 		elif not stanza.getID():
 			global ID
 			ID+=1

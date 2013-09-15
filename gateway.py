@@ -377,12 +377,14 @@ class tUser(object):
 		threadRun(self.sendMessages) # is it valid?
 
 	def sendInitPresence(self):
-		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jUser, "exists" if self.friends else "null"))
+		self.friends = self.vk.getFriends()
+		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jUser, "exists" if self.friends else "empty"))
 		for uid in self.friends.keys():
 			pType = None if self.friends[uid]["online"] else "unavailable"
 			Presence = xmpp.protocol.Presence(self.jUser, pType, frm = vk2xmpp(uid))
-			Presence.setTag("nick", namespace = xmpp.NS_NICK)
-			Presence.setTagData("nick", self.friends[uid]["name"])
+			if pType:
+				Presence.setTag("nick", namespace = xmpp.NS_NICK)
+				Presence.setTagData("nick", self.friends[uid]["name"])
 			Sender(self.cl, Presence)
 		Presence = xmpp.protocol.Presence(self.jUser, frm = TransportID)
 		Sender(self.cl, Presence)
@@ -498,7 +500,9 @@ def Sender(cl, stanza):
 
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	msg = xmpp.Message(jidTo, body, "chat", frm = jidFrom)
-	msg.setTimestamp(timestamp)
+	if timestamp:
+		timestamp = datetime.fromtimestamp(timestamp)
+		msg.setTimestamp(timestamp.strftime("%Y%m%dT:%H:%M:%S"))
 	Sender(cl, msg)
 
 def msgRecieved(msg, jidFrom, jidTo):
@@ -569,16 +573,13 @@ def prsHandler(cl, prs):
 		Class = Transport[jidFromStr]
 		Resource = jidFrom.getResource()
 		if pType in ("available", "probe", None):
-			if not Class.vk.Online:
-				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
-				if Resource not in Class.resources:
-					Class.resources.append(Resource)
-					if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
-						Class.vk.Online = True
-						Class.vk.onlineMe()
-					Class.sendInitPresence()
-			else:
-				raise xmpp.NodeProcessed()
+			logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
+			if Resource not in Class.resources:
+				Class.resources.append(Resource)
+				if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
+					Class.vk.Online = True
+					Class.vk.onlineMe()
+				Class.sendInitPresence()
 
 		elif pType == "unavailable":
 			if Resource in Class.resources:
@@ -877,7 +878,6 @@ def iqDiscoHandler(cl, iq):
 					QueryPayload.append(xNode)
 				result.setQueryPayload(QueryPayload)
 			elif ns == xmpp.NS_DISCO_ITEMS:
-				QueryPayload.append(xmpp.Node("identity", IDentifier))
 				result.setQueryPayload(QueryPayload)
 			Sender(cl, result)
 	raise xmpp.NodeProcessed()
@@ -991,14 +991,6 @@ def updateTransportsList(user, add=True): #$
 	elif length <= lengthOfTransportsList - SLICE_STEP:
 		lengthOfTransportsList -= SLICE_STEP
 
-def wFile(filename, data):
-	with open(filename, "w") as file:
-		file.write(data)
-
-def rFile(filename):
-	with open(filename, "r") as file:
-		return file.read()
-
 def getPid():
 	nowPid = os.getpid()
 	if os.path.exists(pidFile):
@@ -1009,7 +1001,7 @@ def getPid():
 			if nowPid != oldPid:
 				try:
 					os.kill(oldPid, 15)
-					time.sleep(2)
+					time.sleep(3)
 					os.kill(oldPid, 9)
 				except OSError:
 					pass
@@ -1024,20 +1016,20 @@ def hyperThread(start, end):
 			break
 		cTime = time.time()
 		for user in slice:
-			if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
-			or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
-				user.last_udate = time.time() # cTime
-				friends = user.vk.getFriends()
-				if friends != user.friends:
-					for uid in friends:
-						if uid in user.friends:
-							if user.friends[uid]["online"] != friends[uid]["online"]:
-								jid = vk2xmpp(uid)
-								pType = "unavailable" if not friends[uid]["online"] else None
-								Sender(user.cl, xmpp.protocol.Presence(user.jUser, pType, frm=jid))
-					user.friends = friends
-				user.sendMessages()
-				#?
+			if user.vk.Online: 			# TODO: delete user from memory when he offline
+				if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
+				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
+					user.last_udate = time.time() # cTime
+					friends = user.vk.getFriends()
+					if friends != user.friends:
+						for uid in friends:
+							if uid in user.friends:
+								if user.friends[uid]["online"] != friends[uid]["online"]:
+									jid = vk2xmpp(uid)
+									pType = "unavailable" if not friends[uid]["online"] else None
+									Sender(user.cl, xmpp.protocol.Presence(user.jUser, pType, frm=jid))
+						user.friends = friends
+					user.sendMessages()
 		time.sleep(ROSTER_UPDATE_TIMEOUT)
 
 def WatcherMsg(text):
@@ -1076,15 +1068,15 @@ def main():
 							Print("!", False)
 							Counter[1] += 1
 							crashLog("main.connect", 0, False)
-							msgSend(Component, jid, _("Auth failed! Please register again. This incident will be reported."), TransportID)
+							msgSend(Component, jid, _("Auth failed! If this error repeated, please register again. This incident will be reported."), TransportID)
 					except KeyboardInterrupt:
 						exit()
 					except:
 						crashLog("main.init")
 						continue
-			Print("\n#-# Connected %s/%s users." % (str(Counter[0]), len(TransportsList)))
+			Print("\n#-# Connected %d/%d users." % (Counter[0], len(TransportsList)))
 			if Counter[1]:
-				Print("#-# Failed to connect %s users." % str(Counter[1]))
+				Print("#-# Failed to connect %d users." % Counter[1])
 
 			globals()["lengthOfTransportsList"] = int(ceil(float(len(TransportsList)) / SLICE_STEP) * SLICE_STEP)
 
@@ -1092,7 +1084,6 @@ def main():
 			Component.RegisterHandler("presence", prsHandler)
 			Component.RegisterHandler("message", msgHandler)
 			Component.RegisterDisconnectHandler(lambda: crashLog("main.Disconnect"))
-			Component.RegisterDefaultHandler(lambda x, y: None)
 
 			for start in xrange(0, lengthOfTransportsList, SLICE_STEP):
 				end = start + SLICE_STEP
@@ -1122,21 +1113,27 @@ def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 		pass
 	os._exit(1)
 
+def garbageCollector():
+	while True:
+		gc.collect()
+		time.sleep(10)
+
 if __name__ == "__main__":
+	threadRun(garbageCollector, (), "gc")
 	signal.signal(signal.SIGTERM, exit)
 	main()
 	Errors = 0
 
 	while True:
 		try:
-			Component.iter(6)
-			gc.collect()
+			Component.iter(4)
 		except KeyboardInterrupt:
 			exit()
 		except xmpp.StreamError:
+			crashLog("Component.iter")
 			pass
 		except IOError:
-			os.execl(sys.execute)
+			os.execl(sys.executable, sys.executable, sys.argv[0])
 		except:
 			if Errors > 10:
 				exit()

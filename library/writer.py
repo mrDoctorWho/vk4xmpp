@@ -7,6 +7,8 @@ logger = logging.getLogger("vk4xmpp")
 
 fixme = lambda msg: Print("\n#! fixme: \"%s\"." % msg)
 
+lastErrorBody = None
+
 def wFile(filename, data, mode = "w"):
 	with open(filename, mode, 0) as file:
 		file.write(data)
@@ -16,6 +18,7 @@ def rFile(filename):
 		return file.read()
 
 def crashLog(name, text = 0, fixMe = True):
+	global lastErrorBody
 	logger.error("writing crashlog %s" % name)
 	if fixMe:
 		fixme(name)
@@ -25,8 +28,9 @@ def crashLog(name, text = 0, fixMe = True):
 			os.makedirs("crash")
 		Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
 		exception = wException(True)
-		if exception:
+		if exception and exception != lastErrorBody:
 			wFile(File, Timestamp + exception, "a")
+		lastErrorBody = exception
 	except:
 		fixme("crashlog")
 		wException()
