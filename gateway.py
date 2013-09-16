@@ -844,7 +844,7 @@ def iqStatsHandler(cl, iq):
 			users = calcStats()
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			memVirt, memReal, cpuPercent, cpuTime = shell[1].split()
-			stats = {"users": users, "Kb": [memVirt, memReal], 
+			stats = {"users": users, "KB": [memVirt, memReal], 
 					 "percent": [cpuPercent], "seconds": [cpuTime]}
 			for Child in IQChildren:
 				if Child.getName() != "stat":
