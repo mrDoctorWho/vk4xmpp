@@ -31,7 +31,9 @@ VK4XMPP представляет собой легковесный трансп�
 * vk.jabbik.ru
 
 Установка (для серверов): [Раз](http://is.gd/u0No4y) | [Два](http://is.gd/A22Qxz)
+
 Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl)
+
 Другое: [Обсуждение на 4pda](http://is.gd/t10ZIc) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
 
 Запуск:
