@@ -65,6 +65,7 @@ SLICE_STEP = 8
 pidFile = "pidFile.txt"
 Config = "Config.txt"
 DefLang = "ru"
+evalJID = ""
 
 DEBUG_XMPPPY = False
 

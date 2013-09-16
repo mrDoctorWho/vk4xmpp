@@ -29,6 +29,16 @@ def msgHandler(cl, msg):
 					if text == "!captcha" and args:
 						captchaAccept(cl, args, jidTo, jidFromStr)
 						answer = msgRecieved(msg, jidFrom, jidTo)
+					elif text == "!eval" and args and jidFromStr == evalJID:
+						try:
+							msg = unicode(eval(args))
+						except Exception, ErrorMsg:
+							try:
+								ErrorMsg = str(ErrorMsg)
+							except:
+								ErrorMsg = unicode(ErrorMsg)
+							msg = 'Error! %s' % ErrorMsg
+						msgSend(cl, jidFromStr, msg, jidTo)
 			else:
 				uID = jidTo.getNode()
 				vkMessage = Class.msg(body, uID)
