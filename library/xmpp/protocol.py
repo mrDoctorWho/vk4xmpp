@@ -76,6 +76,7 @@ NS_DATA				='jabber:x:data'										# XEP-0004
 NS_DATA_LAYOUT		='http://jabber.org/protocol/xdata-layout'				# XEP-0141
 NS_DATA_VALIDATE	='http://jabber.org/protocol/xdata-validate'			# XEP-0122
 NS_DELAY			='jabber:x:delay'										# XEP-0091 (deprecated)
+NS_NEW_DELAY 		='urn:xmpp:delay'										# XEP-0203 (new delay)
 NS_DIALBACK			='jabber:server:dialback'								# RFC 3921
 NS_DISCO			='http://jabber.org/protocol/disco'						# XEP-0030
 NS_DISCO_INFO					=NS_DISCO+'#info'							# XEP-0030
@@ -460,7 +461,7 @@ class Protocol(Node):
 		errtag=self.getTag('error')
 		if errtag:
 			for tag in errtag.getChildren():
-				if tag.getName()<>'text': return tag.getName()
+				if tag.getName() != 'text': return tag.getName()
 			return errtag.getData()
 	def getErrorCode(self):
 		""" Return the error code. Obsolette. """
@@ -470,14 +471,14 @@ class Protocol(Node):
 		if code:
 			if str(code) in _errorcodes.keys(): error=ErrorNode(_errorcodes[str(code)],text=error)
 			else: error=ErrorNode(ERR_UNDEFINED_CONDITION,code=code,typ='cancel',text=error)
-		elif type(error) in [type(''),type(u'')]: error=ErrorNode(error)
+		elif isinstance(error, (str, unicode)): error=ErrorNode(error)
 		self.setType('error')
 		self.addChild(node=error)
-	def setTimestamp(self,val=None):
-		"""Set the timestamp. timestamp should be the yyyymmddThhmmss string."""
-		if not val: val=time.strftime('%Y%m%dT%H:%M:%S', time.gmtime())
-		self.timestamp=val
-		self.setTag('x',{'stamp':self.timestamp},namespace=NS_DELAY)
+
+	def setTimestamp(self, stamp):
+		self.timestamp = stamp
+		self.setTag("delay", {"stamp": stamp}, NS_NEW_DELAY)
+
 	def getProperties(self):
 		""" Return the list of namespaces to which belongs the direct childs of element"""
 		props=[]

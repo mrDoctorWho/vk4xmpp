@@ -44,12 +44,15 @@ WhiteList = []
 
 TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
 					  xmpp.NS_DISCO_INFO,
+					  xmpp.NS_RECEIPTS,
 					  xmpp.NS_REGISTER,
 					  xmpp.NS_GATEWAY,
 					  xmpp.NS_VERSION,
 					  xmpp.NS_CAPTCHA,
 					  xmpp.NS_STATS,
-					  xmpp.NS_VCARD, 
+					  xmpp.NS_VCARD,
+					  xmpp.NS_DELAY,
+					  xmpp.NS_PING,
 					  xmpp.NS_LAST ]
 
 IDentifier = { "type": "vk",
@@ -425,7 +428,6 @@ class tUser(object):
 				body = body % att.get(key, {})
 		return body
 
-
 	def sendMessages(self):
 		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
 		if messages:
@@ -501,8 +503,9 @@ def Sender(cl, stanza):
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	msg = xmpp.Message(jidTo, body, "chat", frm = jidFrom)
 	if timestamp:
-		timestamp = datetime.fromtimestamp(timestamp)
-		msg.setTimestamp(timestamp.strftime("%Y%m%dT:%H:%M:%S"))
+		gmTime = time.gmtime(timestamp)
+		strTime = time.strftime("%Y-%m-%dT%H:%M:%SZ", gmTime)
+		msg.setTimestamp(strTime)
 	Sender(cl, msg)
 
 def msgRecieved(msg, jidFrom, jidTo):
@@ -577,14 +580,16 @@ def prsHandler(cl, prs):
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 				Class.resources.append(Resource)
 				if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
-					Class.vk.Online = True
-					Class.vk.onlineMe()
+					if not Class.vk.Online:
+						Class.vk.Online = True
+						Class.vk.onlineMe()
 				Class.sendInitPresence()
 
 		elif pType == "unavailable":
 			if Resource in Class.resources:
 				Class.resources.remove(Resource)
 				if not Class.resources:
+					Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
 					Class.vk.disconnect()
 				else:
 					Class.sendOutPresence(jidFrom)
