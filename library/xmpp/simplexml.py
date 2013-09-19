@@ -220,7 +220,7 @@ class Node(object):
 			F.e. for "<node>text1<nodea/><nodeb/> text2</node>" will be returned list:
 			['text1', <nodea instance>, <nodeb instance>, ' text2']. """
 		ret=[]
-		for i in range(max(len(self.data),len(self.kids))):
+		for i in xrange(max(len(self.data),len(self.kids))):
 			if i < len(self.data) and self.data[i]: ret.append(self.data[i])
 			if i < len(self.kids) and self.kids[i]: ret.append(self.kids[i])
 		return ret

@@ -41,8 +41,9 @@ def uHTML(data):
 
 		data = compile_ehtmls.sub(e_sb, data)
 	data = re.sub("</?br */?>", "\n", data)
-	return data
-	
+	return data	
+
+# TODO: remove this function
 def regexp(reg, string, findall = 1):
 	reg = re.compile(reg, re.IGNORECASE | re.DOTALL)
 	if findall:

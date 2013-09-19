@@ -675,7 +675,7 @@ class DataField(Node):
 			"""
 		Node.__init__(self,'field',node=node)
 		if name: self.setVar(name)
-		if type(value) in [list,tuple]: self.setValues(value)
+		if isinstance(value, (list, tuple)): self.setValues(value)
 		elif value: self.setValue(value)
 		if typ: self.setType(typ)
 		elif not typ and not node: self.setType('text-single')
@@ -733,7 +733,7 @@ class DataField(Node):
 		for opt in lst: self.addOption(opt)
 	def addOption(self,opt):
 		""" Add one more label-option pair to this field."""
-		if type(opt) in [str,unicode]: self.addChild('option').setTagData('value',opt)
+		if isinstance(opt, (str, unicode)): self.addChild('option').setTagData('value',opt)
 		else: self.addChild('option',{'label':opt[0]}).setTagData('value',opt[1])
 	def getType(self):
 		""" Get type of this field. """
@@ -831,7 +831,7 @@ class DataItem(Node):
 		for field in self.getTags('field'):
 			name=field.getAttr('var')
 			typ=field.getType()
-			if isinstance(typ,(str,unicode)) and typ[-6:]=='-multi':
+			if isinstance(typ,(str, unicode)) and typ[-6:]=='-multi':
 				val=[]
 				for i in field.getTags('value'): val.append(i.getData())
 			else: val=field.getTagData('value')
@@ -870,7 +870,7 @@ class DataForm(Node):
 		if node:
 			newkids=[]
 			for n in self.getChildren():
-				if   n.getName()=='field': newkids.append(DataField(node=n))
+				if n.getName()=='field': newkids.append(DataField(node=n))
 				elif n.getName()=='item': newkids.append(DataItem(node=n))
 				elif n.getName()=='reported': newkids.append(DataReported(node=n))
 				else: newkids.append(n)
@@ -878,12 +878,12 @@ class DataForm(Node):
 		if typ: self.setType(typ)
 		self.setNamespace(NS_DATA)
 		if title: self.setTitle(title)
-		if type(data)==type({}):
+		if isinstance(data, dict):
 			newdata=[]
 			for name in data.keys(): newdata.append(DataField(name,data[name]))
 			data=newdata
 		for child in data:
-			if type(child) in [type(''),type(u'')]: self.addInstructions(child)
+			if isinstance(child, (str, unicode)): self.addInstructions(child)
 			elif child.__class__.__name__=='DataField': self.kids.append(child)
 			elif child.__class__.__name__=='DataItem': self.kids.append(child)
 			elif child.__class__.__name__=='DataReported': self.kids.append(child)

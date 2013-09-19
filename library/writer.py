@@ -26,9 +26,9 @@ def crashLog(name, text = 0, fixMe = True):
 		File = "crash/%s.txt" % name
 		if not os.path.exists("crash"): 
 			os.makedirs("crash")
-		Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
 		exception = wException(True)
-		if exception and exception != lastErrorBody:
+		if exception not in ("None", lastErrorBody):
+			Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
 			wFile(File, Timestamp + exception, "a")
 		lastErrorBody = exception
 	except:
@@ -47,7 +47,7 @@ def Print(text, line = True):
 
 def wException(File = False):
 	try:
-		exception = str(traceback.format_exc())
+		exception = traceback.format_exc().strip()
 		if not File:
 			Print(exception)
 		return exception

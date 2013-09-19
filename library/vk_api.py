@@ -1,68 +1,85 @@
 # /* coding: utf-8 */
-# based on VKApi module by Kirill Python
-# Modifications © simpleApps.
+# © simpleApps CodingTeam, 2013.
 
 import re, time
-import requests, urllib, webtools
+import urllib, urllib2, cookielib, webtools, json
 
-class VkApi:
-	def __init__(self, number, password = None, 
-				 sid = None, token= None, app_id = 3789129, 
-				 scope = 69634, proxies = None):
+class RequestProcessor(object):
+	def __init__(self):
+		self.cookieJar = cookielib.CookieJar()
+		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
+		self.Opener = urllib2.build_opener(self.cookieProcessor)
+		self.headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
+										" Gecko/20130309 Firefox/21.0",
+						 "Accept-Language": "ru-RU, utf-8"
+						}
+	def getCookie(self, name):
+		for cookie in self.cookieJar:
+			if cookie.name == name:
+				return cookie.value
+
+	def request(self, url, data = None, headers = {}):
+		if not headers:
+			headers = self.headers
+		if data:
+			data = urllib.urlencode(data)
+		request = urllib2.Request(url, data, headers)
+		return request
+
+	def post(self, url, data = {}):
+		request = self.request(url, data)
+		response = self.Opener.open(request, timeout = 15)
+		body = response.read()
+		return (body, response)
+
+	def get(self, url, data = {}):
+		if data:
+			url = url + "/?%s" % urllib.urlencode(data, timeout = 15)
+		request = self.request(url)
+		response = self.Opener.open(request)
+		body = response.read()
+		return (body, response)
+
+
+class APIBinding:
+	def __init__(self, number, password = None, token = None, app_id = 3789129, 
+				 scope = 69634):
 		self.password = password
 		self.number = number
 
-		self.sid = sid
+		self.sid = None
 		self.token = token
 		self.captcha = {}
-		self.settings = {}
 		self.last = []
 		self.lastMethod = None
 
 		self.app_id = app_id
 		self.scope = scope
 
-		self.http = requests.Session()
-		self.http.proxies = proxies
-		self.http.headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
-												" Gecko/20130309 Firefox/21.0",
-							 "Accept-Language": "ru-RU, utf-8"
-							 }
-		self.http.verify = False
+		self.RIP = RequestProcessor()
 
-
-	def vk_login(self, cSid=None, cKey = None):
+	def loginByPassword(self):
 		url = "https://login.vk.com/"
 		values = { "act": "login",
-				   "utf8": "1",
+				   "utf8": "1", # check if it needed
 				   "email": self.number,
 				   "pass": self.password 
-				   }
+				  }
 
-		if cSid and cKey:
-			values["captcha_sid"] = cSid
-			values["captcha_key"] = cKey
+		post = self.RIP.post(url, values)
+		body, response = post
+		RemixSID = self.RIP.getCookie("remixsid")
 
-		self.http.cookies.clear()
-		response = self.http.post(url, values)
-		if "remixsid" in self.http.cookies:
-			remixsid = self.http.cookies["remixsid"]
-			self.settings["remixsid"] = remixsid
-
-			self.settings["forapilogin"] = { "p": self.http.cookies["p"],
-											 "l": self.http.cookies["l"] 
-											}
-
-			self.sid = remixsid
+		if RemixSID:
+			self.sid = RemixSID
 
 		elif "sid=" in response.url:
-			raise authError("Authorization error (captcha)")
+			raise AuthError("Captcha!")
 		else:
-			raise authError("Authorization error (bad password)")
+			raise AuthError("Invalid password")
 
 		if "security_check" in response.url:
-			number_hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", response.text)[0]
-
+			Hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", body)[0]
 			code = self.number[2:-2]			
 			if len(self.number) == 12:
 				if not self.number.startswith("+"):
@@ -70,57 +87,52 @@ class VkApi:
 	
 			elif len(self.number) == 13:			# so we need 1234567
 				if self.number.startswith("+"):
-					code = self.number[4:-2] 
+					code = self.number[4:-2]
 
 			values = { "act": "security_check",
 					   "al": "1",
 					   "al_page": "3",
 					   "code": code,
-					   "hash": number_hash,
+					   "hash": Hash,
 					   "to": ""
 					  }
-			response = self.http.post("https://vk.com/login.php", values)
-			if response.text.split("<!>")[4] == "4":
-				return
+			post = self.RIP.post("https://vk.com/login.php", values)
+			body, response = post
+			if not body.split("<!>")[4] == "4":
+				raise AuthError("Incorrect number")
 
-			raise authError("Incorrect number")
-
-	def check_sid(self):
-		"""Valiating cookies remixsid"""
+	def checkSid(self):
 		if self.sid:
 			url = "https://vk.com/feed2.php"
-			self.http.cookies.update({
-				"remixsid": self.sid,
-				"remixlang": "0",
-				"remixsslsid": "1"
-			})
+			get = self.RIP.get(url)
+			body, response = get
+			if body:
+				data = json.loads(body)
+				if data["user"]["id"] != -1:
+					return data
 
-			response = self.http.get(url).json()
-
-			if response["user"]["id"] != -1:
-				return response
-
-	def api_login(self):
+	def confirmThisApp(self):
 		url = "https://oauth.vk.com/authorize"
 		values = { "display": "mobile",
 				   "scope": self.scope,
 				   "client_id": self.app_id,
 				   "response_type": "token",
 				   "redirect_uri": "https://oauth.vk.com/blank.html"
-				   }
+				  }
 
 		token = None
-		GET = self.http.get(url, params = values)
-		getUrl = GET.url
-		if "access_token" in getUrl:
-			token = getUrl.split("=")[1].split("&")[0]
+		get = self.RIP.get(url, values)
+		body, response = get
+		if "access_token" in response.url:
+			token = response.url.split("=")[1].split("&")[0]
 		else:
-			POST = webtools.getTagArg("form method=\"post\"", "action", GET.text, "form")
-			if POST:
-				response = self.http.post(POST)
+			PostTarget = webtools.getTagArg("form method=\"post\"", "action", body, "form")
+			if PostTarget:
+				post = self.RIP.post(PostTarget) # why no data?
+				body, response = post
 				token = response.url.split("=")[1].split("&")[0]
 			else:
-				raise authError("ApiError")
+				raise AuthError("Couldn't execute confirmThisApp()!")
 		self.token = token
 
 
@@ -132,61 +144,51 @@ class VkApi:
 			values["captcha_key"] = self.captcha["key"]
 			self.captcha = {}
 		self.lastMethod = (method, values)
-		## This code can be useful when we're loaded too high
 		self.last.append(time.time())
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
-##				print "sleeping because too fat %s" % str(self.last)
-				time.sleep(0.4)
-		try:
-			json = self.http.post(url, values).json()
-		except requests.ConnectionError:
-			try:
-				time.sleep(1)
-				json = self.http.post(url, values).json()
-			except:
-				return {}
+				time.sleep(0.3) # warn: it was 0.4
+
+		post = self.RIP.post(url, values)
+
+		body, response = post
+		body = json.loads(body)
+
 ##		if method == "messages.get":
 ##			print "method %s with values %s" % (method, str(values))
 ##			print "response for method %s: %s" % (method, str(json))
 
-		if json.has_key("response"):
-			return json["response"]
+		if body.has_key("response"):
+			return body["response"]
 
-		elif json.has_key("error"):
-			error = json["error"]
+		elif body.has_key("error"):
+			error = body["error"]
 			eCode = error["error_code"]
 			if eCode == 6: # too fast
 				time.sleep(3)
 				return self.method(method, values)
 			elif eCode == 5: # auth failed
-				raise apiError("Logged out")
+				raise VkApiError("Logged out")
 			elif eCode == 9:
 				return {}
 			if eCode == 14:
-				if "captcha_sid" in error: # maybe we need check if exists self.captcha
+				if error.has_key("captcha_sid"):
 					self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
-					raise captchaNeeded
-			raise apiError(json["error"])
+					raise CaptchaNeeded
+			raise VkApiError(body["error"])
 
 	def retry(self):
 		if self.lastMethod: 
 			return self.method(*self.lastMethod)
 
-
-class vkApiError(Exception):
+class VkApiError(Exception):
 	pass
 
-
-class authError(vkApiError):
+class AuthError(VkApiError):
 	pass
 
-
-class apiError(vkApiError):
+class CaptchaNeeded(VkApiError):
 	pass
 
-class tokenError(vkApiError):
-	pass
-
-class captchaNeeded(vkApiError):
+class TokenError(VkApiError):
 	pass
