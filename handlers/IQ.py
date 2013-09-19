@@ -134,7 +134,7 @@ def iqRegisterHandler(cl, iq):
 			else:
 				try: 
 					user.init()
-				except api.captchaNeeded:
+				except api.CaptchaNeeded:
 					user.vk.captchaChallenge()
 				except:
 					crashLog("iq.user.init")

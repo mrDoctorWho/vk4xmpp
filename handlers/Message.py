@@ -60,7 +60,7 @@ def captchaAccept(cl, args, jidTo, jidFromStr):
 			try:
 				logger.debug("retrying for user %s" % jidFromStr)
 				retry = Class.vk.engine.retry()
-			except api.captchaNeeded:
+			except api.CaptchaNeeded:
 				logger.error("retry for user %s failed!" % jidFromStr)
 				Class.vk.captchaChallenge()
 			if retry:

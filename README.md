@@ -34,7 +34,7 @@ VK4XMPP представляет собой легковесный трансп�
 
 Установка (для серверов): [Раз](http://is.gd/u0No4y) | [Два](http://is.gd/A22Qxz)
 
-Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl)
+Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/)
 
 Другое: [FAQ](http://is.gd/zgOMp9) | [Обсуждение на 4pda](http://is.gd/t10ZIc) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
 
