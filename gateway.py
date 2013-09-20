@@ -259,12 +259,10 @@ class VKLogin(object):
 		list = str.join(",", list)
 		self.method("messages.markAsRead", {"message_ids": list})
 
-	def getMessages(self, lastjoinTime = 0, count = 5, lastMsgID = 0):
-		values = {"out": 0, "time_offset": lastjoinTime, 
-							"filters": 1, "count": count}
+	def getMessages(self, count = 5, lastMsgID = 0):
+		values = {"out": 0, "filters": 1, "count": count}
 		if lastMsgID:
 			del values["count"]
-			del values["time_offset"]
 			values["last_message_id"] = lastMsgID
 		return self.method("messages.get", values)
 
@@ -422,7 +420,7 @@ class tUser(object):
 		return body
 
 	def sendMessages(self):
-		messages = self.vk.getMessages(None, 200, lastMsgID = self.lastMsgID) # messages.getLastActivity
+		messages = self.vk.getMessages(200, self.lastMsgID) # messages.getLastActivity
 		if messages:
 			messages = messages[1:]
 			messages = sorted(messages, lambda a, b: a["date"] - b["date"])
@@ -527,7 +525,7 @@ DESC = _("© simpleApps, 2013."\
 ProblemReport = _("If you found any problems, please contact us:\n"\
 				"http://github.com/mrDoctorWho/vk4xmpp • xmpp:simpleapps@conference.jabber.ru")
 
-def updateTransportsList(user, add=True): #$
+def updateTransportsList(user, add=True):
 	global lengthOfTransportsList
 	if add and user not in TransportsList:
 		TransportsList.append(user)
@@ -694,7 +692,6 @@ if __name__ == "__main__":
 			exit()
 		except xmpp.StreamError:
 			crashLog("Component.iter")
-			pass
 		except IOError:
 			os.execl(sys.executable, sys.executable, sys.argv[0])
 		except:
@@ -702,4 +699,3 @@ if __name__ == "__main__":
 				exit()
 			Errors += 1
 			crashLog("Component.iter")
-			continue
