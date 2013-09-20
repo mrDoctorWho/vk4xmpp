@@ -5,6 +5,7 @@ import re, time
 import urllib, urllib2, cookielib, webtools, json
 
 class RequestProcessor(object):
+
 	def __init__(self):
 		self.cookieJar = cookielib.CookieJar()
 		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
@@ -13,6 +14,7 @@ class RequestProcessor(object):
 										" Gecko/20130309 Firefox/21.0",
 						 "Accept-Language": "ru-RU, utf-8"
 						}
+
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
 			if cookie.name == name:
@@ -26,17 +28,27 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
+	def open(self, request, timeout = 20, retryCount = 0):
+		try:
+			if retryCount > 3:
+				raise RuntimeError
+			response = self.Opener.open(request, timeout = timeout)
+		except urllib2.URLError:
+			retryCount += 1
+			response = self.open(request, timeout, retryCount)
+		return response
+
 	def post(self, url, data = {}):
 		request = self.request(url, data)
-		response = self.Opener.open(request, timeout = 15)
+		response = self.open(request)
 		body = response.read()
 		return (body, response)
 
 	def get(self, url, data = {}):
 		if data:
-			url = url + "/?%s" % urllib.urlencode(data, timeout = 15)
+			url = url + "/?%s" % urllib.urlencode(data)
 		request = self.request(url)
-		response = self.Opener.open(request)
+		response = self.open(request)
 		body = response.read()
 		return (body, response)
 
@@ -164,6 +176,8 @@ class APIBinding:
 		elif body.has_key("error"):
 			error = body["error"]
 			eCode = error["error_code"]
+			if eCode == 5: # invalid token
+				raise TokenError(error["error_msg"])
 			if eCode == 6: # too fast
 				time.sleep(3)
 				return self.method(method, values)
@@ -171,7 +185,7 @@ class APIBinding:
 				raise VkApiError("Logged out")
 			elif eCode == 9:
 				return {}
-			if eCode == 14:
+			if eCode == 14: # captcha
 				if error.has_key("captcha_sid"):
 					self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 					raise CaptchaNeeded

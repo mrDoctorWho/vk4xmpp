@@ -190,6 +190,8 @@ class VKLogin(object):
 		if not self.engine.captcha or force:
 			try:
 				result = self.engine.method(method, args)
+			except api.TokenError:
+				Transport[self.jidFrom].deleteUser()
 			except api.VkApiError as e:
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
 			except api.CaptchaNeeded:
@@ -320,7 +322,10 @@ class tUser(object):
 			self.vk.Online = False
 		if self.jUser in Transport:
 			del Transport[self.jUser]
-			updateTransportsList(self, False)
+			try:
+				updateTransportsList(self, False)
+			except NameError:
+				pass
 
 	def msg(self, body, uID):
 		try:
