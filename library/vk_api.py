@@ -165,19 +165,19 @@ class APIBinding:
 
 		body, response = post
 		body = json.loads(body)
-
+## Debug:
 ##		if method == "messages.get":
 ##			print "method %s with values %s" % (method, str(values))
 ##			print "response for method %s: %s" % (method, str(json))
-
 		if body.has_key("response"):
 			return body["response"]
 
 		elif body.has_key("error"):
 			error = body["error"]
 			eCode = error["error_code"]
-			if eCode == 5: # invalid token
-				raise TokenError(error["error_msg"])
+## TODO: Check this code
+##			if eCode == 5: # invalid token
+##				raise TokenError(error["error_msg"])
 			if eCode == 6: # too fast
 				time.sleep(3)
 				return self.method(method, values)

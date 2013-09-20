@@ -29,7 +29,7 @@ def crashLog(name, text = 0, fixMe = True):
 		exception = wException(True)
 		if exception not in ("None", lastErrorBody):
 			Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
-			wFile(File, Timestamp + exception, "a")
+			wFile(File, Timestamp + exception + "\n", "a")
 		lastErrorBody = exception
 	except:
 		fixme("crashlog")

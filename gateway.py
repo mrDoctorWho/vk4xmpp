@@ -190,8 +190,6 @@ class VKLogin(object):
 		if not self.engine.captcha or force:
 			try:
 				result = self.engine.method(method, args)
-			except api.TokenError:
-				Transport[self.jidFrom].deleteUser()
 			except api.VkApiError as e:
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
 			except api.CaptchaNeeded:
@@ -346,6 +344,8 @@ class tUser(object):
 			self.rosterSubscribe()
 			self.vk.captchaChallenge()
 			return True
+#		except api.TokenError:
+#			Transport[self.jidFrom].deleteUser()
 		except:
 			crashLog("tUser.Connect")
 			return False
