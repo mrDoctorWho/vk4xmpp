@@ -20,13 +20,15 @@ VK4XMPP представляет собой легковесный трансп�
 * Статистические данные о работе транспорта.
 
 **Отличия от pyvk-t**:
-* Транспорт не хранит паролей.
+* Транспорт не хранит паролей;
+* Транспорт не парсит страницы, а использует API ВКонтакте (введена версия 5.1);
 
 **Список серверов, где уже установлен транспорт VK4XMPP**:
 * vk.jabberik.ru
 * vk.isida-bot.com
 * vk.virtualtalk.org
 * vkontakte.jabberon.ru
+* vk.jabber-moscow.ru
 * vk.jabberid.org
 * vk4xmpp.kap.sh
 * vk.xmppserv.ru
@@ -34,7 +36,7 @@ VK4XMPP представляет собой легковесный трансп�
 
 Установка (для серверов): [Раз](http://is.gd/u0No4y) | [Два](http://is.gd/A22Qxz)
 
-Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/)
+Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/)
 
 Другое: [FAQ](http://is.gd/zgOMp9) | [Обсуждение на 4pda](http://is.gd/t10ZIc) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
 

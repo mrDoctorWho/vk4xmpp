@@ -475,9 +475,13 @@ class Protocol(Node):
 		self.setType('error')
 		self.addChild(node=error)
 
-	def setTimestamp(self, stamp):
+	def setTimestamp(self, stamp, ns = NS_NEW_DELAY):
 		self.timestamp = stamp
-		self.setTag("delay", {"stamp": stamp}, NS_NEW_DELAY)
+		if ns == NS_NEW_DELAY:
+			tag = "delay"
+		else:
+			tag = "x"
+		self.setTag(tag, {"stamp": stamp}, ns)
 
 	def getProperties(self):
 		""" Return the list of namespaces to which belongs the direct childs of element"""

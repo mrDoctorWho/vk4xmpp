@@ -2,18 +2,20 @@
 # © simpleApps CodingTeam, 2013.
 
 import re, time
-import urllib, urllib2, cookielib, webtools, json
+import ssl, urllib, urllib2, cookielib, webtools, json
+import traceback
 
 class RequestProcessor(object):
 
+	headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
+									" Gecko/20130309 Firefox/21.0",
+		   	   	"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+				"Accept-Language": "ru-RU, utf-8"
+			  }
 	def __init__(self):
 		self.cookieJar = cookielib.CookieJar()
 		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.Opener = urllib2.build_opener(self.cookieProcessor)
-		self.headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
-										" Gecko/20130309 Firefox/21.0",
-						 "Accept-Language": "ru-RU, utf-8"
-						}
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
@@ -28,14 +30,17 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	def open(self, request, timeout = 20, retryCount = 0):
+	def open(self, request, timeout = 3, retryCount = 0):
 		try:
-			if retryCount > 3:
+			if retryCount > 4:
 				raise RuntimeError
 			response = self.Opener.open(request, timeout = timeout)
-		except urllib2.URLError:
+		except (urllib2.URLError, ssl.SSLError):
+			traceback.print_exc()
 			retryCount += 1
 			response = self.open(request, timeout, retryCount)
+		except RuntimeError:
+			return {}
 		return response
 
 	def post(self, url, data = {}):
@@ -151,6 +156,7 @@ class APIBinding:
 	def method(self, method, values={}):
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
+		values["v"] = "5.1"
 		if self.captcha and self.captcha.has_key("key"):
 			values["captcha_sid"] = self.captcha["sid"]
 			values["captcha_key"] = self.captcha["key"]
@@ -165,10 +171,10 @@ class APIBinding:
 
 		body, response = post
 		body = json.loads(body)
-## Debug:
-##		if method == "messages.get":
-##			print "method %s with values %s" % (method, str(values))
-##			print "response for method %s: %s" % (method, str(json))
+# Debug:
+#		if method == "messages.get":
+#			print "method %s with values %s" % (method, str(values))
+#			print "response for method %s: %s" % (method, str(body))
 		if body.has_key("response"):
 			return body["response"]
 
@@ -176,8 +182,9 @@ class APIBinding:
 			error = body["error"]
 			eCode = error["error_code"]
 ## TODO: Check this code
-##			if eCode == 5: # invalid token
-##				raise TokenError(error["error_msg"])
+			if eCode == 5: # invalid token
+#				print error
+				raise TokenError(error["error_msg"])
 			if eCode == 6: # too fast
 				time.sleep(3)
 				return self.method(method, values)

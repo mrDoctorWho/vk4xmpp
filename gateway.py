@@ -35,12 +35,13 @@ from writer import *
 from stext import *
 from stext import _
 from hashlib import sha1
-import vk_api as api
+import vkApi as api
 
 Transport = {}
 TransportsList = []
 WatcherList = []
 WhiteList = []
+
 
 TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
 					  xmpp.NS_DISCO_INFO,
@@ -64,8 +65,9 @@ Semaphore = threading.Semaphore()
 SLICE_STEP = 8
 pidFile = "pidFile.txt"
 Config = "Config.txt"
+PhotoSize = "photo_100"
 DefLang = "ru"
-evalJID = ""
+evalJID = "admin@localhost"
 
 DEBUG_XMPPPY = False
 
@@ -152,8 +154,6 @@ class VKLogin(object):
 		except api.AuthError as e:
 			logger.error("VKLogin.auth failed with error %s" % e.message)
 			return False
-		except api.TokenError:
-			self.deleteUser()
 		except:
 			crashLog("VKLogin.auth")
 		logger.debug("VKLogin.auth completed")
@@ -227,6 +227,10 @@ class VKLogin(object):
 			obTag = msg.getTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
 			obTag.setData(imgEncoded)
 			Sender(Component, msg)
+			Presence = xmpp.Protocol.Presence(self.jidFrom, frm = TransportID)
+			Presence.setStatus(body)
+			Presence.setShow("xa")
+			Sender(Presence)
 		else:
 			logger.error("VKLogin: captchaChallenge called without captcha for user %s" % self.jidFrom)
 
@@ -240,10 +244,11 @@ class VKLogin(object):
 
 	def getFriends(self, fields = ["screen_name"]):
 		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) # friends.getOnline
+		friendsRaw = friendsRaw.get("items")
 		friendsDict = {}
 		if friendsRaw:
 			for friend in friendsRaw:
-				uid = friend["uid"]
+				uid = friend["id"]
 				name = u"%s %s" % (friend["first_name"], friend["last_name"])
 				try:
 					friendsDict[uid] = {"name": name, "online": friend["online"]}
@@ -251,7 +256,6 @@ class VKLogin(object):
 						if key != "screen_name":
 							friendsDict[uid][key] = friend.get(key)
 				except KeyError:
-					crashLog("vk.getFriend")
 					continue
 		return friendsDict
 
@@ -273,51 +277,52 @@ class VKLogin(object):
 
 class tUser(object):
 
-	def __init__(self, cl, data = [], source = ""):
-		self.password = False
+	def __init__(self, data = [], source = ""):
+		self.password = None
 		if data:
 			self.username, self.password = data
-		self.cl = cl
 		self.friends = {}
-		self.auth = False
-		self.token = False
-		self.lastStatus = False
-		self.lastMsgID = False
-		self.rosterSet = False
-		self.existsInDB = False
+		self.auth = None
+		self.token = None
+		self.lastStatus = None
+		self.lastMsgID = None
+		self.rosterSet = None
+		self.existsInDB = None
 		self.last_activity = time.time()
-		self.jUser = source
+		self.jidFrom = source
 		self.resources = []
-		self.vk = VKLogin(self.username, self.password, self.jUser)
-		logger.debug("initializing tUser for %s" % self.jUser)
+		self.vk = VKLogin(self.username, self.password, self.jidFrom)
+		logger.debug("initializing tUser for %s" % self.jidFrom)
 		with Database(DatabaseFile, Semaphore) as db:
-			base = db("select * from users where jid=?", (self.jUser,))
+			base = db("select * from users where jid=?", (self.jidFrom,))
 			desc = db.fetchone()
 			if desc:
 				if not self.token or not self.password:
-					logger.debug("tUser: %s exists in db. Using it." % self.jUser)
+					logger.debug("tUser: %s exists in db. Using it." % self.jidFrom)
 					self.existsInDB = True
-					self.jUser, self.username, self.token, self.lastMsgID, self.rosterSet = desc
+					self.jidFrom, self.username, self.token, self.lastMsgID, self.rosterSet = desc
 				elif self.password or self.token:
-					logger.debug("tUser: %s exists in db. Will be deleted." % self.jUser)
+					print "deleting you from db"
+					logger.debug("tUser: %s exists in db. Will be deleted." % self.jidFrom)
 					threadRun(self.deleteUser)
 
 	def deleteUser(self, roster = False):
-		logger.debug("tUser: deleting user %s from db." % self.jUser)
+		logger.debug("tUser: deleting user %s from db." % self.jidFrom)
 		with Database(DatabaseFile) as db:
-			db("delete from users where jid=?", (self.jUser,))
+			db("delete from users where jid=?", (self.jidFrom,))
 			db.commit()
+		self.existsInDB = False
 		if roster and self.friends:
-			logger.debug("tUser: deleting me from %s roster" % self.jUser)
+			logger.debug("tUser: deleting me from %s roster" % self.jidFrom)
 			for id in self.friends.keys():
 				jid = vk2xmpp(id)
-				unSub = xmpp.Presence(self.jUser, "unsubscribe", frm = jid) 
-				Sender(self.cl, unSub)
-				unSubed = xmpp.Presence(self.jUser, "unsubscribed", frm = jid)
-				Sender(self.cl, unSubed)
+				unSub = xmpp.Presence(self.jidFrom, "unsubscribe", frm = jid) 
+				Sender(Component, unSub)
+				unSubed = xmpp.Presence(self.jidFrom, "unsubscribed", frm = jid)
+				Sender(Component, unSubed)
 			self.vk.Online = False
-		if self.jUser in Transport:
-			del Transport[self.jUser]
+		if self.jidFrom in Transport:
+			del Transport[self.jidFrom]
 			try:
 				updateTransportsList(self, False)
 			except NameError:
@@ -333,64 +338,69 @@ class tUser(object):
 		return Message
 
 	def connect(self):
-		logger.debug("tUser: connecting %s" % self.jUser)
+		logger.debug("tUser: connecting %s" % self.jidFrom)
 		self.auth = False
 		try:
 			self.auth = self.vk.auth(self.token)
-			logger.debug("tUser: auth=%s for %s" % (self.auth, self.jUser))
+			logger.debug("tUser: auth=%s for %s" % (self.auth, self.jidFrom))
 		except api.CaptchaNeeded:
 			self.rosterSubscribe()
 			self.vk.captchaChallenge()
 			return True
-#		except api.TokenError:
-#			Transport[self.jidFrom].deleteUser()
+		except api.TokenError as e:
+			if e.message != "User authorization failed: invalid access_token.":
+				self.deleteUser()
 		except:
 			crashLog("tUser.Connect")
 			return False
 		if self.auth and self.vk.getToken(): #!
-			logger.debug("tUser: updating db for %s because auth done " % self.jUser)
+			logger.debug("tUser: updating db for %s because auth done " % self.jidFrom)
 			if not self.existsInDB:
 				with Database(DatabaseFile, Semaphore) as db:
-					db("insert into users values (?,?,?,?,?)", (self.jUser, self.username, 
+					db("insert into users values (?,?,?,?,?)", (self.jidFrom, self.username, 
 						self.vk.getToken(), self.lastMsgID, self.rosterSet))
 			elif self.password:
 				with Database(DatabaseFile, Semaphore) as db:
-					db("update users set token=? where jid=?", (self.vk.getToken(), self.jUser))
+					db("update users set token=? where jid=?", (self.vk.getToken(), self.jidFrom))
 			self.friends = self.vk.getFriends()
 			self.vk.Online = True
+		if not UseLastMessageID:
+			self.lastMsgID = 0
 		return self.vk.Online
 
 	def init(self, force = False):
-		logger.debug("tUser: called init for user %s" % self.jUser)
+		logger.debug("tUser: called init for user %s" % self.jidFrom)
 		self.friends = self.vk.getFriends()
 		if self.friends and not self.rosterSet or force:
-			logger.debug("tUser: calling subscribe with force:%s for %s" % (force, self.jUser))
+			logger.debug("tUser: calling subscribe with force:%s for %s" % (force, self.jidFrom))
 			self.rosterSubscribe(self.friends)
 		threadRun(self.sendInitPresence)
 ##		threadRun(self.sendMessages) # maybe not needed more
 
 	def sendInitPresence(self):
 		self.friends = self.vk.getFriends()
-		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jUser, "exists" if self.friends else "empty"))
-		Presence = xmpp.protocol.Presence(self.jUser)
+		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jidFrom, "exists" if self.friends else "empty"))
+		Presence = xmpp.protocol.Presence(self.jidFrom)
 		for uid in self.friends.keys():
 			if self.friends[uid]["online"]:
 				Presence.setFrom(vk2xmpp(uid))
 				Presence.setTag("nick", namespace = xmpp.NS_NICK)
 				Presence.setTagData("nick", self.friends[uid]["name"])
-			Sender(self.cl, Presence)
+			Sender(Component, Presence)
 		Presence.setFrom(TransportID)
 		Presence.setTagData("nick", IDentifier["name"])
-		Sender(self.cl, Presence)
+		Sender(Component, Presence)
 
-	def sendOutPresence(self, target):
+	def sendOutPresence(self, target, reason = None):
 		pType = "unavailable"
-		logger.debug("tUser: sending out presence to %s" % self.jUser)
+		logger.debug("tUser: sending out presence to %s" % self.jidFrom)
 		Presence = xmpp.protocol.Presence(target, pType, frm = TransportID)
-		Sender(self.cl, Presence)
+		if reason:
+			Presence.setStatus(reason)
+		Sender(Component, Presence)
 		for uid in self.friends.keys():
 			Presence.setFrom(vk2xmpp(uid))
-			Sender(self.cl, Presence)
+			Sender(Component, Presence)
 
 	def parseAttachments(self, msg):
 		body = str()
@@ -403,15 +413,15 @@ class tUser(object):
 				if key == "wall":
 					continue	
 				elif key == "photo":
-					keys = ("src_big", "url", "src_xxxbig", "src_xxbig", "src_xbig", "src", "src_small")
-					for dKey in keys:
-						if att[key].has_key(dKey):
-							body += "\n" + att[key][dKey]
-							break
+					keys = att[key].keys()
+					keys = sorted([val for val in keys if "photo" in val], photoSort)
+					maxSize = keys[-1]
+					photo = att[key][maxSize]
+					body += "\nPhoto: %s" % photo
 				elif key == "video":
-					body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
+					body += "\nVideo: http://vk.com/video%(owner_id)s_%(id)s — %(title)s"
 				elif key == "audio":
-					body += "\nAudio: %(performer)s — %(title)s — %(url)s"
+					body += "\nAudio: %(artist)s — %(title)s — %(url)s"
 				elif key == "doc":
 					body += "\nDocument: %(title)s — %(url)s"
 				else:
@@ -422,21 +432,21 @@ class tUser(object):
 	def sendMessages(self):
 		messages = self.vk.getMessages(200, self.lastMsgID) # messages.getLastActivity
 		if messages:
-			messages = messages[1:]
-			messages = sorted(messages, lambda a, b: a["date"] - b["date"])
+			messages = messages["items"]
+			messages = sorted(messages, msgSort)
 			if messages:
-				self.lastMsgID = messages[-1]["mid"]
+				self.lastMsgID = messages[-1]["id"]
 				read = list()
 				for message in messages:
-					read.append(str(message.get("mid", 0)))
-					fromjid = vk2xmpp(message["uid"])
+					read.append(str(message.get("id", 0)))
+					fromjid = vk2xmpp(message["user_id"])
 					body = uHTML(message["body"])
 					body += self.parseAttachments(message)
 					if message.has_key("fwd_messages"):
 						body += _("\nForward messages:")
-						fwd_messages = sorted(message["fwd_messages"], lambda a, b: a["date"] - b["date"])
+						fwd_messages = sorted(message["fwd_messages"], msgSort)
 						for fwd in fwd_messages:
-							idFrom = fwd["uid"]
+							idFrom = fwd["user_id"]
 							date = fwd["date"]
 							fwdBody = uHTML(fwd["body"])
 							date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
@@ -449,31 +459,31 @@ class tUser(object):
 								name = self.friends[idFrom]["name"]
 							body += "\n[%s] <%s> %s" % (date, name, fwdBody)
 							body += self.parseAttachments(fwd)
-					msgSend(self.cl, self.jUser, body, fromjid, message["date"])
+					msgSend(Component, self.jidFrom, body, fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
 					with Database(DatabaseFile, Semaphore) as db:
-						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.jUser))
+						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.jidFrom))
 
 	def rosterSubscribe(self, dist = {}):
-		Presence = xmpp.Presence(self.jUser, "subscribe")
+		Presence = xmpp.Presence(self.jidFrom, "subscribe")
 		Presence.setTag("nick", namespace = xmpp.NS_NICK)
 		for id in dist.keys():
 			nickName = dist[id]["name"]
 			Presence.setTagData("nick", nickName)
 			Presence.setFrom(vk2xmpp(id))
-			Sender(self.cl, Presence)
+			Sender(Component, Presence)
 			time.sleep(0.2)
 		Presence.setFrom(TransportID)
 		Presence.setTagData("nick", IDentifier["name"])
-		Sender(self.cl, Presence)
+		Sender(Component, Presence)
 		if dist:
 			self.rosterSet = True
 			with Database(DatabaseFile, Semaphore) as db:
-				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jUser))
+				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jidFrom))
 
 	def tryAgain(self):
-		logger.debug("calling reauth for user %s" % self.jUser)
+		logger.debug("calling reauth for user %s" % self.jidFrom)
 		try:
 			if not self.vk.Online:
 				self.connect()
@@ -481,10 +491,13 @@ class tUser(object):
 		except:
 			crashLog("tryAgain")
 
+msgSort = lambda msgA, msgB: msgA["date"] - msgB["date"]
+photoSort = lambda Br, Ba: int(Br.split("_")[1]) - int(Ba.split("_")[1])
+
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
-		time.sleep(0.001)
+		time.sleep(0.007)
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
@@ -493,9 +506,11 @@ def Sender(cl, stanza):
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	msg = xmpp.Message(jidTo, body, "chat", frm = jidFrom)
 	if timestamp:
-		gmTime = time.gmtime(timestamp)
-		strTime = time.strftime("%Y-%m-%dT%H:%M:%SZ", gmTime)
-		msg.setTimestamp(strTime) # xep-0203 TODO: return XEP-0012
+		timestamp = time.gmtime(timestamp)
+		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp), xmpp.NS_DELAY)
+##		gmTime = time.gmtime(timestamp)
+##		strTime = time.strftime("%Y-%m-%dT%H:%M:%SZ", gmTime)
+##		msg.setTimestamp(strTime) # xep-0203
 	Sender(cl, msg)
 
 def apply(instance, args = ()):
@@ -573,9 +588,8 @@ def hyperThread(start, end):
 						for uid in friends:
 							if uid in user.friends:
 								if user.friends[uid]["online"] != friends[uid]["online"]:
-									jid = vk2xmpp(uid)
 									pType = None if friends[uid]["online"] else "unavailable"
-									Sender(user.cl, xmpp.protocol.Presence(user.jUser, pType, frm=jid))
+									Sender(Component, xmpp.protocol.Presence(user.jidFrom, pType, frm=vk2xmpp(uid)))
 							else:
 								user.rosterSubscribe({uid: friends[uid]})
 						user.friends = friends
@@ -586,10 +600,13 @@ def WatcherMsg(text):
 	for jid in WatcherList:
 		msgSend(Component, jid, text, TransportID)
 
-def disconnectHandler():
+def disconnectHandler(crash = True):
+	if crash:
+		crashLog("main.Disconnect")
 	global Errors
 	Errors += 1
-	crashLog("main.Disconnect")
+	if Errors > 10:
+		raise IOError
 
 def main():
 	Counter = [0, 0]
@@ -604,7 +621,7 @@ def main():
 		Print("ok.\n", False)
 		Print("#-# Auth: ", False)
 		if not Component.auth(TransportID, Password):
-			Print("fail.\n", False)
+			Print("fail (%s/%s)!\n" % (Component.lastErr, Component.lastErrCode), True)
 		else:
 			Print("ok.\n", False)
 			Print("#-# Initializing users", False)
@@ -612,10 +629,11 @@ def main():
 				users = db("select * from users").fetchall()
 				for user in users:
 					jid, phone = user[:2]
-					Transport[jid] = tUser(Component, (phone, None), jid)
+					Class = tUser((phone, None), jid)
+					Transport[jid] = Class
 					try:
 						if Transport[jid].connect():
-							TransportsList.append(Transport[jid])
+							TransportsList.append(Class)
 							if DefaultStatus == 1: # 1 — online, 0 — offline
 								Transport[jid].init()
 							Print(".", False)
@@ -635,7 +653,6 @@ def main():
 				Print("#-# Failed to connect %d users." % Counter[1])
 
 			globals()["lengthOfTransportsList"] = int(ceil(float(len(TransportsList)) / SLICE_STEP) * SLICE_STEP)
-
 			Component.RegisterHandler("iq", iqHandler)
 			Component.RegisterHandler("presence", prsHandler)
 			Component.RegisterHandler("message", msgHandler)
@@ -643,25 +660,16 @@ def main():
 
 			for start in xrange(0, lengthOfTransportsList, SLICE_STEP):
 				end = start + SLICE_STEP
-				threadRun(hyperThread, (start, end), "main.init-%d" % start)
+				threadRun(hyperThread, (start, end), "hyperThread-%d" % start)
 
 			Print("\n#-# Finished.")
 
 def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 	status = "Shutting down by %s" % ("SIGTERM" if signal else "KeyboardInterrupt")
 	Print("#! %s" % status, False)
-	Presence = xmpp.protocol.Presence(None, "unavailable", frm = TransportID)
-	Presence.setStatus(status)
 	for Class in TransportsList:
-		Presence.setTo(Class.jUser)
-		Sender(Component, Presence)
-		friends = Class.friends
-		if friends:
-			for id in friends:
-				jid = vk2xmpp(id)
-				Presence.setFrom(jid)
-				Sender(Component, Presence)
-				Print(".", False)
+		Class.sendOutPresence(Class.jidFrom, status)
+		Print("." * len(Class.friends))
 	Print("\n")
 	try:
 		os.remove(pidFile)
@@ -679,11 +687,12 @@ def loadHandlers():
 		execfile("handlers/%s" % handler, globals())
 
 if __name__ == "__main__":
+	global Errors
+	Errors = 0
 	threadRun(garbageCollector, (), "gc")
 	signal.signal(signal.SIGTERM, exit)
 	loadHandlers()
 	main()
-	Errors = 0
 
 	while True:
 		try:
@@ -695,7 +704,5 @@ if __name__ == "__main__":
 		except IOError:
 			os.execl(sys.executable, sys.executable, sys.argv[0])
 		except:
-			if Errors > 10:
-				exit()
-			Errors += 1
+			disconnectHandler(False)
 			crashLog("Component.iter")

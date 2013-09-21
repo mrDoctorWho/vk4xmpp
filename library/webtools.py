@@ -15,7 +15,7 @@ edefs = dict()
 for Name, Numb in htmlentitydefs.name2codepoint.iteritems():
 	edefs[Name] = unichr(Numb)
 
-del Name, Numb
+del Name, Numb, htmlentitydefs
 
 compile_ehtmls = re.compile("&(#?[xX]?(?:[0-9a-fA-F]+|\w{1,8}));")
 

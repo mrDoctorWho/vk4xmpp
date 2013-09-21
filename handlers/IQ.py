@@ -121,7 +121,11 @@ def iqRegisterHandler(cl, iq):
 				logger.debug("user %s want to use password" % jidFromStr)
 				if not phone:
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
-			user = tUser(cl, (phone, password), jidFromStr)
+			if jidFromStr in Transport:
+				user = Transport[jidFromStr]
+				user.deleteUser()
+			else:
+				user = tUser((phone, password), jidFromStr)
 			if not usePassword:
 				try:
 					token = token.split("#access_token=")[1].split("&")[0].strip()
@@ -303,7 +307,6 @@ def iqVcardBuild(tags):
 			vCard.setTagData(key, tags[key])
 	return vCard
 
-
 def iqVcardHandler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
@@ -321,7 +324,7 @@ def iqVcardHandler(cl, iq):
 
 		elif jidFromStr in Transport:
 			Class = Transport[jidFromStr]
-			Friends = Class.vk.getFriends(["screen_name", "photo_100"])
+			Friends = Class.vk.getFriends(["screen_name", PhotoSize])
 			if Friends:
 				id = vk2xmpp(jidToStr)
 				if id in Friends.keys():

@@ -29,7 +29,7 @@ Also exception 'error' is defined to allow capture of this module specific excep
 
 import sys
 import socket
-import dns
+#import dns
 import dispatcher
 
 from base64 import encodestring
@@ -148,12 +148,9 @@ class TCPsocket(PlugIn):
 		except:
 			received = ''
 		while self.pending_data(0):
-			try: add = self._recv(BUFLEN)
-			except: add=''
-			received +=add
-			if not add:
-				break
-		if len(received): # length of 0 means disconnect
+			try: received += self._recv(BUFLEN)
+			except: break
+		if received: # length of 0 means disconnect
 			self._seen_data=1
 			self.DEBUG(received,'got')
 			if hasattr(self._owner, 'Dispatcher'):
@@ -167,8 +164,8 @@ class TCPsocket(PlugIn):
 	def send(self,raw_data):
 		""" Writes raw outgoing data. Blocks until done.
 			If supplied data is unicode string, encodes it to utf-8 before send."""
-		if type(raw_data)==type(u''): raw_data = raw_data.encode('utf-8')
-		elif type(raw_data)<>type(''): raw_data = ustr(raw_data).encode('utf-8')
+		if isinstance(raw_data, unicode): raw_data = raw_data.encode('utf-8')
+		elif not isinstance(raw_data, str): raw_data = ustr(raw_data).encode('utf-8')
 		try:
 			self._send(raw_data)
 			# Avoid printing messages that are empty keepalive packets.
@@ -236,7 +233,7 @@ class HTTPPROXYsocket(TCPsocket):
 			return
 		try: proto,code,desc=reply.split('\n')[0].split(' ',2)
 		except: raise error('Invalid proxy reply')
-		if code<>'200':
+		if code != '200':
 			self.DEBUG('Invalid proxy reply: %s %s %s'%(proto,code,desc),'error')
 			self._owner.disconnected()
 			return
@@ -309,7 +306,7 @@ class TLS(PlugIn):
 	def StartTLSHandler(self, conn, starttls):
 		""" Handle server reply if TLS is allowed to process. Behaves accordingly.
 			Used internally."""
-		if starttls.getNamespace()<>NS_TLS:
+		if starttls.getNamespace() != NS_TLS:
 			return
 		self.starttls=starttls.getName()
 		if self.starttls=='failure':
