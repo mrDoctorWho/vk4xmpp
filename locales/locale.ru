@@ -28,3 +28,4 @@ Get access-token automatically=Получить access-token автоматич�
 Try to get access-token automatically. (NOT recommented, password required!)=Попытаться получить access-token автоматически. (Не рекомендуется, требуется пароль)
 Password/Access-token=Пароль/Access-token
 Type password, access-token or url (recommented)=Введите пароль, access-token или ссылку из браузера (рекомендуется)
+User authorization failed: invalid access_token. Please, register again=Ошибка авторизации: неправильный access_token. Пожалуйста, пройдите регистрацию снова.

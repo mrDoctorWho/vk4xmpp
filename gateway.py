@@ -187,10 +187,18 @@ class VKLogin(object):
 
 	def method(self, method, args = {}, force = False):
 		result = {}
-		if not self.engine.captcha or force:
+		if not self.engine.captcha and self.Online or force:
 			try:
 				result = self.engine.method(method, args)
 			except api.VkApiError as e:
+				if e.message == "User authorization failed: user revoke access for this token.":
+					try:
+						Transport[self.jidFrom].deleteUser()
+					except KeyError:
+						pass
+				elif e.message == "User authorization failed: invalid access_token.":
+					msgSend(Component, self.jidFrom, _(e.message + " Please, register again"), TransportID)
+				self.Online = False
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
 			except api.CaptchaNeeded:
 				logger.error("VKLogin: running captcha challenge for %s" % self.jidFrom)
@@ -346,8 +354,11 @@ class tUser(object):
 			self.vk.captchaChallenge()
 			return True
 		except api.TokenError as e:
-			if e.message != "User authorization failed: invalid access_token.":
+			if e.message == "User authorization failed: user revoke access for this token.":
 				self.deleteUser()
+			elif e.message == "User authorization failed: invalid access_token.":
+				msgSend(Component, self.jidFrom, _(e.message + " Please, register again"), TransportID)
+			self.vk.Online = False
 		except:
 			crashLog("tUser.Connect")
 			return False
