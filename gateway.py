@@ -67,7 +67,7 @@ pidFile = "pidFile.txt"
 Config = "Config.txt"
 PhotoSize = "photo_100"
 DefLang = "ru"
-evalJID = "admin@localhost"
+evalJID = ""
 
 DEBUG_XMPPPY = False
 
@@ -243,20 +243,18 @@ class VKLogin(object):
 		return self.engine.token
 
 	def getFriends(self, fields = ["screen_name"]):
-		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) # friends.getOnline
-		friendsRaw = friendsRaw.get("items")
+		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) or {} # friends.getOnline
 		friendsDict = {}
-		if friendsRaw:
-			for friend in friendsRaw:
-				uid = friend["id"]
-				name = u"%s %s" % (friend["first_name"], friend["last_name"])
-				try:
-					friendsDict[uid] = {"name": name, "online": friend["online"]}
-					for key in fields:
-						if key != "screen_name":
-							friendsDict[uid][key] = friend.get(key)
-				except KeyError:
-					continue
+		for friend in friendsRaw:
+			uid = friend["uid"]
+			name = u"%s %s" % (friend["first_name"], friend["last_name"])
+			try:
+				friendsDict[uid] = {"name": name, "online": friend["online"]}
+				for key in fields:
+					if key != "screen_name":
+						friendsDict[uid][key] = friend.get(key)
+			except KeyError:
+				continue
 		return friendsDict
 
 	def msgMarkAsRead(self, list):
@@ -413,15 +411,15 @@ class tUser(object):
 				if key == "wall":
 					continue	
 				elif key == "photo":
-					keys = att[key].keys()
-					keys = sorted([val for val in keys if "photo" in val], photoSort)
-					maxSize = keys[-1]
-					photo = att[key][maxSize]
-					body += "\nPhoto: %s" % photo
+					keys = ("src_big", "url", "src_xxxbig", "src_xxbig", "src_xbig", "src", "src_small")
+					for dKey in keys:
+						if att[key].has_key(dKey):
+							body += "\n" + att[key][dKey]
+							break
 				elif key == "video":
-					body += "\nVideo: http://vk.com/video%(owner_id)s_%(id)s — %(title)s"
+					body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
 				elif key == "audio":
-					body += "\nAudio: %(artist)s — %(title)s — %(url)s"
+					body += "\nAudio: %(performer)s — %(title)s — %(url)s"
 				elif key == "doc":
 					body += "\nDocument: %(title)s — %(url)s"
 				else:
@@ -432,21 +430,21 @@ class tUser(object):
 	def sendMessages(self):
 		messages = self.vk.getMessages(200, self.lastMsgID) # messages.getLastActivity
 		if messages:
-			messages = messages["items"]
+			messages = messages[1:]
 			messages = sorted(messages, msgSort)
 			if messages:
-				self.lastMsgID = messages[-1]["id"]
+				self.lastMsgID = messages[-1]["mid"]
 				read = list()
 				for message in messages:
-					read.append(str(message.get("id", 0)))
-					fromjid = vk2xmpp(message["user_id"])
+					read.append(str(message.get("mid", 0)))
+					fromjid = vk2xmpp(message["uid"])
 					body = uHTML(message["body"])
 					body += self.parseAttachments(message)
 					if message.has_key("fwd_messages"):
 						body += _("\nForward messages:")
 						fwd_messages = sorted(message["fwd_messages"], msgSort)
 						for fwd in fwd_messages:
-							idFrom = fwd["user_id"]
+							idFrom = fwd["uid"]
 							date = fwd["date"]
 							fwdBody = uHTML(fwd["body"])
 							date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
@@ -491,8 +489,7 @@ class tUser(object):
 		except:
 			crashLog("tryAgain")
 
-msgSort = lambda msgA, msgB: msgA["date"] - msgB["date"]
-photoSort = lambda Br, Ba: int(Br.split("_")[1]) - int(Ba.split("_")[1])
+msgSort = lambda Br, Ba: Br["date"] - Ba["date"]
 
 def Sender(cl, stanza):
 	try:

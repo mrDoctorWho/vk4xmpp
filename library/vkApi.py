@@ -156,7 +156,7 @@ class APIBinding:
 	def method(self, method, values={}):
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
-		values["v"] = "5.1"
+		values["v"] = "3.0"
 		if self.captcha and self.captcha.has_key("key"):
 			values["captcha_sid"] = self.captcha["sid"]
 			values["captcha_key"] = self.captcha["key"]
