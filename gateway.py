@@ -92,6 +92,7 @@ Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", 
 loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
+threading.stack_size(1024*32)
 def gatewayRev():
 	revNumber, rev = 0, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
@@ -506,6 +507,8 @@ def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
 		time.sleep(0.007)
+	except KeyboardInterrupt:
+		pass
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
@@ -602,6 +605,8 @@ def hyperThread(start, end):
 								user.rosterSubscribe({uid: friends[uid]})
 						user.friends = friends
 					user.sendMessages()
+					del friends
+		del slice, cTime
 		time.sleep(ROSTER_UPDATE_TIMEOUT)
 
 def WatcherMsg(text):

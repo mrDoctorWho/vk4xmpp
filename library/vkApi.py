@@ -74,6 +74,7 @@ class APIBinding:
 		self.scope = scope
 
 		self.RIP = RequestProcessor()
+		self.attempts = 0
 
 	def loginByPassword(self):
 		url = "https://login.vk.com/"
@@ -153,7 +154,7 @@ class APIBinding:
 		self.token = token
 
 
-	def method(self, method, values={}):
+	def method(self, method, values = {}):
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
 		values["v"] = "3.0"
@@ -185,7 +186,14 @@ class APIBinding:
 ## TODO: Check this code
 			if eCode == 5: # invalid token
 #				print error
-				raise TokenError(error["error_msg"])
+				self.attempts += 1
+				if self.attempts < 2:
+					retry = self.retry()
+					if retry:
+						self.attempts = 0
+						return retry
+				else:
+					raise TokenError(error["error_msg"])
 			if eCode == 6: # too fast
 				time.sleep(3)
 				return self.method(method, values)
