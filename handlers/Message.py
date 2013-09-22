@@ -66,7 +66,7 @@ def captchaAccept(cl, args, jidTo, jidFromStr):
 			if retry:
 				logger.debug("retry for user %s OK" % jidFromStr)
 				answer = _("Captcha valid.")
-				Presence = xmpp.Protocol.Presence(self.jidFrom, frm = TransportID)
+				Presence = xmpp.protocol.Presence(self.jidFrom, frm = TransportID)
 				Presence.setStatus("") # is it needed?
 				Presence.setShow("available")
 				Sender(Presence)
