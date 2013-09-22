@@ -315,10 +315,11 @@ def iqVcardHandler(cl, iq):
 	iType = iq.getType()
 	result = iq.buildReply("result")
 	if iType == "get":
+		_DESC = '\n'.join((DESC,'-'*16,AdditionalAbout)) if AdditionalAbout else DESC
 		if jidToStr == TransportID:
 			vcard = iqVcardBuild({"NICKNAME": "VK4XMPP Transport",
-								  "DESC": DESC,
-								  "PHOTO": "http://simpleApps.ru/vk4xmpp.png",
+								  "DESC": _DESC,
+								  "PHOTO": "https://raw.github.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png",
 								  "URL": "http://simpleapps.ru"})
 			result.setPayload([vcard])
 
@@ -331,7 +332,7 @@ def iqVcardHandler(cl, iq):
 					name = Friends[id]["name"]
 					photo = Friends[id].get("photo_100") or URL_VCARD_NO_IMAGE
 					vCard = iqVcardBuild({"NICKNAME": name, "PHOTO": photo, "URL": "http://vk.com/id%s" % id,
-										  "DESC": _("Contact uses VK4XMPP Transport\n%s") % DESC})
+										  "DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC})
 					result.setPayload([vCard])
 				else:
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("User is not your friend."))
