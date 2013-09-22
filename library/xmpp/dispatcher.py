@@ -305,6 +305,7 @@ class Dispatcher(PlugIn):
 				session.DEBUG("Expected stanza arrived. Callback %s(%s) found!"%(cb,args),'ok')
 				try: cb(session,stanza,**args)
 				except NodeProcessed: pass
+				except: raise
 				#except Exception, typ:
 					#if typ.__class__.__name__ != 'NodeProcessed': raise
 			else:

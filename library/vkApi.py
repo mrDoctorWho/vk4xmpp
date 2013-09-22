@@ -3,7 +3,6 @@
 
 import re, time
 import ssl, urllib, urllib2, cookielib, webtools, json
-import traceback
 
 class RequestProcessor(object):
 
@@ -36,7 +35,6 @@ class RequestProcessor(object):
 				raise RuntimeError
 			response = self.Opener.open(request, timeout = timeout)
 		except (urllib2.URLError, ssl.SSLError):
-			traceback.print_exc()
 			retryCount += 1
 			response = self.open(request, timeout, retryCount)
 		except RuntimeError:

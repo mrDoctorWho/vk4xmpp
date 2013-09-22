@@ -237,7 +237,7 @@ class VKLogin(object):
 			obTag = msg.getTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
 			obTag.setData(imgEncoded)
 			Sender(Component, msg)
-			Presence = xmpp.Protocol.Presence(self.jidFrom, frm = TransportID)
+			Presence = xmpp.protocol.Presence(self.jidFrom, frm = TransportID)
 			Presence.setStatus(body)
 			Presence.setShow("xa")
 			Sender(Presence)

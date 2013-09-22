@@ -103,7 +103,7 @@ class CommonClient:
 		self.disconnect_handlers=[]
 		self.Server=server
 		self.Port=port
-		if debug and type(debug)<>list: debug=['always', 'nodebuilder']
+		if debug and isinstance(debug , list): debug=['always', 'nodebuilder']
 		self._DEBUG=Debug.Debug(debug)
 		self.DEBUG=self._DEBUG.Show
 		self.debug_flags=self._DEBUG.debug_flags
@@ -203,7 +203,7 @@ class Client(CommonClient):
 			If you want to disable tls/ssl support completely, set it to 0.
 			Example: connect(('192.168.5.5',5222),{'host':'proxy.my.net','port':8080,'user':'me','password':'secret'})
 			Returns '' or 'tcp' or 'tls', depending on the result."""
-		if not CommonClient.connect(self,server,proxy,secure,use_srv) or secure<>None and not secure: return self.connected
+		if not CommonClient.connect(self,server,proxy,secure,use_srv) or secure != None and not secure: return self.connected
 		transports.TLS().PlugIn(self)
 		if not hasattr(self, "Dispatcher"):
 			return None
