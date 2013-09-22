@@ -41,6 +41,8 @@ WhiteList = []
 ## Save it as [] if you won't watch any registration.
 WatcherList = []
 
+# Additional about text. It was shown after main about text in transports vcard.
+AdditionalAbout = ""
 
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 

@@ -68,6 +68,7 @@ Config = "Config.txt"
 PhotoSize = "photo_100"
 DefLang = "ru"
 evalJID = ""
+AdditionalAbout = ""
 
 DEBUG_XMPPPY = False
 
