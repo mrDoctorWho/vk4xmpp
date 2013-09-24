@@ -1,5 +1,7 @@
 # /* coding: utf-8 */
 # © simpleApps CodingTeam, 2013.
+# Warning: Code in this module is ugly,
+# but we can't do better.
 
 import re, time
 import ssl, urllib, urllib2, cookielib, webtools, json
@@ -29,29 +31,43 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	def open(self, request, timeout = 3, retryCount = 0):
-		try:
-			if retryCount > 4:
-				raise RuntimeError
-			response = self.Opener.open(request, timeout = timeout)
-		except (urllib2.URLError, ssl.SSLError):
-			retryCount += 1
-			response = self.open(request, timeout, retryCount)
-		except RuntimeError:
-			return {}
+	def open(self, request, timeout = 3):
+		response = self.safeExecution(self.Opener.open, (request, None, timeout))
 		return response
 
-	def post(self, url, data = {}):
+	def safeExecution(self, func, args = (), retryCount = 0):
+		try:
+			if retryCount > 5: 	## We're hope that it will be never called
+				raise RuntimeError
+			result = func(*args)
+		except (urllib2.URLError, ssl.SSLError):
+			retryCount += 1
+			result = self.safeExecution(func, args, retryCount)
+		except RuntimeError: ## We're so sad :( for this fact, really, so-so
+			result = {}
+		return result
+
+	def post(self, url, data = {}, retryCount = 0):
+		body = {}
 		request = self.request(url, data)
-		response = self.open(request)
-		body = response.read()
+		response = self.safeExecution(self.open, (request,))
+		try:
+			if response:
+				body = response.read()		## we can't use safeExecution because .read() method can be used once
+			if retryCount > 2:
+				raise RuntimeError
+		except (urllib2.URLError, ssl.SSLError):
+			retryCount += 1
+			return self.post(url, data, retryCount)
+		except RuntimeError:
+			body = {}
 		return (body, response)
 
 	def get(self, url, data = {}):
 		if data:
 			url = url + "/?%s" % urllib.urlencode(data)
 		request = self.request(url)
-		response = self.open(request)
+		response = self.safeExecution(self.open, (request,))
 		body = response.read()
 		return (body, response)
 
@@ -96,7 +112,7 @@ class APIBinding:
 
 		if "security_check" in response.url:
 			Hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", body)[0]
-			code = self.number[2:-2]			
+			code = self.number[2:-2]
 			if len(self.number) == 12:
 				if not self.number.startswith("+"):
 					code = self.number[3:-2]  		# may be +375123456789 
@@ -114,7 +130,7 @@ class APIBinding:
 					  }
 			post = self.RIP.post("https://vk.com/login.php", values)
 			body, response = post
-			if not body.split("<!>")[4] == "4":
+			if response and not body.split("<!>")[4] == "4":
 				raise AuthError("Incorrect number")
 
 	def checkSid(self):
@@ -122,7 +138,7 @@ class APIBinding:
 			url = "https://vk.com/feed2.php"
 			get = self.RIP.get(url)
 			body, response = get
-			if body:
+			if body and response:
 				data = json.loads(body)
 				if data["user"]["id"] != -1:
 					return data
@@ -139,16 +155,17 @@ class APIBinding:
 		token = None
 		get = self.RIP.get(url, values)
 		body, response = get
-		if "access_token" in response.url:
-			token = response.url.split("=")[1].split("&")[0]
-		else:
-			PostTarget = webtools.getTagArg("form method=\"post\"", "action", body, "form")
-			if PostTarget:
-				post = self.RIP.post(PostTarget) # why no data?
-				body, response = post
+		if response:
+			if "access_token" in response.url:
 				token = response.url.split("=")[1].split("&")[0]
 			else:
-				raise AuthError("Couldn't execute confirmThisApp()!")
+				PostTarget = webtools.getTagArg("form method=\"post\"", "action", body, "form")
+				if PostTarget:
+					post = self.RIP.post(PostTarget) # why no data?
+					body, response = post
+					token = response.url.split("=")[1].split("&")[0]
+				else:
+					raise AuthError("Couldn't execute confirmThisApp()!")
 		self.token = token
 
 
@@ -170,11 +187,12 @@ class APIBinding:
 		post = self.RIP.post(url, values)
 
 		body, response = post
-		body = json.loads(body)
+		if body:
+			body = json.loads(body)
 # Debug:
-#		if method == "messages.get":
-#			print "method %s with values %s" % (method, str(values))
-#			print "response for method %s: %s" % (method, str(body))
+		#if method == "messages.get":
+		#	print "method %s with values %s" % (method, str(values))
+		#	print "response for method %s: %s" % (method, str(body))
 		if body.has_key("response"):
 			return body["response"]
 

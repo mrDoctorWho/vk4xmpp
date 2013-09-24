@@ -59,16 +59,18 @@ class NoDebug:
 LINE_FEED = '\n'
 
 class Debug:
-	def __init__(self, active_flags = None, log_file = sys.stderr, prefix = 'DEBUG: ', sufix = '\n', time_stamp = 0, flag_show = None, validate_flags = 1, welcome = -1):
+	def __init__(self, active_flags = [], log_file = sys.stderr, prefix = 'DEBUG: ', sufix = '\n', time_stamp = 0, flag_show = None, validate_flags = 1, welcome = -1):
 		self.debug_flags = []
+		if active_flags == True:
+			active_flags = ["always"]
 		if welcome == -1:
-			if active_flags and len(active_flags):
+			if active_flags:
 				welcome = 1
 			else:
 				welcome = 0
 		self._remove_dupe_flags()
 		if log_file:
-			if type( log_file ) is type(''):
+			if isinstance(log_file, str):
 				try:
 					self._fh = open(log_file,'w')
 				except:
@@ -79,8 +81,7 @@ class Debug:
 		else:
 			self._fh = sys.stdout
 		if time_stamp not in (0,1,2):
-			msg2 = '%s' % time_stamp
-			raise 'Invalid time_stamp param', msg2
+			raise Exception('Invalid time_stamp param', str(msg2))
 		self.prefix = prefix
 		self.sufix = sufix
 		self.time_stamp = time_stamp
@@ -97,15 +98,14 @@ class Debug:
 			self.show('Debug created for %s%s' % (caller.f_code.co_filename,
 												   mod_name ))
 			self.show(' flags defined: %s' % ','.join( self.active ))
-		if type(flag_show) in (type(''), type(None)):
+		if isinstance(flag_show, (str,  (None).__class__)):
 			self.flag_show = flag_show
 		else:
-			msg2 = '%s' % type(flag_show )
-			raise 'Invalid type for flag_show!', msg2
+			raise Exception('Invalid type for flag_show!', str(type(flag_show)))
 
 	def show( self, msg, flag = None, prefix = None, sufix = None, lf = 0 ):
 		"""
-		flag can be of folowing types:
+		flfag can be of folowing types:
 			None - this msg will always be shown if any debugging is on
 			flag - will be shown if flag is active
 			(flag1,flag2,,,) - will be shown if any of the given flags
@@ -161,7 +161,7 @@ class Debug:
 		except:
 			# unicode strikes again ;)
 			s=u''
-			for i in range(len(output)):
+			for i in xrange(len(output)):
 				if ord(output[i]) < 128:
 					c = output[i]
 				else:
@@ -180,7 +180,7 @@ class Debug:
 			return 1
 		else:
 			# check for multi flag type:
-			if type( flag ) in ( type(()), type([]) ):
+			if isinstance(flag, (tuple, list)):
 				for s in flag:
 					if s in self.active:
 						return 1
@@ -193,7 +193,7 @@ class Debug:
 		if not active_flags:
 			#no debuging at all
 			self.active = []
-		elif type( active_flags ) in ( types.TupleType, types.ListType ):
+		elif isinstance(active_flags, (tuple, list)):
 			flags = self._as_one_list( active_flags )
 			for t in flags:
 				if t not in self.debug_flags:
@@ -228,11 +228,11 @@ class Debug:
 
 		This code organises lst and remves dupes
 		"""
-		if type( items ) <> type( [] ) and type( items ) <> type( () ):
-			return [ items ]
+		if not isinstance (items, (tuple, list)):
+			return [items]
 		r = []
 		for l in items:
-			if type( l ) == type([]):
+			if isinstance(l, list):
 				lst2 = self._as_one_list( l )
 				for l2 in lst2:
 					self._append_unique_str(r, l2 )
@@ -244,9 +244,9 @@ class Debug:
 
 	def _append_unique_str( self, lst, item ):
 		"""filter out any dupes."""
-		if type(item) <> type(''):
+		if not isinstance(item, str):
 			msg2 = '%s' % item
-			raise 'Invalid item type (should be string)',msg2
+			raise Exception('Invalid item type (should be string)',msg2)
 		if item not in lst:
 			lst.append( item )
 		return lst
@@ -258,7 +258,7 @@ class Debug:
 			for f in self._as_one_list( flags ):
 				if not f in self.debug_flags:
 					msg2 = '%s' % f
-					raise 'Invalid debugflag given', msg2
+					raise Exception('Invalid debugflag given', msg2)
 
 	def _remove_dupe_flags( self ):
 		"""

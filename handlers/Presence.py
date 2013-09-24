@@ -11,7 +11,7 @@ def prsHandler(cl, prs):
 	if jidFromStr in Transport:
 		Class = Transport[jidFromStr]
 		Resource = jidFrom.getResource()
-		if pType in ("available", "probe", None):
+		if pType == "probe":
 			if Resource not in Class.resources:
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 				Class.resources.append(Resource)
@@ -47,3 +47,4 @@ def prsHandler(cl, prs):
 						if Class.friends[id]["online"]:
 							Sender(cl, xmpp.Presence(jidFrom, frm = jidTo))
 		Class.lastStatus = pType
+

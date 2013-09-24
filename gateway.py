@@ -1,11 +1,11 @@
 #!/usr/bin/python
 # coding:utf-8
 
-# vk4xmpp gateway, v1.7
+# vk4xmpp gateway, v1.8
 # © simpleApps, 01.08.2013
 # Program published under MIT license.
 
-import os, sys, time, signal, urllib, socket, traceback, threading
+import os, sys, time, signal, urllib, socket, logging, traceback, threading
 from datetime import datetime
 from math import ceil
 if not hasattr(sys, "argv") or not sys.argv[0]:
@@ -84,7 +84,7 @@ else:
 	Print("#-# Config file doesn't exists.")
 setVars(DefLang, __file__)
 
-import logging
+threading.stack_size(1024*32)
 
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(logging.DEBUG)
@@ -93,7 +93,7 @@ Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", 
 loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
-threading.stack_size(1024*32)
+
 def gatewayRev():
 	revNumber, rev = 0, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
@@ -104,6 +104,11 @@ def gatewayRev():
 OS = "{0} {2:.16} [{4}]".format(*os.uname())
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 Revision = gatewayRev()
+
+Handlers = {"msg01": [], "msg02": []}
+
+def require(name):
+	return os.path.exists("extensions/%s.py" % name)
 
 def initDatabase(filename):
 	if not os.path.exists(filename):
@@ -283,6 +288,7 @@ class VKLogin(object):
 			self.method("account.setOnline")
 			threading.Timer(timeout, self.onlineMe, (timeout,)).start()
 
+jidToID = {}
 class tUser(object):
 
 	def __init__(self, data = [], source = ""):
@@ -299,6 +305,7 @@ class tUser(object):
 		self.last_activity = time.time()
 		self.jidFrom = source
 		self.resources = []
+		self.chatUsers = {}
 		self.vk = VKLogin(self.username, self.password, self.jidFrom)
 		logger.debug("initializing tUser for %s" % self.jidFrom)
 		with Database(DatabaseFile, Semaphore) as db:
@@ -336,10 +343,10 @@ class tUser(object):
 			except NameError:
 				pass
 
-	def msg(self, body, uID):
+	def msg(self, body, uID, mType = "user_id"):			
 		try:
 			self.last_activity = time.time()
-			Message = self.vk.method("messages.send", {"user_id": uID, "message": body, "type": 0})
+			Message = self.vk.method("messages.send", {mType: uID, "message": body, "type": 0})
 		except:
 			crashLog("messages.send")
 			Message = False
@@ -373,6 +380,8 @@ class tUser(object):
 			elif self.password:
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set token=? where jid=?", (self.vk.getToken(), self.jidFrom))
+			self.UserID = self.vk.method("users.get")[0]["uid"]
+			jidToID[self.UserID] = self.jidFrom
 			self.friends = self.vk.getFriends()
 			self.vk.Online = True
 		if not UseLastMessageID:
@@ -386,10 +395,9 @@ class tUser(object):
 			logger.debug("tUser: calling subscribe with force:%s for %s" % (force, self.jidFrom))
 			self.rosterSubscribe(self.friends)
 		threadRun(self.sendInitPresence)
-##		threadRun(self.sendMessages) # maybe not needed more
 
 	def sendInitPresence(self):
-		self.friends = self.vk.getFriends()
+		self.friends = self.vk.getFriends() ## too too bad way to do it again.
 		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jidFrom, "exists" if self.friends else "empty"))
 		Presence = xmpp.protocol.Presence(self.jidFrom)
 		for uid in self.friends.keys():
@@ -397,7 +405,7 @@ class tUser(object):
 				Presence.setFrom(vk2xmpp(uid))
 				Presence.setTag("nick", namespace = xmpp.NS_NICK)
 				Presence.setTagData("nick", self.friends[uid]["name"])
-			Sender(Component, Presence)
+				Sender(Component, Presence)
 		Presence.setFrom(TransportID)
 		Presence.setTagData("nick", IDentifier["name"])
 		Sender(Component, Presence)
@@ -413,32 +421,15 @@ class tUser(object):
 			Presence.setFrom(vk2xmpp(uid))
 			Sender(Component, Presence)
 
-	def parseAttachments(self, msg):
-		body = str()
-		if msg.has_key("attachments"):
-			if msg["body"]:
-				body += _("\nAttachments:")
-			attachments = msg["attachments"]
-			for att in attachments:
-				key = att.get("type")
-				if key == "wall":
-					continue	
-				elif key == "photo":
-					keys = ("src_big", "url", "src_xxxbig", "src_xxbig", "src_xbig", "src", "src_small")
-					for dKey in keys:
-						if att[key].has_key(dKey):
-							body += "\n" + att[key][dKey]
-							break
-				elif key == "video":
-					body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
-				elif key == "audio":
-					body += "\nAudio: %(performer)s — %(title)s — %(url)s"
-				elif key == "doc":
-					body += "\nDocument: %(title)s — %(url)s"
-				else:
-					body += "\nUnknown attachment: " + str(att[key])
-				body = body % att.get(key, {})
-		return body
+	def getUserName(self, id):
+		if id in self.friends:
+			name = self.friends[id]["name"]
+		else:
+			name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": id})
+			if name:
+				name = name.pop()
+				name = u"%s %s" % (name["first_name"], name["last_name"])
+		return name
 
 	def sendMessages(self):
 		messages = self.vk.getMessages(200, self.lastMsgID) # messages.getLastActivity
@@ -452,25 +443,16 @@ class tUser(object):
 					read.append(str(message.get("mid", 0)))
 					fromjid = vk2xmpp(message["uid"])
 					body = uHTML(message["body"])
-					body += self.parseAttachments(message)
-					if message.has_key("fwd_messages"):
-						body += _("\nForward messages:")
-						fwd_messages = sorted(message["fwd_messages"], msgSort)
-						for fwd in fwd_messages:
-							idFrom = fwd["uid"]
-							date = fwd["date"]
-							fwdBody = uHTML(fwd["body"])
-							date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
-							if idFrom not in self.friends:
-								name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": idFrom})
-								if name:
-									name = name.pop()
-									name = u"%s %s" % (name["first_name"], name["last_name"])
-							else:
-								name = self.friends[idFrom]["name"]
-							body += "\n[%s] <%s> %s" % (date, name, fwdBody)
-							body += self.parseAttachments(fwd)
-					msgSend(Component, self.jidFrom, body, fromjid, message["date"])
+					for func in Handlers["msg01"]:
+						try:
+							result = func(self, message)
+						except:
+							result = True
+							crashLog("handle.%s" % func.func_name)
+						if not isinstance(result, bool):
+							body += result
+						elif not result:
+							msgSend(Component, self.jidFrom, body, fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
 					with Database(DatabaseFile, Semaphore) as db:
@@ -520,9 +502,6 @@ def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
 		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp), xmpp.NS_DELAY)
-##		gmTime = time.gmtime(timestamp)
-##		strTime = time.strftime("%Y-%m-%dT%H:%M:%SZ", gmTime)
-##		msg.setTimestamp(strTime) # xep-0203
 	Sender(cl, msg)
 
 def apply(instance, args = ()):
@@ -617,10 +596,6 @@ def WatcherMsg(text):
 def disconnectHandler(crash = True):
 	if crash:
 		crashLog("main.Disconnect")
-	global Errors
-	Errors += 1
-	if Errors > 10:
-		raise IOError
 
 def main():
 	Counter = [0, 0]
@@ -700,12 +675,17 @@ def loadHandlers():
 	for handler in os.listdir("handlers"):
 		execfile("handlers/%s" % handler, globals())
 
+def loadExtensions():
+	for ext in os.listdir("extensions"):
+		execfile("extensions/%s" % ext, globals())
+
 if __name__ == "__main__":
 	global Errors
 	Errors = 0
 	threadRun(garbageCollector, (), "gc")
 	signal.signal(signal.SIGTERM, exit)
 	loadHandlers()
+	loadExtensions()
 	main()
 
 	while True:

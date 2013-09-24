@@ -44,6 +44,10 @@ WatcherList = []
 # Additional about text. It was shown after main about text in transports vcard.
 AdditionalAbout = ""
 
+# Conference server. Don't change if you won't allow your users to use groupchats (depends from jabber-server's MUC)
+# F.e. conference.example.com
+ConferenceServer = ""
+
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 
 ## Timeout when user considered inactive (seconds)

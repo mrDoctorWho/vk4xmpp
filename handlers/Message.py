@@ -13,12 +13,13 @@ def msgRecieved(msg, jidFrom, jidTo):
 
 def msgHandler(cl, msg):
 	mType = msg.getType()
+	body = msg.getBody()
+	jidTo = msg.getTo()
+	jidToStr = jidTo.getStripped()
 	jidFrom = msg.getFrom()
 	jidFromStr = jidFrom.getStripped()
 	if jidFromStr in Transport and mType == "chat":
 		Class = Transport[jidFromStr]
-		jidTo = msg.getTo()
-		body = msg.getBody()
 		if body:
 			answer = None
 			if jidTo == TransportID:
@@ -46,8 +47,8 @@ def msgHandler(cl, msg):
 					answer = msgRecieved(msg, jidFrom, jidTo)
 			if answer:
 				Sender(cl, answer)
-		else:
-			raise xmpp.NodeProcessed()
+	for func in Handlers["msg02"]:
+		func(msg)
 
 def captchaAccept(cl, args, jidTo, jidFromStr):
 	if args:
