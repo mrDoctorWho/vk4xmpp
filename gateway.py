@@ -69,6 +69,7 @@ PhotoSize = "photo_100"
 DefLang = "ru"
 evalJID = ""
 AdditionalAbout = ""
+ConferenceServer = "conference.localhost"
 
 DEBUG_XMPPPY = False
 
