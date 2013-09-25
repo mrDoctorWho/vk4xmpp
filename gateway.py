@@ -198,6 +198,10 @@ class VKLogin(object):
 		if not self.engine.captcha and self.Online or force:
 			try:
 				result = self.engine.method(method, args)
+			except api.CaptchaNeeded:
+				logger.error("VKLogin: running captcha challenge for %s" % self.jidFrom)
+				self.captchaChallenge()
+				return {}
 			except api.VkApiError as e:
 				if e.message == "User authorization failed: user revoke access for this token.":
 					try:
@@ -208,10 +212,7 @@ class VKLogin(object):
 					msgSend(Component, self.jidFrom, _(e.message + " Please, register again"), TransportID)
 				self.Online = False
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
-			except api.CaptchaNeeded:
-				logger.error("VKLogin: running captcha challenge for %s" % self.jidFrom)
-				self.captchaChallenge()
-				return {}
+
 		return result
 
 	def captchaChallenge(self):
@@ -246,7 +247,7 @@ class VKLogin(object):
 			Presence = xmpp.protocol.Presence(self.jidFrom, frm = TransportID)
 			Presence.setStatus(body)
 			Presence.setShow("xa")
-			Sender(Presence)
+			Sender(Component, Presence)
 		else:
 			logger.error("VKLogin: captchaChallenge called without captcha for user %s" % self.jidFrom)
 
@@ -319,7 +320,6 @@ class tUser(object):
 					self.existsInDB = True
 					self.jidFrom, self.username, self.token, self.lastMsgID, self.rosterSet = desc
 				elif self.password or self.token:
-					print "deleting you from db"
 					logger.debug("tUser: %s exists in db. Will be deleted." % self.jidFrom)
 					threadRun(self.deleteUser)
 
@@ -382,7 +382,10 @@ class tUser(object):
 			elif self.password:
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set token=? where jid=?", (self.vk.getToken(), self.jidFrom))
-			self.UserID = self.vk.method("users.get")[0]["uid"]
+			try:
+				self.UserID = self.vk.method("users.get")[0]["uid"]
+			except KeyError:
+				self.UserID = 0
 			jidToID[self.UserID] = self.jidFrom
 			self.friends = self.vk.getFriends()
 			self.vk.Online = True
@@ -700,5 +703,5 @@ if __name__ == "__main__":
 		except xmpp.StreamError:
 			crashLog("Component.iter")
 		except:
-			disconnectHandler(False)
 			crashLog("Component.iter")
+			disconnectHandler(False)

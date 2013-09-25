@@ -201,7 +201,6 @@ class APIBinding:
 			eCode = error["error_code"]
 ## TODO: Check this code
 			if eCode == 5: # invalid token
-#				print error
 				self.attempts += 1
 				if self.attempts < 2:
 					retry = self.retry()
