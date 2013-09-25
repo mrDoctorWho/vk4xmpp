@@ -147,9 +147,12 @@ class TCPsocket(PlugIn):
 			raise IOError("Disconnected!")
 		except:
 			received = ''
-		while self.pending_data(0):
-			try: received += self._recv(BUFLEN)
-			except: break
+		while self.pending_data():
+			try: add = self._recv(BUFLEN)
+			except: add=""
+			received +=add
+			if not add:
+				break
 		if received: # length of 0 means disconnect
 			self._seen_data=1
 			self.DEBUG(received,'got')
