@@ -41,7 +41,7 @@ def handleChatMessages(self, msg):
 		
 		if not users:
 			if chat in self.chatUsers:
-				roomPresence(chat, self.getUserName(owner), vk2xmpp(self.UserID))
+				roomPresence(chat, self.getUserName(owner), vk2xmpp(self.UserID), "unavailable")
 				del self.chatUsers[chat]
 			return False # Maybe true?
 

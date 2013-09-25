@@ -304,6 +304,7 @@ class tUser(object):
 		self.rosterSet = None
 		self.existsInDB = None
 		self.last_activity = time.time()
+		self.last_udate = time.time()
 		self.jidFrom = source
 		self.resources = []
 		self.chatUsers = {}

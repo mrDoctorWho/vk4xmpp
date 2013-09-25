@@ -45,6 +45,7 @@ WatcherList = []
 AdditionalAbout = ""
 
 # Conference server. Don't change if you won't allow your users to use groupchats (depends from jabber-server's MUC)
+# Its an alpa! Testers are welcome, but don't use it everytime!
 # F.e. conference.example.com
 ConferenceServer = ""
 
