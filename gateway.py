@@ -495,10 +495,8 @@ def Sender(cl, stanza):
 	except KeyboardInterrupt:
 		pass
 	except IOError:
-		print IOError
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
-		print "sendererror"
 		crashLog("Sender")
 
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
@@ -700,7 +698,6 @@ if __name__ == "__main__":
 		except KeyboardInterrupt:
 			exit()
 		except xmpp.StreamError:
-			print xmpp.StreamError
 			crashLog("Component.iter")
 		except:
 			disconnectHandler(False)
