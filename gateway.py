@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 # coding:utf-8
 
 # vk4xmpp gateway, v1.8
@@ -85,7 +85,7 @@ else:
 	Print("#-# Config file doesn't exists.")
 setVars(DefLang, __file__)
 
-threading.stack_size(1024*32)
+##threading.stack_size(1024*32)
 
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(logging.DEBUG)
