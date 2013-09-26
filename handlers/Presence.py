@@ -11,8 +11,8 @@ def prsHandler(cl, prs):
 	if jidFromStr in Transport:
 		Class = Transport[jidFromStr]
 		Resource = jidFrom.getResource()
-		if pType == "probe":
-			if Resource not in Class.resources:
+		if pType in ("available", "probe", None):
+			if jidTo == TransportID and Resource not in Class.resources:
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
 				Class.resources.append(Resource)
 				if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
@@ -22,7 +22,7 @@ def prsHandler(cl, prs):
 				Class.sendInitPresence()
 
 		elif pType == "unavailable":
-			if Resource in Class.resources:
+			if jidTo == TransportID and Resource in Class.resources:
 				Class.resources.remove(Resource)
 				if not Class.resources:
 					Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))

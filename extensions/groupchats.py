@@ -5,6 +5,8 @@
 if not require("attachments") or not require("forwardMessages"):
 	raise
 
+TransportFeatures.append(xmpp.NS_GROUPCHAT)
+
 def inviteUser(chat, jidTo, jidFrom, name):
 	invite = xmpp.Message(to = chat, frm = jidFrom)
 	x = xmpp.Node("x")

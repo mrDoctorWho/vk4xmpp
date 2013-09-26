@@ -50,6 +50,9 @@ AdditionalAbout = ""
 ConferenceServer = ""
 
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
+## Thread stack size (WARNING: EDIT IT ONLY WHEN TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
+## minimum value is 32768 bytes (32kb)
+THREAD_STACK_SIZE = 0
 
 ## Timeout when user considered inactive (seconds)
 USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN = 600
