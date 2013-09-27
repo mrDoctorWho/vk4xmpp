@@ -246,7 +246,7 @@ class VKLogin(object):
 			logger.error("VKLogin: captchaChallenge called without captcha for user %s" % self.jidFrom)
 
 	def disconnect(self):
-		logger.debug("VKLogin: user %s is gone!" % self.jidFrom)
+		logger.debug("VKLogin: user %s left" % self.jidFrom)
 		self.method("account.setOffline")
 		self.Online = False
 
@@ -437,15 +437,15 @@ class tUser(object):
 		return name
 
 	def sendMessages(self):
-		messages = self.vk.getMessages(200, self.lastMsgID)
+		messages = self.vk.getMessages(200, self.lastMsgID if UseLastMessageID else 0)
 		if messages:
 			messages = messages[1:]
 			messages = sorted(messages, msgSort)
 			if messages:
-				self.lastMsgID = messages[-1]["mid"]
 				read = list()
 				for message in messages:
-					read.append(str(message.get("mid", 0)))
+					self.lastMsgID = message["mid"]
+					read.append(str(self.lastMsgID))
 					fromjid = vk2xmpp(message["uid"])
 					body = uHTML(message["body"])
 					for func in Handlers["msg01"]:
@@ -559,7 +559,7 @@ def hyperThread(start, end):
 			if user.vk.Online: 			# TODO: delete user from memory when he offline
 				if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
 				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
-					user.last_udate = time.time() # cTime
+					user.last_udate = time.time() 
 					friends = user.vk.getFriends()
 					if friends != user.friends:
 						for uid in friends:
@@ -654,7 +654,7 @@ def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
 def garbageCollector():
 	while True:
 		gc.collect()
-		time.sleep(10)
+		time.sleep(60)
 
 def loadSomethingMore(dir):
 	for something in os.listdir(dir):

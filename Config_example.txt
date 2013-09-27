@@ -68,3 +68,6 @@ URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
 
 ## Debug xmpppy library
 DEBUG_XMPPPY = False
+
+## Eval jid. jid for command "!eval"
+evalJID = ""

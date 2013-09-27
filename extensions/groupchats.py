@@ -5,8 +5,6 @@
 if not require("attachments") or not require("forwardMessages"):
 	raise
 
-TransportFeatures.append(xmpp.NS_GROUPCHAT)
-
 def inviteUser(chat, jidTo, jidFrom, name):
 	invite = xmpp.Message(to = chat, frm = jidFrom)
 	x = xmpp.Node("x")
@@ -89,5 +87,8 @@ def incomingGroupchatMessageHandler(msg):
 					Class.msg(body, Node.split("#")[1], "chat_id")
 
 if ConferenceServer:
+	TransportFeatures.append(xmpp.NS_GROUPCHAT)
 	Handlers["msg01"].append(handleChatMessages)
 	Handlers["msg02"].append(incomingGroupchatMessageHandler)
+else:
+	del incomingGroupchatMessageHandler, handleChatMessages, inviteUser, roomPresence, groupchatMessage

@@ -46,5 +46,6 @@ def prsHandler(cl, prs):
 					if id in Class.friends:
 						if Class.friends[id]["online"]:
 							Sender(cl, xmpp.Presence(jidFrom, frm = jidTo))
-		Class.lastStatus = pType
+		if jidToStr == TransportID:
+			Class.lastStatus = pType
 
