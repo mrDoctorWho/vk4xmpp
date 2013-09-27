@@ -430,7 +430,7 @@ class tUser(object):
 		if self.friends.has_key(uid):
 			name = self.friends[uid]["name"]
 		else:
-			name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": id})
+			name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": uid})
 			if name:
 				name = name.pop()
 				name = u"%s %s" % (name["first_name"], name["last_name"])
