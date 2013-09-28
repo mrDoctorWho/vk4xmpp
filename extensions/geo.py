@@ -6,18 +6,19 @@ import urllib
 
 GoogleMapLink = "https://maps.google.com/maps?q=%s"
 
-def TimeAndDimensionInSpace(self, machine):
+def TimeAndRelativeDimensionInSpace(self, machine):
 	body = str()
 	if machine.has_key("geo"):
 		WhereAreYou = machine["geo"]
-		Place = WhereAreYou["place"]
+		Place = WhereAreYou.get("place")
 		Coordinates = WhereAreYou["coordinates"].split()
 		Coordinates = "Lat.: {0}°, long: {1}°".format(*Coordinates)
 		body = _("Point on the map: \n")
-		body += _("Country: %s") % Place["country"]
-		body += _("\nCity: %s") % Place["city"]
-		body += _("\nCoordinates: %s") % Coordinates
+		if Place:
+			body += _("Country: %s") % Place["country"]
+			body += _("\nCity: %s\n") % Place["city"]
+		body += _("Coordinates: %s") % Coordinates
 		body += "\n%s — Google Maps" % GoogleMapLink % urllib.quote(WhereAreYou["coordinates"])
 	return body
 
-Handlers["msg01"].append(TimeAndDimensionInSpace)
+Handlers["msg01"].append(TimeAndRelativeDimensionInSpace)

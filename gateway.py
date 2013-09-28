@@ -246,7 +246,7 @@ class VKLogin(object):
 			logger.error("VKLogin: captchaChallenge called without captcha for user %s" % self.jidFrom)
 
 	def disconnect(self):
-		logger.debug("VKLogin: user %s left" % self.jidFrom)
+		logger.debug("VKLogin: user %s has left" % self.jidFrom)
 		self.method("account.setOffline")
 		self.Online = False
 
@@ -443,21 +443,26 @@ class tUser(object):
 			messages = sorted(messages, msgSort)
 			if messages:
 				read = list()
+				self.lastMsgID = messages[-1]["mid"]
 				for message in messages:
-					self.lastMsgID = message["mid"]
-					read.append(str(self.lastMsgID))
+					read.append(str(message["mid"]))
 					fromjid = vk2xmpp(message["uid"])
 					body = uHTML(message["body"])
-					for func in Handlers["msg01"]:
+					iter = Handlers["msg01"].__iter__()
+					for func in iter:
 						try:
 							result = func(self, message)
 						except:
-							result = True
+							result = None
 							crashLog("handle.%s" % func.func_name)
-						if not isinstance(result, bool):
+						if result == None:
+							for func in iter:
+								apply(func, (self, message))
+							break
+						else:
 							body += result
-						elif not result:
-							msgSend(Component, self.jidFrom, body, fromjid, message["date"])
+					else:
+						msgSend(Component, self.jidFrom, body, fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
 					with Database(DatabaseFile, Semaphore) as db:
@@ -676,5 +681,4 @@ if __name__ == "__main__":
 			crashLog("Component.iter")
 		except:
 			crashLog("Component.iter")
-			Component.disconnect()
 			disconnectHandler(False)

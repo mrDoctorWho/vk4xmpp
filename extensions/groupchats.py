@@ -43,7 +43,7 @@ def handleChatMessages(self, msg):
 			if chat in self.chatUsers:
 				roomPresence(chat, self.getUserName(owner), vk2xmpp(self.UserID), "unavailable")
 				del self.chatUsers[chat]
-			return False # Maybe true?
+			return None # Maybe true?
 
 		if not chat in self.chatUsers:
 			self.chatUsers[chat] = []
@@ -69,8 +69,8 @@ def handleChatMessages(self, msg):
 		body += parseForwardMessages(self, msg)
 		if body:
 			groupchatMessage(chat, body, vk2xmpp(idFrom), None, msg["date"])
-		return True
-	return False
+		return None
+	return ""
 
 def incomingGroupchatMessageHandler(msg):
 	if msg.getType() == "groupchat":

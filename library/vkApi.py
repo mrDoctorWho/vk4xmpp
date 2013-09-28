@@ -202,7 +202,7 @@ class APIBinding:
 ## TODO: Check this code
 			if eCode == 5: # invalid token
 				self.attempts += 1
-				if self.attempts < 2:
+				if self.attempts < 3:
 					retry = self.retry()
 					if retry:
 						self.attempts = 0
