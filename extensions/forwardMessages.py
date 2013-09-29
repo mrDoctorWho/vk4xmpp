@@ -5,7 +5,7 @@
 if not require("attachments"):
 	raise
 
-def parseForwardMessages(self, msg):
+def parseForwardMessages(self, msg, depth = 0):
 	body = ""
 	if msg.has_key("fwd_messages"):
 		body += _("\nForward messages:")
@@ -13,11 +13,14 @@ def parseForwardMessages(self, msg):
 		for fwd in fwd_messages:
 			idFrom = fwd["uid"]
 			date = fwd["date"]
-			fwdBody = uHTML(fwd["body"])
+			fwdBody = escapeMsg(uHTML(fwd["body"]))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
 			name = self.getUserName(idFrom)
 			body += "\n[%s] <%s> %s" % (date, name, fwdBody)
 			body += parseAttachments(self, fwd)
+			if depth < 5: # depth = 4
+				depth += 1
+				body += parseForwardMessages(self, fwd, depth)
 	return body
 
 Handlers["msg01"].append(parseForwardMessages)
