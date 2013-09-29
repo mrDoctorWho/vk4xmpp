@@ -64,7 +64,7 @@ def handleChatMessages(self, msg):
 				uName = self.getUserName(user)
 				roomPresence(chat, uName, vk2xmpp(user), "unavailable")
 
-		body = msg["body"]
+		body = escapeMsg(msg["body"])
 		body += parseAttachments(self, msg)
 		body += parseForwardMessages(self, msg)
 		if body:

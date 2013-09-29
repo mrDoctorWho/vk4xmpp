@@ -40,7 +40,9 @@ VK4XMPP представляет собой легковесный трансп�
 
 Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/) | [Pidgin](http://xmppserv.ru/pidgin/)
 
-Другое: [FAQ](http://is.gd/zgOMp9) | [Отзывы и предложения](http://vk4xmpp.userecho.com) | [Обсуждение на 4pda](http://is.gd/t10ZIc) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp) | [Обсуждение на форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041) | [Группа во ВКонтакте](https://vk.com/vk4xmpp) 
+Обсуждения: [На 4pda](http://is.gd/t10ZIc) | [На форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041) | [На форуме Debian](http://debianforum.ru/index.php?topic=6037)
+
+Другое: [FAQ](http://is.gd/zgOMp9) | [Отзывы и предложения](http://vk4xmpp.userecho.com) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp) | [Группа во ВКонтакте](https://vk.com/vk4xmpp) 
 
 Запуск:
 python ./gateway.py

@@ -5,7 +5,7 @@
 # © simpleApps, 01.08.2013
 # Program published under MIT license.
 
-import os, sys, time, signal, urllib, socket, logging, traceback, threading
+import re, os, sys, time, signal, urllib, socket, logging, traceback, threading
 from datetime import datetime
 from math import ceil
 if not hasattr(sys, "argv") or not sys.argv[0]:
@@ -42,6 +42,7 @@ TransportsList = []
 WatcherList = []
 WhiteList = []
 jidToID = {}
+unAllowedChars = [unichr(x) for x in xrange(32) if x not in (9, 10, 13)] + [unichr(57003)]
 
 TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
 					  xmpp.NS_DISCO_INFO,
@@ -140,6 +141,15 @@ def threadRun(func, args = (), name = None):
 				Thr.run()
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
+
+compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", flags=re.S+re.I+re.U)
+def escapeName(text):
+	return compile_name.sub("", text)
+def escapeMsg(text):
+	for char in unAllowedChars:
+		text = text.replace(char, "")
+	return text
+
 
 class VKLogin(object):
 
@@ -258,7 +268,7 @@ class VKLogin(object):
 		friendsDict = {}
 		for friend in friendsRaw:
 			uid = friend["uid"]
-			name = u"%s %s" % (friend["first_name"], friend["last_name"])
+			name = escapeName(u"%s %s" % (friend["first_name"], friend["last_name"]))
 			try:
 				friendsDict[uid] = {"name": name, "online": friend["online"]}
 				for key in fields:
@@ -386,13 +396,13 @@ class tUser(object):
 			self.lastMsgID = 0
 		return self.vk.Online
 
-	def init(self, force = False):
+	def init(self, force = False, send = True):
 		logger.debug("tUser: called init for user %s" % self.jidFrom)
 		self.friends = self.vk.getFriends()
 		if self.friends and not self.rosterSet or force:
 			logger.debug("tUser: calling subscribe with force:%s for %s" % (force, self.jidFrom))
 			self.rosterSubscribe(self.friends)
-		self.sendInitPresence()
+		if send: self.sendInitPresence()
 
 	def sendPresence(self, target, jidFrom, pType = None, nick = None, reason = None):
 		Presence = xmpp.Presence(target, pType, frm = jidFrom, status = reason)
@@ -433,7 +443,7 @@ class tUser(object):
 			name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": uid})
 			if name:
 				name = name.pop()
-				name = u"%s %s" % (name["first_name"], name["last_name"])
+				name = escapeName(u"%s %s" % (name["first_name"], name["last_name"]))
 		return name
 
 	def sendMessages(self):
@@ -462,7 +472,7 @@ class tUser(object):
 						else:
 							body += result
 					else:
-						msgSend(Component, self.jidFrom, body, fromjid, message["date"])
+						msgSend(Component, self.jidFrom, escapeMsg(body), fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
 					with Database(DatabaseFile, Semaphore) as db:
@@ -614,7 +624,7 @@ def main():
 						if Transport[jid].connect():
 							TransportsList.append(Transport[jid])
 							if DefaultStatus == 1:
-								Transport[jid].init()
+								Transport[jid].init(None, False)
 							Print(".", False)
 							Counter[0] += 1
 						else:
@@ -680,5 +690,6 @@ if __name__ == "__main__":
 		except xmpp.StreamError:
 			crashLog("Component.iter")
 		except:
+			logger.critical("DISCONNECTED")
 			crashLog("Component.iter")
 			disconnectHandler(False)
