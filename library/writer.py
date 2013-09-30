@@ -1,4 +1,4 @@
-# /* encoding: utf-8 */
+# /* coding: utf-8 */
 # © simpleApps, 2010
 
 import os, sys, time, logging, traceback
