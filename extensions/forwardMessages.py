@@ -1,4 +1,4 @@
-# coding: utf
+# coding: utf-8
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2013.
 
