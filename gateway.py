@@ -1,5 +1,5 @@
 #!/usr/bin/env python2
-# coding:utf-8
+# coding: utf-8
 
 # vk4xmpp gateway, v1.8
 # © simpleApps, 01.08.2013
