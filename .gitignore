@@ -5,6 +5,7 @@ pidFile.txt
 # exclude custom users.db names
 *users.db
 vk4xmpp.log
+# exclude log file created after init.d/vk4xmpp start
 gateway_v5.0.py
 # exclude PyDev/Aptana project files
 .*project

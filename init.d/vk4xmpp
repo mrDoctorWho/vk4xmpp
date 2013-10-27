@@ -1,0 +1,86 @@
+#! /bin/bash
+### BEGIN INIT INFO
+# Provides:          vk4xmpp
+# Required-Start:    $syslog
+# Required-Stop:     $syslog
+# Should-Start:      $local_fs
+# Should-Stop:       $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: starts VKontakte transport for Jabber
+# Description:       starts VKontakte which provides a gateway that allows Jabber users to communicate with their
+#                    contacts on VKontakte. It can connect to any Jabber server
+#                    that supports the Connect component mechanism.  
+### END INIT INFO
+
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+. /lib/lsb/init-functions
+
+NAME=vk4xmpp
+DESC="VKontakte transport"
+APPDIR="/home/victor/projects/vk4xmpp"
+PIDDIR="$APPDIR"
+PIDFILE=$PIDDIR/pidFile.txt
+CONFIG_FILE="$APPDIR/Config.txt"
+LOGFILE="$APPDIR/gateway.log"
+USER=pyicqt
+GROUP=pyicqt
+
+SSD_OPTS="--pidfile=$PIDFILE --name=python --user=$USER"
+
+DAEMON=/usr/bin/python
+OPTIONS="$APPDIR/gateway.py"
+
+test -f $DAEMON || exit 0
+
+if test ! -e $PIDDIR; then
+        mkdir $PIDDIR
+        chown $USER:$GROUP $PIDDIR
+fi
+
+case "$1" in
+start)
+        log_daemon_msg "Starting $DESC" "$NAME"
+        #sudo -b -u pyicqt /usr/bin/python /home/victor/projects/vk4xmpp/gateway.py > /home/victor/projects/vk4xmpp/gateway.log 2>&1
+        sudo -b -u $USER $DAEMON $APPDIR/gateway.py > $LOGFILE 2>&1
+        log_end_msg $?
+        ;;
+stop)
+        log_daemon_msg "Stopping $DESC" "$NAME"
+        #eval `kill $(cat /home/victor/projects/vk4xmpp/pidFile.txt)`
+        eval `kill $(cat $PIDFILE)`
+        log_end_msg $?
+        ;;
+status) 
+        if [[ -f "$PIDFILE" ]]
+        then
+            APPPID=$(cat $PIDFILE)
+            ps -eOcmd | grep ^$APPPID >&2
+        else
+            #echo "$PIDFILE does not exist" >&2
+            PS=$(ps -eOcmd | grep gateway.py$)
+            if [[ -n "$PS" ]]
+            then
+                echo "$PS" >&2
+            else
+                echo "$DESC $NAME stopped" >&2
+            fi
+        fi
+        ;;
+reload|force-reload)
+        #No-Op
+        ;;
+restart)
+        $0 stop
+        $0 start
+        ;;
+*)
+        echo "Usage: /etc/init.d/$NAME {start|stop|restart|status}" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
+
+# vim: filetype=sh
