@@ -56,12 +56,8 @@ status)
         if [[ -f "$PIDFILE" ]]
         then
             APPPID=$(cat $PIDFILE)
-<<<<<<< HEAD
             # fix: added | sed 's/^ *//g' # not obligatory from beginning of a line
             ps -eOcmd | sed 's/^ *//g' | grep ^$APPPID >&2
-=======
-            ps -eOcmd | grep ^$APPPID >&2
->>>>>>> refs/heads/vk.unclev.ru
         else
             #echo "$PIDFILE does not exist" >&2
             PS=$(ps -eOcmd | grep gateway.py$)
