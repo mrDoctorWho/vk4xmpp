@@ -2,6 +2,11 @@
 Config.txt
 crash*
 pidFile.txt
-users.db
+# exclude custom users.db names
+*users.db
 vk4xmpp.log
 gateway_v5.0.py
+# exclude PyDev/Aptana project files
+.*project
+# exclude ~ bak files
+*~
