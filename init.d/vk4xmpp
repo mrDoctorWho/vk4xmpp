@@ -19,15 +19,13 @@ export PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 NAME=vk4xmpp
 DESC="VKontakte transport"
-APPDIR="/home/victor/projects/vk4xmpp"
+APPDIR="/usr/share/vk4xmpp"
 PIDDIR="$APPDIR"
 PIDFILE=$PIDDIR/pidFile.txt
 CONFIG_FILE="$APPDIR/Config.txt"
 LOGFILE="$APPDIR/gateway.log"
-USER=pyicqt
-GROUP=pyicqt
-
-SSD_OPTS="--pidfile=$PIDFILE --name=python --user=$USER"
+USER=vk4xmppt
+GROUP=vk4xmppt
 
 DAEMON=/usr/bin/python
 OPTIONS="$APPDIR/gateway.py"
@@ -42,13 +40,13 @@ fi
 case "$1" in
 start)
         log_daemon_msg "Starting $DESC" "$NAME"
-        #sudo -b -u pyicqt /usr/bin/python /home/victor/projects/vk4xmpp/gateway.py > /home/victor/projects/vk4xmpp/gateway.log 2>&1
+        #sudo -b -u pyicqt /usr/bin/python /usr/share/vk4xmpp/gateway.py > /usr/share/vk4xmpp/gateway.log 2>&1
         sudo -b -u $USER $DAEMON $APPDIR/gateway.py > $LOGFILE 2>&1
         log_end_msg $?
         ;;
 stop)
         log_daemon_msg "Stopping $DESC" "$NAME"
-        #eval `kill $(cat /home/victor/projects/vk4xmpp/pidFile.txt)`
+        #eval `kill $(cat /usr/share/vk4xmpp/pidFile.txt)`
         eval `kill $(cat $PIDFILE)`
         log_end_msg $?
         ;;
