@@ -24,17 +24,17 @@ PIDDIR="$APPDIR"
 PIDFILE=$PIDDIR/pidFile.txt
 CONFIG_FILE="$APPDIR/Config.txt"
 LOGFILE="$APPDIR/gateway.log"
-USER=vk4xmppt
-GROUP=vk4xmppt
+USER=vk4xmpp
+GROUP=vk4xmpp
 
-DAEMON=/usr/bin/python
+DAEMON="/usr/bin/env python2"
 OPTIONS="$APPDIR/gateway.py"
 
-test -f $DAEMON || exit 0
+test -f "$(which python2)" || exit 0
 
-if test ! -e $PIDDIR; then
-        mkdir $PIDDIR
-        chown $USER:$GROUP $PIDDIR
+if test ! -e "$PIDDIR"; then
+        mkdir "$PIDDIR"
+        chown $USER:$GROUP "$PIDDIR"
 fi
 
 case "$1" in
