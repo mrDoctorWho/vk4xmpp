@@ -12,7 +12,7 @@ def parseAttachments(self, msg):
 			key = att.get("type")
 			if key == "wall":
 				att[key]["from_id"] = abs(att[key]["from_id"])
-				body += "https://vk.com/public%(from_id)s?w=wall-%(from_id)s_%(id)s"
+				body += "https://vk.com/feed?w=wall%(from_id)s_%(id)s"
 			elif key == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 				for dKey in keys:
