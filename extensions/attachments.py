@@ -2,11 +2,14 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2013.
 
+import urllib
+
 def parseAttachments(self, msg):
 	body = str()
 	if msg.has_key("attachments"):
 		if msg["body"]:
 			body += _("\nAttachments:")
+		searchlink = "https://vk.com/search?c[q]=%s&c[section]=audio"
 		attachments = msg["attachments"]
 		for att in attachments:
 			key = att.get("type")
@@ -22,6 +25,8 @@ def parseAttachments(self, msg):
 			elif key == "video":
 				body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
 			elif key == "audio":
+				url = searchlink % urllib.quote(str("%(performer)s %(title)s" % att[key]))
+				att[key]["url"] = url
 				body += "\nAudio: %(performer)s — %(title)s — %(url)s"
 			elif key == "doc":
 				body += "\nDocument: %(title)s — %(url)s"
