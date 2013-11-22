@@ -64,8 +64,10 @@ IDentifier = { "type": "vk",
 Semaphore = threading.Semaphore()
 
 SLICE_STEP = 8
+USER_LIMIT = 0
 DEBUG_XMPPPY = False
 THREAD_STACK_SIZE = 0
+MAXIMUM_FORWARD_DEPTH = 5
 
 pidFile = "pidFile.txt"
 Config = "Config.txt"
@@ -207,6 +209,8 @@ class VKLogin(object):
 			except api.CaptchaNeeded:
 				logger.error("VKLogin: running captcha challenge for %s" % self.jidFrom)
 				self.captchaChallenge()
+			except api.NotAllowed:
+				msgSend(Component, self.jidFrom, _("You're not allowed to perform this action."), vk2xmpp(args.get("user_id", TransportID)))
 			except api.VkApiError as e:
 				if e.message == "User authorization failed: user revoke access for this token.":
 					try:
@@ -436,15 +440,14 @@ class tUser(object):
 			with Database(DatabaseFile, Semaphore) as db:
 				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jidFrom))
 
-	def getUserName(self, uid):
-		if self.friends.has_key(uid):
-			name = self.friends[uid]["name"]
-		else:
-			name = self.vk.method("users.get", {"fields": "screen_name", "user_ids": uid})
-			if name:
-				name = name.pop()
-				name = escapeName(u"%s %s" % (name["first_name"], name["last_name"]))
-		return name
+	def getUserData(self, uid, fields = ["screen_name"]):
+		tempData = {}
+		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
+		if data:
+			data = data.pop()
+			data["name"] = escapeName(u"%s %s" % (data["first_name"], data["last_name"]))
+			del data["first_name"], data["last_name"]
+		return data
 
 	def sendMessages(self):
 		messages = self.vk.getMessages(200, self.lastMsgID if UseLastMessageID else 0)

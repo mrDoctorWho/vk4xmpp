@@ -41,27 +41,27 @@ def handleChatMessages(self, msg):
 		
 		if not users:
 			if chat in self.chatUsers:
-				roomPresence(chat, self.getUserName(owner), vk2xmpp(self.UserID), "unavailable")
+				roomPresence(chat, self.getUserData(owner)["name"], vk2xmpp(self.UserID), "unavailable")
 				del self.chatUsers[chat]
 			return None # Maybe true?
 
 		if not chat in self.chatUsers:
 			self.chatUsers[chat] = []
-			inviteUser(chat, self.jidFrom, vk2xmpp(owner), self.getUserName(owner)) ## TODO: Handle WHO invited me. Yes, i know that it'll be never happen. But maybe someone another do it for himself? You're welcome!
+			inviteUser(chat, self.jidFrom, vk2xmpp(owner), self.getUserData(owner)["name"]) ## TODO: Handle WHO invited me. Yes, i know that it'll be never happen. But maybe someone another do it for himself? You're welcome!
 			for usr in (owner, self.UserID):
-				roomPresence(chat, self.getUserName(usr), vk2xmpp(usr))
+				roomPresence(chat, self.getUserData(usr)["name"], vk2xmpp(usr))
 			groupchatMessage(chat, msg["title"], vk2xmpp(owner), True, msg["date"])
 	
 		for user in users: ## BURN IT!
 			if not user in self.chatUsers[chat]:
 				self.chatUsers[chat].append(user)
-				uName = self.getUserName(user)
+				uName = self.getUserData(user)["name"]
 				roomPresence(chat, uName, vk2xmpp(user))
 		
 		for user in self.chatUsers[chat]: ## BURN IT MORE!
 			if not user in users:
 				self.chatUsers[chat].remove(user)
-				uName = self.getUserName(user)
+				uName = self.getUserData(user)["name"]
 				roomPresence(chat, uName, vk2xmpp(user), "unavailable")
 
 		body = escapeMsg(msg["body"])

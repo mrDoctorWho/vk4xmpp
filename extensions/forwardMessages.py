@@ -15,10 +15,10 @@ def parseForwardMessages(self, msg, depth = 0):
 			date = fwd["date"]
 			fwdBody = escapeMsg(uHTML(fwd["body"]))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
-			name = self.getUserName(idFrom)
+			name = self.getUserData(idFrom)["name"]
 			body += "\n[%s] <%s> %s" % (date, name, fwdBody)
 			body += parseAttachments(self, fwd)
-			if depth < 5: # depth = 4
+			if depth < MAXIMUM_FORWARD_DEPTH: # depth = 4
 				depth += 1
 				body += parseForwardMessages(self, fwd, depth)
 	return body

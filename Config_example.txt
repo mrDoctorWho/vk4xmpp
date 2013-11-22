@@ -45,12 +45,17 @@ WatcherList = []
 AdditionalAbout = ""
 
 # Conference server. Don't change if you won't allow your users to use groupchats (depends from jabber-server's MUC)
-# Its an alpa! Testers are welcome, but don't use it everytime!
+# It's an alpha! Testers are welcome, but don't use it everytime!
 # F.e. conference.example.com
 ConferenceServer = ""
 
+# Users limit. How much users can be stored on your server?
+# Save as 0 if you won't limit registrations.
+USER_LIMIT = 0
+
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
-## Thread stack size (WARNING: EDIT IT ONLY WHEN TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
+## Thread stack size (WARNING: MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
+## It needed for optimize memory consuming.
 ## minimum value is 32768 bytes (32kb)
 THREAD_STACK_SIZE = 0
 
@@ -71,3 +76,6 @@ DEBUG_XMPPPY = False
 
 ## Eval jid. jid for command "!eval"
 evalJID = ""
+
+## Maximum forwarded messages depth.
+MAXIMUM_FORWARD_DEPTH = 5

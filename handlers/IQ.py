@@ -63,7 +63,11 @@ def iqRegisterHandler(cl, iq):
 	iType = iq.getType()
 	IQChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
-
+	if USER_LIMIT:
+		count = calcStats()[0]
+		if count >= USER_LIMIT:
+			cl.send(iqBuildError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
+			raise xmpp.NodeProcessed
 	if iType == "get" and jidToStr == TransportID and not IQChildren:
 		data = xmpp.Node("x")
 		logger.debug("Sending register form to %s" % jidFromStr)
@@ -315,7 +319,7 @@ def iqVcardHandler(cl, iq):
 	iType = iq.getType()
 	result = iq.buildReply("result")
 	if iType == "get":
-		_DESC = '\n'.join((DESC,'-'*16,AdditionalAbout)) if AdditionalAbout else DESC
+		_DESC = '\n'.join((DESC, "_" * 16, AdditionalAbout)) if AdditionalAbout else DESC
 		if jidToStr == TransportID:
 			vcard = iqVcardBuild({"NICKNAME": "VK4XMPP Transport",
 								  "DESC": _DESC,
@@ -325,17 +329,16 @@ def iqVcardHandler(cl, iq):
 
 		elif jidFromStr in Transport:
 			Class = Transport[jidFromStr]
-			Friends = Class.vk.getFriends(["screen_name", PhotoSize])
-			if Friends:
+			if Class.friends:
 				id = vk2xmpp(jidToStr)
-				if id in Friends.keys():
-					name = Friends[id]["name"]
-					photo = Friends[id].get("photo_100") or URL_VCARD_NO_IMAGE
-					vCard = iqVcardBuild({"NICKNAME": name, "PHOTO": photo, "URL": "http://vk.com/id%s" % id,
-										  "DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC})
-					result.setPayload([vCard])
-				else:
-					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("User is not your friend."))
+				json = Class.getUserData(id, ["screen_name", PhotoSize])
+				values = {"NICKNAME": json["name"],
+						  "URL": "http://vk.com/id%s" % id,
+						  "DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC}
+				if id in Class.friends:
+					values["PHOTO"] = json.get(PhotoSize) or URL_VCARD_NO_IMAGE
+				vCard = iqVcardBuild(values)
+				result.setPayload([vCard])
 			else:
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Your friend-list is null."))
 		else:

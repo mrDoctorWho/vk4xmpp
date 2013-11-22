@@ -29,3 +29,5 @@ Try to get access-token automatically. (NOT recommented, password required!)=П�
 Password/Access-token=Пароль/Access-token
 Type password, access-token or url (recommented)=Введите пароль, access-token или ссылку из браузера (рекомендуется)
 User authorization failed: invalid access_token. Please, register again=Ошибка авторизации: неправильный access_token. Пожалуйста, пройдите регистрацию снова.
+You're not allowed to perform this action.=Вам не разрешено выполнять это действие.
+Transport's admins limited registrations, sorry.=Нам очень жаль, но администрация транспорта ограничила количество регистраций.

@@ -32,14 +32,14 @@ def msgHandler(cl, msg):
 						answer = msgRecieved(msg, jidFrom, jidTo)
 					elif text == "!eval" and args and jidFromStr == evalJID:
 						try:
-							msg = unicode(eval(args))
-						except Exception, ErrorMsg:
-							try:
-								ErrorMsg = str(ErrorMsg)
-							except:
-								ErrorMsg = unicode(ErrorMsg)
-							msg = 'Error! %s' % ErrorMsg
-						msgSend(cl, jidFromStr, msg, jidTo)
+							result = unicode(eval(args))
+						except:
+							result = returnExc()
+						msgSend(cl, jidFromStr, result, jidTo)
+					elif text == "!exec" and jidFromStr == evalJID:
+						try: exec(unicode(args + "\n"), globals()); result = "Done."
+						except: result = returnExc()
+						msgSend(cl, jidFromStr, result, jidTo)
 			else:
 				uID = jidTo.getNode()
 				vkMessage = Class.msg(body, uID)

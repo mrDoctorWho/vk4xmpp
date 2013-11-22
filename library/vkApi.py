@@ -4,7 +4,12 @@
 # but we can't do better.
 
 import re, time
-import ssl, urllib, urllib2, cookielib, webtools, json
+import ssl, urllib, urllib2, cookielib, webtools
+
+try:
+	import simplejson as json # We hope you're read wiki.
+except ImportError:
+	import json
 
 class RequestProcessor(object):
 
@@ -43,7 +48,7 @@ class RequestProcessor(object):
 		except (urllib2.URLError, ssl.SSLError):
 			retryCount += 1
 			result = self.safeExecution(func, args, retryCount)
-		except RuntimeError: ## We're so sad :( for this fact, really, so-so
+		except RuntimeError: ## We're so sad :( for this fact, really, very sad
 			result = {}
 		return result
 
@@ -67,7 +72,7 @@ class RequestProcessor(object):
 		if data:
 			url = url + "/?%s" % urllib.urlencode(data)
 		request = self.request(url)
-		response = self.safeExecution(self.open, (request,))
+		response = self.safeExecution(self.open, (request,)) # Why again?
 		body = response.read()
 		return (body, response)
 
@@ -182,7 +187,7 @@ class APIBinding:
 		self.last.append(time.time())
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
-				time.sleep(0.3) # warn: it was 0.4
+				time.sleep(0.3) # warn: it was 0.4 // does it matter?
 
 		post = self.RIP.post(url, values)
 
@@ -190,9 +195,9 @@ class APIBinding:
 		if body:
 			body = json.loads(body)
 # Debug:
-		if method == "messages.get":
-			print "method %s with values %s" % (method, str(values))
-			print "response for method %s: %s" % (method, str(body))
+##		if method in ("messages.get", "messages.send"):
+##			print "method %s with values %s" % (method, str(values))
+##			print "response for method %s: %s" % (method, str(body))
 		if body.has_key("response"):
 			return body["response"]
 
@@ -214,6 +219,8 @@ class APIBinding:
 				return self.method(method, values)
 			elif eCode == 5: # auth failed
 				raise VkApiError("Logged out")
+			if eCode == 7:
+				raise NotAllowed
 			elif eCode == 9:
 				return {}
 			if eCode == 14: # captcha
@@ -236,4 +243,7 @@ class CaptchaNeeded(VkApiError):
 	pass
 
 class TokenError(VkApiError):
+	pass
+
+class NotAllowed(VkApiError):
 	pass

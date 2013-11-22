@@ -53,3 +53,11 @@ def wException(File = False):
 		return exception
 	except (IOError, OSError):
 		pass
+
+def returnExc():
+	exc = sys.exc_info()
+	if any(exc):
+		error = "\n%s: %s " % (exc[0].__name__, exc[1])
+	else:
+		error = `None`
+	return error
