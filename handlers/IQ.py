@@ -332,10 +332,10 @@ def iqVcardHandler(cl, iq):
 			if Class.friends:
 				id = vk2xmpp(jidToStr)
 				json = Class.getUserData(id, ["screen_name", PhotoSize])
-				values = {"NICKNAME": json["name"],
+				values = {"NICKNAME": json.get("name", str(json)),
 						  "URL": "http://vk.com/id%s" % id,
 						  "DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC}
-				if id in Class.friends:
+				if id in Class.friends.keys():
 					values["PHOTO"] = json.get(PhotoSize) or URL_VCARD_NO_IMAGE
 				vCard = iqVcardBuild(values)
 				result.setPayload([vCard])

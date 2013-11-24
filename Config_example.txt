@@ -60,10 +60,10 @@ USER_LIMIT = 0
 THREAD_STACK_SIZE = 0
 
 ## Timeout when user considered inactive (seconds)
-USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN = 600
+USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN = 120
 
 ## Max roster update timeout (when user inactive, seconds)
-MAX_ROSTER_UPDATE_TIMEOUT = 60
+MAX_ROSTER_UPDATE_TIMEOUT = 180
 
 ## Default roster update timeout (when user is active)
 ROSTER_UPDATE_TIMEOUT = 6

@@ -195,7 +195,7 @@ class APIBinding:
 		if body:
 			body = json.loads(body)
 # Debug:
-##		if method in ("messages.get", "messages.send"):
+##		if method == "users.get":##("messages.get", "messages.send"):
 ##			print "method %s with values %s" % (method, str(values))
 ##			print "response for method %s: %s" % (method, str(body))
 		if body.has_key("response"):

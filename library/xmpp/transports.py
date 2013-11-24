@@ -29,7 +29,7 @@ Also exception 'error' is defined to allow capture of this module specific excep
 
 import sys
 import socket
-#import dns
+## import dns
 import dispatcher
 
 from base64 import encodestring

@@ -441,12 +441,15 @@ class tUser(object):
 				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jidFrom))
 
 	def getUserData(self, uid, fields = ["screen_name"]):
-		tempData = {}
 		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
 		if data:
 			data = data.pop()
 			data["name"] = escapeName(u"%s %s" % (data["first_name"], data["last_name"]))
 			del data["first_name"], data["last_name"]
+		else:
+			data = {}
+			for key in fields:
+				data[key] = "Unknown error when trying to get user data. We're so sorry."
 		return data
 
 	def sendMessages(self):
@@ -567,6 +570,7 @@ def getPid():
 				Print("%d killed.\n" % oldPid, False)
 	wFile(pidFile, str(nowPid))
 
+
 def hyperThread(start, end):
 	while True:
 		SliceOfLife = TransportsList[start:end]
@@ -578,7 +582,7 @@ def hyperThread(start, end):
 				if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
 				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
 					user.last_udate = time.time() 
-					friends = user.vk.getFriends()
+					friends = user.vk.getFriends() ## TODO: Maybe update only statuses? Again friends.getOnline...
 					if friends != user.friends:
 						for uid in friends:
 							if uid in user.friends:
