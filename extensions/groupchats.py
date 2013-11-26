@@ -70,7 +70,8 @@ def handleChatMessages(self, msg):
 		chatID = "%s_chat#%s" % (self.UserID, msg["chat_id"]) ## Maybe better to use owner id for chat
 		chat = "%s@%s" % (chatID, ConferenceServer)
 		users = msg["chat_active"].split(",") ## Why chat owner isn't in a chat? It may cause problems. Or not?
-		if not users:
+		users.append(self.UserID)
+		if not users: ## is it possible?
 			if chat in self.chatUsers:
 				groupchatPresence(chat, self.getUserData(owner)["name"], vk2xmpp(self.UserID), "unavailable")
 				del self.chatUsers[chat]
