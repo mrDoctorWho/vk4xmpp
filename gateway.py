@@ -600,9 +600,11 @@ def WatcherMsg(text):
 	for jid in WatcherList:
 		msgSend(Component, jid, text, TransportID)
 
+
 def disconnectHandler(crash = True):
 	if crash:
 		crashLog("main.Disconnect")
+	Print("Reconnecting..."); time.sleep(5)
 	os.execl(sys.executable, sys.executable, sys.argv[0])
 
 def main():
@@ -613,7 +615,6 @@ def main():
 	Print("\n#-# Connecting: ", False)
 	if not Component.connect((Server, Port)):
 		Print("fail.\n", False)
-		crashLog("main.connect")
 	else:
 		Print("ok.\n", False)
 		Print("#-# Auth: ", False)
@@ -630,7 +631,7 @@ def main():
 					try:
 						if Transport[jid].connect():
 							TransportsList.append(Transport[jid])
-							if DefaultStatus == 1:
+							if DefaultStatus:
 								Transport[jid].init(None, False)
 							Print(".", False)
 							Counter[0] += 1
@@ -685,6 +686,7 @@ def loadSomethingMore(dir):
 if __name__ == "__main__":
 	threadRun(garbageCollector, (), "gc")
 	signal.signal(signal.SIGTERM, exit)
+	signal.signal(signal.SIGINT, exit)
 	loadSomethingMore("extensions")
 	loadSomethingMore("handlers")
 	main()
@@ -692,8 +694,8 @@ if __name__ == "__main__":
 	while True:
 		try:
 			Component.iter(4)
-		except KeyboardInterrupt:
-			exit()
+		except AttributeError:
+			disconnectHandler(False)
 		except xmpp.StreamError:
 			crashLog("Component.iter")
 		except:
