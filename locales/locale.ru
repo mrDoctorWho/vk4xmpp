@@ -18,7 +18,7 @@ Auth failed! If this error repeated, please register again. This incident will b
 \LAttachments:=\LВложения:
 Enter shown text=Введите показанный текст
 New user registered: %s=Зарегистрирован новый пользователь: %s
-User remove registration: %s=Пользователь удалил регистрацию: %s
+User removed registration: %s=Пользователь удалил регистрацию: %s
 Type data in fields=Введите данные в поля
 Autorization page=Страница авторизации
 If you won't get access-token automatically, please, follow authorization link and authorize app,\Land then paste url to password field.=Если же вы не хотите получить access-token автоматически, то пройдите по ссылке из поля, авторизируйте приложение,\Lа затем введите полученный URL из адресной строки браузера в последнее поле вместо пароля.

@@ -46,6 +46,11 @@ def prsHandler(cl, prs):
 					if id in Class.friends:
 						if Class.friends[id]["online"]:
 							Sender(cl, xmpp.Presence(jidFrom, frm = jidTo))
+		elif pType == "unsubscribe":
+			if jidFromStr in Transport:
+				Class.deleteUser(True)
+				WatcherMsg(_("User removed registration: %s") % jidFromStr)
+
 		if jidToStr == TransportID:
 			Class.lastStatus = pType
 

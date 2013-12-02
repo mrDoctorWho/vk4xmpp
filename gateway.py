@@ -69,8 +69,13 @@ DEBUG_XMPPPY = False
 THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 5
 
-pidFile = "pidFile.txt"
-Config = "Config.txt"
+from optparse import OptionParser
+oParser = OptionParser(usage = "%prog [options]")
+oParser.add_option("-p", "--pid", dest = "pidFile", help = "address used for pid file storage", metavar = "pidFile", default = "pidFile.txt")
+oParser.add_option("-c", "--config", dest = "Config", help = "same as -p (--pid) but for config file", metavar = "Config", default = "Config.txt")
+(options, args) = oParser.parse_args()
+pidFile, Config = options.pidFile, options.Config
+
 PhotoSize = "photo_100"
 DefLang = "ru"
 evalJID = ""
@@ -201,16 +206,17 @@ class VKLogin(object):
 			return False
 		return True
 
-	def method(self, method, args = {}, force = False):
+	def method(self, method, args = {}):
 		result = {}
-		if not self.engine.captcha and self.Online or force:
+		if not self.engine.captcha and self.Online:
 			try:
 				result = self.engine.method(method, args)
 			except api.CaptchaNeeded:
 				logger.error("VKLogin: running captcha challenge for %s" % self.jidFrom)
 				self.captchaChallenge()
 			except api.NotAllowed:
-				msgSend(Component, self.jidFrom, _("You're not allowed to perform this action."), vk2xmpp(args.get("user_id", TransportID)))
+				if self.engine.lastMethod[0] == "messages.send":
+					msgSend(Component, self.jidFrom, _("You're not allowed to perform this action."), vk2xmpp(args.get("user_id", TransportID)))
 			except api.VkApiError as e:
 				if e.message == "User authorization failed: user revoke access for this token.":
 					try:
@@ -662,7 +668,7 @@ def main():
 			Print("\n#-# Finished.")
 
 def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
-	status = "Shutting down by %s" % ("SIGTERM" if signal else "KeyboardInterrupt")
+	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
 	Print("#! %s" % status, False)
 	for Class in TransportsList:
 		Class.sendOutPresence(Class.jidFrom, status)

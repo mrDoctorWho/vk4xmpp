@@ -158,7 +158,7 @@ def iqRegisterHandler(cl, iq):
 				Class = Transport[jidFromStr]
 				Class.deleteUser(True)
 				result.setPayload([], add = 0)
-				WatcherMsg(_("User remove registration: %s") % jidFromStr)
+				WatcherMsg(_("User removed registration: %s") % jidFromStr)
 		else:
 			result = iqBuildError(iq, 0, _("Feature not implemented."))
 	Sender(cl, result)
