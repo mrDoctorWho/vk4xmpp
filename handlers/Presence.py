@@ -27,6 +27,7 @@ def prsHandler(cl, prs):
 				if not Class.resources:
 					Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
 					Class.vk.disconnect()
+					Class.friends = {} # May cause errors sometimes
 				else:
 					Class.sendOutPresence(jidFrom)
 	

@@ -14,8 +14,7 @@ def parseAttachments(self, msg):
 		for att in attachments:
 			key = att.get("type")
 			if key == "wall":
-				att[key]["from_id"] = abs(att[key]["from_id"])
-				body += "https://vk.com/feed?w=wall-%(from_id)s_%(id)s"
+				body += "\nWall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
 			elif key == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 				for dKey in keys:

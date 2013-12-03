@@ -7,6 +7,7 @@
 
 import re, os, sys, time, signal, urllib, socket, logging, traceback, threading
 from datetime import datetime
+from hashlib import sha1
 from math import ceil
 if not hasattr(sys, "argv") or not sys.argv[0]:
 	sys.argv = ["."]
@@ -34,7 +35,7 @@ from webtools import *
 from writer import *
 from stext import *
 from stext import _
-from hashlib import sha1
+
 import vkApi as api
 
 Transport = {}
@@ -423,11 +424,11 @@ class tUser(object):
 		Sender(Component, Presence)
 
 	def sendInitPresence(self):
-		self.friends = self.vk.getFriends() ## too too bad way to do it again.
+		self.friends = self.vk.getFriends() ## too too bad way to do it again. But it's a guarantee of the availability of friends.
 		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jidFrom, "exists" if self.friends else "empty"))
-		for uid in self.friends.keys():
-			if self.friends[uid]["online"]:
-				self.sendPresence(self.jidFrom, vk2xmpp(uid), None, self.friends[uid]["name"])
+		for uid, value in self.friends.iteritems():
+			if value["online"]:
+				self.sendPresence(self.jidFrom, vk2xmpp(uid), None, value["name"])
 		self.sendPresence(self.jidFrom, TransportID, None, IDentifier["name"])
 
 	def sendOutPresence(self, target, reason = None):
@@ -437,8 +438,8 @@ class tUser(object):
 			self.sendPresence(target, vk2xmpp(uid), "unavailable", reason = reason)
 
 	def rosterSubscribe(self, dist = {}):
-		for id in dist.keys():
-			self.sendPresence(self.jidFrom, vk2xmpp(id), "subscribe", dist[id]["name"])
+		for uid, value in dist.iteritems():
+			self.sendPresence(self.jidFrom, vk2xmpp(uid), "subscribe", value["name"])
 			time.sleep(0.2)
 		self.sendPresence(self.jidFrom, TransportID, "subscribe", IDentifier["name"])
 		if dist:
@@ -590,10 +591,10 @@ def hyperThread(start, end):
 					user.last_udate = time.time() 
 					friends = user.vk.getFriends() ## TODO: Maybe update only statuses? Again friends.getOnline...
 					if friends != user.friends:
-						for uid in friends:
+						for uid, value in friends.iteritems():
 							if uid in user.friends:
-								if user.friends[uid]["online"] != friends[uid]["online"]:
-									user.sendPresence(user.jidFrom, vk2xmpp(uid), None if friends[uid]["online"] else "unavailable")
+								if user.friends[uid]["online"] != value["online"]:
+									user.sendPresence(user.jidFrom, vk2xmpp(uid), None if value["online"] else "unavailable")
 							else:
 								user.rosterSubscribe({uid: friends[uid]})
 						user.friends = friends
