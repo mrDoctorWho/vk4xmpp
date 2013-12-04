@@ -345,7 +345,7 @@ class tUser(object):
 		self.existsInDB = False
 		if roster and self.friends:
 			logger.debug("tUser: deleting me from %s roster" % self.jidFrom)
-			for id in self.friends():
+			for id in self.friends.keys():
 				jid = vk2xmpp(id)
 				self.sendPresence(self.jidFrom, jid, "unsubscribe")
 				self.sendPresence(self.jidFrom, jid, "unsubscribed")
