@@ -345,7 +345,7 @@ class tUser(object):
 		self.existsInDB = False
 		if roster and self.friends:
 			logger.debug("tUser: deleting me from %s roster" % self.jidFrom)
-			for id in self.friends.keys():
+			for id in self.friends():
 				jid = vk2xmpp(id)
 				self.sendPresence(self.jidFrom, jid, "unsubscribe")
 				self.sendPresence(self.jidFrom, jid, "unsubscribed")
@@ -531,9 +531,9 @@ isNumber = lambda obj: (not apply(int, (obj,)) is None)
 
 def vk2xmpp(id):
 	if not isNumber(id) and "@" in id:
-			id = id.split("@")[0]
-			if isNumber(id):
-				id = int(id)
+		id = id.split("@")[0]
+		if isNumber(id):
+			id = int(id)
 	elif id == TransportID:
 		return id
 	else:
@@ -607,7 +607,6 @@ def WatcherMsg(text):
 	for jid in WatcherList:
 		msgSend(Component, jid, text, TransportID)
 
-
 def disconnectHandler(crash = True):
 	if crash:
 		crashLog("main.Disconnect")
@@ -639,7 +638,7 @@ def main():
 						if Transport[jid].connect():
 							TransportsList.append(Transport[jid])
 							if DefaultStatus:
-								Transport[jid].init(None, False)
+								Transport[jid].init(None, True)
 							Print(".", False)
 							Counter[0] += 1
 						else:
