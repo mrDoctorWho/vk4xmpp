@@ -25,7 +25,7 @@ def iqHandler(cl, iq):
 		iqRegisterHandler(cl, iq)
 	elif ns == xmpp.NS_GATEWAY:
 		iqGatewayHandler(cl, iq)
-	elif ns == xmpp.NS_STATS: 
+	elif ns == xmpp.NS_STATS:
 		iqStatsHandler(cl, iq)
 	elif ns == xmpp.NS_VERSION:
 		iqVersionHandler(cl, iq)
@@ -65,20 +65,20 @@ def iqRegisterHandler(cl, iq):
 	result = iq.buildReply("result")
 	if USER_LIMIT:
 		count = calcStats()[0]
-		if count >= USER_LIMIT:
+		if count >= USER_LIMIT and not jidFromStr in Transport:
 			cl.send(iqBuildError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
 			raise xmpp.NodeProcessed
 	if iType == "get" and jidToStr == TransportID and not IQChildren:
 		data = xmpp.Node("x")
 		logger.debug("Sending register form to %s" % jidFromStr)
 		data.setNamespace(xmpp.NS_DATA)
-		instr= data.addChild(node=xmpp.Node("instructions"))
+		instr = data.addChild(node=xmpp.Node("instructions"))
 		instr.setData(_("Type data in fields"))
 		link = data.addChild(node=xmpp.DataField("link"))
 		link.setLabel(_("Autorization page"))
 		link.setType("text-single")
 		link.setValue(URL_ACCEPT_APP)
-		link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
+		link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"
 					  "and then paste url to password field."))
 		phone = data.addChild(node=xmpp.DataField("phone"))
 		phone.setLabel(_("Phone number"))
@@ -140,7 +140,7 @@ def iqRegisterHandler(cl, iq):
 				logger.error("user %s connection failed (from iq)" % jidFromStr)
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 			else:
-				try: 
+				try:
 					user.init()
 				except api.CaptchaNeeded:
 					user.vk.captchaChallenge()
@@ -149,7 +149,7 @@ def iqRegisterHandler(cl, iq):
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 				else:
 					Transport[jidFromStr] = user
-					updateTransportsList(Transport[jidFromStr]) #$
+					updateTransportsList(Transport[jidFromStr])
 					WatcherMsg(_("New user registered: %s") % jidFromStr)
 
 		elif Query.getTag("remove"): # Maybe exits a better way for it
@@ -206,7 +206,7 @@ sDict = {
 		  "memory/real": "KB",
 		  "cpu/percent": "percent",
 		  "cpu/time": "seconds"
-		  }
+		}
 
 def iqStatsHandler(cl, iq):
 	jidToStr = iq.getTo()
@@ -224,7 +224,7 @@ def iqStatsHandler(cl, iq):
 			users = calcStats()
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			memVirt, memReal, cpuPercent, cpuTime = shell[1].split()
-			stats = {"users": users, "KB": [memVirt, memReal], 
+			stats = {"users": users, "KB": [memVirt, memReal],
 					 "percent": [cpuPercent], "seconds": [cpuTime]}
 			for Child in IQChildren:
 				if Child.getName() != "stat":

@@ -1,4 +1,4 @@
-# $Id: __init__.py,v 1.9 2005/03/07 09:34:51 snakeru Exp $
+# $Id: __init__.py, v1.10 2013/10/21 alkorgun Exp $
 
 """
 All features of xmpppy library contained within separate modules.
@@ -23,9 +23,20 @@ either in instance of PlugIn or in owner's instance. This is considered unhandy
 and there are plans to port 'Session' class from xmppd.py project for storing all
 session-related info. Though if you are not accessing instances variables directly
 and use only methods for access all values you should not have any problems.
-
 """
 
-import simplexml,protocol,debug,auth,transports,roster,dispatcher,features,browser,filetransfer,commands
+import auth
+import browser
+import commands
+import debug
+import dispatcher
+import features
+import filetransfer
+import plugin
+import protocol
+import roster
+import simplexml
+import transports
+
 from client import *
 from protocol import *

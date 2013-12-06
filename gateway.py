@@ -150,7 +150,7 @@ def threadRun(func, args = (), name = None):
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
 
-compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", flags=re.S+re.I+re.U)
+compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.UNICODE | re.DOTALL)
 def escapeName(text):
 	return compile_name.sub("", text)
 def escapeMsg(text):
@@ -166,7 +166,7 @@ class VKLogin(object):
 		self.password = password
 		self.Online = False
 		self.jidFrom = jidFrom
-		logger.debug("VKLogin.__init__ with number:%s from jid:%s"  % (number, jidFrom))
+		logger.debug("VKLogin.__init__ with number:%s from jid:%s" % (number, jidFrom))
 
 	def auth(self, token = None):
 		logger.debug("VKLogin.auth %s token" % ("with" if token else "without"))
@@ -196,7 +196,7 @@ class VKLogin(object):
 			if not self.checkToken():
 				logger.error("VKLogin.checkData: token invalid: " % self.engine.token)
 				raise api.tokenError("Token for user %s invalid: " % (self.jidFrom, self.engine.token))
-		else: 
+		else:
 			logger.error("VKLogin.checkData: no token and password for jid:%s" % self.jidFrom)
 			raise api.TokenError("%s, Where are your token?" % self.jidFrom)
 
@@ -233,31 +233,33 @@ class VKLogin(object):
 	def captchaChallenge(self):
 		if self.engine.captcha:
 			logger.debug("VKLogin: sending message with captcha to %s" % self.jidFrom)
-			body = _("WARNING: VK sent captcha to you."\
-					 " Please, go to %s and enter text from image to chat."\
+			body = _("WARNING: VK sent captcha to you."
+					 " Please, go to %s and enter text from image to chat."
 					 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
-			Types = (dict(type = "form"), dict(type = "hidden", var = "form"))
 			msg = xmpp.Message(self.jidFrom, body, "chat", frm = TransportID)
 			msg.setTag("x", {}, xmpp.NS_OOB)
 			xTag = msg.getTag("x", {}, xmpp.NS_OOB)
 			xTag.setTagData("url", self.engine.captcha["img"])
 			msg.setTag("captcha", {}, xmpp.NS_CAPTCHA)
 			cTag = msg.getTag("captcha", {}, xmpp.NS_CAPTCHA)
-			cTag.setTag("x", Types[0], xmpp.NS_DATA)
 			imgData = vCardGetPhoto(self.engine.captcha["img"], False)
-			imgHash = sha1(imgData).hexdigest()
-			imgEncoded = imgData.encode("base64")
-			cxTag = cTag.setTag("x", Types[0], xmpp.NS_DATA)
-			cxTag.addChild("field", dict(type = "hidden", var = "FORM_TYPE"), 
-									[xmpp.Node("value", payload = [xmpp.NS_CAPTCHA])])
-			cxTag.addChild("field", dict(type = "hidden", var = "from"),
-									[xmpp.Node("value", payload = [TransportID])])
-			cxTag.addChild("field", {"label": _("Enter shown text"), "var": "ocr"}, 
-									[xmpp.Node("required"),	xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA}, 
-									[xmpp.Node("uri", {"type": "image/jpg"}, ["cid:sha1+%s@bob.xmpp.org" % imgHash])])])
-			msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type":"image/jpg", "max-age":"0"}, xmpp.NS_URN_OOB)
-			obTag = msg.getTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
-			obTag.setData(imgEncoded)
+			if imgData:
+				imgHash = sha1(imgData).hexdigest()
+				imgEncoded = imgData.encode("base64")
+				form = xmpp.DataForm()
+				form.addChild(node=DataField("FORM_TYPE", xmpp.NS_CAPTCHA, "hidden"))
+				form.addChild(node=DataField("from", TransportID, "hidden"))
+				field = form.setField("ocr")
+				field.setLabel(_("Enter shown text"))
+				field.setPayload([xmpp.Node("required"), xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA}, 
+					[xmpp.Node("uri", {"type": "image/jpg"}, ["cid:sha1+%s@bob.xmpp.org" % imgHash])])])
+				cTag.addChild(node = form)
+				msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type":"image/jpg", "max-age":"0"}, xmpp.NS_URN_OOB)
+				obTag = msg.getTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
+				obTag.setData(imgEncoded)
+			else:
+				logger.critical("VKLogin: can't add captcha image to message url:%s" % self.engine.captcha["img"])
+
 			Sender(Component, msg)
 			Presence = xmpp.protocol.Presence(self.jidFrom, frm = TransportID)
 			Presence.setStatus(body)
@@ -357,7 +359,7 @@ class tUser(object):
 			except NameError:
 				pass
 
-	def msg(self, body, uID, mType = "user_id"):			
+	def msg(self, body, uID, mType = "user_id"):
 		try:
 			self.last_activity = time.time()
 			Message = self.vk.method("messages.send", {mType: uID, "message": body, "type": 0})
@@ -390,7 +392,7 @@ class tUser(object):
 			logger.debug("tUser: updating db for %s because auth done " % self.jidFrom)
 			if not self.existsInDB:
 				with Database(DatabaseFile, Semaphore) as db:
-					db("insert into users values (?,?,?,?,?)", (self.jidFrom, self.username, 
+					db("insert into users values (?,?,?,?,?)", (self.jidFrom, self.username,
 						self.vk.getToken(), self.lastMsgID, self.rosterSet))
 			elif self.password:
 				with Database(DatabaseFile, Semaphore) as db:
@@ -478,7 +480,7 @@ class tUser(object):
 						except:
 							result = None
 							crashLog("handle.%s" % func.func_name)
-						if result == None:
+						if result is None:
 							for func in iter:
 								apply(func, (self, message))
 							break
@@ -517,7 +519,7 @@ def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	msg = xmpp.Message(jidTo, body, "chat", frm = jidFrom)
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
-		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp), xmpp.NS_DELAY)
+		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
 	Sender(cl, msg)
 
 def apply(instance, args = ()):
@@ -540,9 +542,9 @@ def vk2xmpp(id):
 		id = u"%s@%s" % (id, TransportID)
 	return id
 
-DESC = _("© simpleApps, 2013."\
-	   "\nYou can support developing of any project"\
-	   " via donation by WebMoney:"\
+DESC = _("© simpleApps, 2013."
+	   "\nYou can support developing of any project"
+	   " via donation by WebMoney:"
 	   "\nZ405564701378 | R330257574689.")
 
 def updateTransportsList(user, add=True):
@@ -588,7 +590,7 @@ def hyperThread(start, end):
 			if user.vk.Online: 			# TODO: delete user from memory when he offline
 				if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
 				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
-					user.last_udate = time.time() 
+					user.last_udate = time.time()
 					friends = user.vk.getFriends() ## TODO: Maybe update only statuses? Again friends.getOnline...
 					if friends != user.friends:
 						for uid, value in friends.iteritems():
