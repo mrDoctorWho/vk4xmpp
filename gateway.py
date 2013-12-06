@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v1.8
+# vk4xmpp gateway, v1.9
 # © simpleApps, 01.08.2013
 # Program published under MIT license.
 
@@ -9,9 +9,9 @@ import re, os, sys, time, signal, urllib, socket, logging, traceback, threading
 from datetime import datetime
 from hashlib import sha1
 from math import ceil
+
 if not hasattr(sys, "argv") or not sys.argv[0]:
 	sys.argv = ["."]
-
 try:
 	__file__ = os.path.dirname(os.path.abspath(sys.argv[0]))
 	os.chdir(__file__)
@@ -58,9 +58,9 @@ TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
 					  xmpp.NS_PING,
 					  xmpp.NS_LAST ]
 
-IDentifier = { "type": "vk",
-			   "category": "gateway",
-			   "name": "VK4XMPP Transport" }
+IDentifier = {	"type": "vk",
+				"category": "gateway",
+				"name": "VK4XMPP Transport" }
 
 Semaphore = threading.Semaphore()
 
@@ -70,12 +70,15 @@ DEBUG_XMPPPY = False
 THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 5
 
+pidFile = "pidFile.txt"
+logFile = "vk4xmpp.log"
+crashDir = "crash"
+
 from optparse import OptionParser
 oParser = OptionParser(usage = "%prog [options]")
-oParser.add_option("-p", "--pid", dest = "pidFile", help = "address used for pid file storage", metavar = "pidFile", default = "pidFile.txt")
-oParser.add_option("-c", "--config", dest = "Config", help = "same as -p (--pid) but for config file", metavar = "Config", default = "Config.txt")
+oParser.add_option("-c", "--config", dest = "Config", help = "general config file", metavar = "Config", default = "Config.txt")
 (options, args) = oParser.parse_args()
-pidFile, Config = options.pidFile, options.Config
+Config = options.Config
 
 PhotoSize = "photo_100"
 DefLang = "ru"
@@ -85,29 +88,29 @@ ConferenceServer = ""
 
 startTime = int(time.time())
 
-if os.path.exists(Config):
-	try:
-		execfile(Config)
-		Print("#-# Config loaded successfully.")
-	except:
-		crashLog("config.load")
-else:
+try:
+	execfile(Config)
+	Print("#-# Config loaded successfully.")
+except:
 	Print("#-# Config file doesn't exists.")
+	exit()
+
 setVars(DefLang, __file__)
+
 
 if THREAD_STACK_SIZE:
 	threading.stack_size(THREAD_STACK_SIZE)
 
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(logging.DEBUG)
-loggerHandler = logging.FileHandler("vk4xmpp.log")
+loggerHandler = logging.FileHandler(logFile)
 Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", "[%d.%m.%Y %H:%M:%S]")
 loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 
 def gatewayRev():
-	revNumber, rev = 90, 0
+	revNumber, rev = 126, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]

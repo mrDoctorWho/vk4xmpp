@@ -69,32 +69,24 @@ def iqRegisterHandler(cl, iq):
 			cl.send(iqBuildError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
 			raise xmpp.NodeProcessed
 	if iType == "get" and jidToStr == TransportID and not IQChildren:
-		data = xmpp.Node("x")
+		form = xmpp.DataForm()
 		logger.debug("Sending register form to %s" % jidFromStr)
-		data.setNamespace(xmpp.NS_DATA)
-		instr = data.addChild(node=xmpp.Node("instructions"))
-		instr.setData(_("Type data in fields"))
-		link = data.addChild(node=xmpp.DataField("link"))
+		form.addChild(node=xmpp.Node("instructions")).setData(_("Type data in fields"))
+		link = form.setField("link", URL_ACCEPT_APP)
 		link.setLabel(_("Autorization page"))
-		link.setType("text-single")
-		link.setValue(URL_ACCEPT_APP)
-		link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"
-					  "and then paste url to password field."))
-		phone = data.addChild(node=xmpp.DataField("phone"))
+		link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
+					   "and then paste url to password field."))
+		phone = form.setField("phone", "+")
 		phone.setLabel(_("Phone number"))
-		phone.setType("text-single")
-		phone.setValue("+")
 		phone.setDesc(_("Enter phone number in format +71234567890"))
-		use_password = data.addChild(node=xmpp.DataField("use_password"))
+		use_password = form.setField("use_password", "0", "boolean")
 		use_password.setLabel(_("Get access-token automatically"))
-		use_password.setType("boolean")
-		use_password.setValue("0")
 		use_password.setDesc(_("Try to get access-token automatically. (NOT recommented, password required!)"))
-		password = data.addChild(node=xmpp.DataField("password"))
+		password = form.setField("password", None, "text-private")
 		password.setLabel(_("Password/Access-token"))
 		password.setType("text-private")
 		password.setDesc(_("Type password, access-token or url (recommented)"))
-		result.setQueryPayload((data,))
+		result.setQueryPayload((form,))
 
 	elif iType == "set" and jidToStr == TransportID and IQChildren:
 		phone, password, usePassword, token = False, False, False, False

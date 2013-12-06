@@ -1,6 +1,7 @@
 # /* coding: utf-8 */
 # © simpleApps, 2010
 
+import __main__
 import os, sys, time, logging, traceback
 
 logger = logging.getLogger("vk4xmpp")
@@ -23,9 +24,9 @@ def crashLog(name, text = 0, fixMe = True):
 	if fixMe:
 		fixme(name)
 	try:
-		File = "crash/%s.txt" % name
-		if not os.path.exists("crash"): 
-			os.makedirs("crash")
+		File = "%s/%s.txt" % (__main__.crashDir, name)
+		if not os.path.exists(__main__.crashDir): 
+			os.makedirs(__main__.crashDir)
 		exception = wException(True)
 		if exception not in ("None", lastErrorBody):
 			Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")

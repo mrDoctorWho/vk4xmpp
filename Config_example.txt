@@ -18,9 +18,6 @@ TransportID = "vk.example.com"
 ## Connection password.
 Password = "secret"
 
-## Database file (as you like)
-DatabaseFile = "users.db"
-
 ## Default status (1 — online (recommented) / 0 — offline) 
 DefaultStatus = 1
 
@@ -53,9 +50,10 @@ ConferenceServer = ""
 # Save as 0 if you won't limit registrations.
 USER_LIMIT = 0
 
+#! Danger zone.
 #! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 ## Thread stack size (WARNING: MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
-## It needed for optimize memory consuming.
+## It's needed for optimize memory consuming.
 ## minimum value is 32768 bytes (32kb)
 THREAD_STACK_SIZE = 0
 
@@ -68,14 +66,26 @@ MAX_ROSTER_UPDATE_TIMEOUT = 180
 ## Default roster update timeout (when user is active)
 ROSTER_UPDATE_TIMEOUT = 6
 
+## Maximum forwarded messages depth.
+MAXIMUM_FORWARD_DEPTH = 5
+
 ## Image that will be used if transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
-
-## Debug xmpppy library
-DEBUG_XMPPPY = False
 
 ## Eval jid. jid for command "!eval"
 evalJID = ""
 
-## Maximum forwarded messages depth.
-MAXIMUM_FORWARD_DEPTH = 5
+## Debug xmpppy library
+DEBUG_XMPPPY = False
+
+## Database file (as you like)
+DatabaseFile = "users.db"
+
+## File used for storage PID.
+pidFile = "pidFile.txt"
+
+## Log file.
+logFile = "vk4xmpp.log"
+
+## Directory for storage crash logs.
+crashDir = "crash"
