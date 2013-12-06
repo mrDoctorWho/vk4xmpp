@@ -1,9 +1,10 @@
 [Unit]
 Description=VK4XMPP is an Vk.com transport for Jabber/XMPP
+
 [Service]
 Type=simple
-PIDFile=/usr/share/vk4xmpp/pidFile.txt
-ExecStart=/usr/bin/env python2 /usr/share/vk4xmpp/gateway.py
+PIDFile=/var/run/vk4xmpp/vk4xmpp.pid
+ExecStart=/usr/bin/env python2 /usr/share/vk4xmpp/gateway.py -c/etc/vk4xmpp.conf -p/var/run/vk4xmpp/vk4xmpp.pid
 User=nobody
 Group=nobody
 

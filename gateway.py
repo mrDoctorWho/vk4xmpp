@@ -237,29 +237,28 @@ class VKLogin(object):
 					 " Please, go to %s and enter text from image to chat."
 					 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
 			msg = xmpp.Message(self.jidFrom, body, "chat", frm = TransportID)
-			msg.setTag("x", {}, xmpp.NS_OOB)
-			xTag = msg.getTag("x", {}, xmpp.NS_OOB)
+			xTag = msg.setTag("x", {}, xmpp.NS_OOB)
 			xTag.setTagData("url", self.engine.captcha["img"])
-			msg.setTag("captcha", {}, xmpp.NS_CAPTCHA)
-			cTag = msg.getTag("captcha", {}, xmpp.NS_CAPTCHA)
+			cTag = msg.setTag("captcha", {}, xmpp.NS_CAPTCHA)
 			imgData = vCardGetPhoto(self.engine.captcha["img"], False)
 			if imgData:
 				imgHash = sha1(imgData).hexdigest()
 				imgEncoded = imgData.encode("base64")
-				form = xmpp.DataForm()
-				form.addChild(node=DataField("FORM_TYPE", xmpp.NS_CAPTCHA, "hidden"))
-				form.addChild(node=DataField("from", TransportID, "hidden"))
+				form = xmpp.DataForm("form")
+				form.setField("FORM_TYPE", xmpp.NS_CAPTCHA, "hidden")
+				form.setField("from", TransportID, "hidden")
 				field = form.setField("ocr")
 				field.setLabel(_("Enter shown text"))
-				field.setPayload([xmpp.Node("required"), xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA}, 
-					[xmpp.Node("uri", {"type": "image/jpg"}, ["cid:sha1+%s@bob.xmpp.org" % imgHash])])])
-				cTag.addChild(node = form)
-				msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type":"image/jpg", "max-age":"0"}, xmpp.NS_URN_OOB)
-				obTag = msg.getTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
+				field.delAttr("type")
+				field.setPayload([xmpp.Node("required"),
+					xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},
+						[xmpp.Node("uri", {"type": "image/jpg"},
+							["cid:sha1+%s@bob.xmpp.org" % imgHash])])])
+				cTag.addChild(node=form)
+				obTag = msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
 				obTag.setData(imgEncoded)
 			else:
 				logger.critical("VKLogin: can't add captcha image to message url:%s" % self.engine.captcha["img"])
-
 			Sender(Component, msg)
 			Presence = xmpp.protocol.Presence(self.jidFrom, frm = TransportID)
 			Presence.setStatus(body)
@@ -612,6 +611,10 @@ def WatcherMsg(text):
 def disconnectHandler(crash = True):
 	if crash:
 		crashLog("main.Disconnect")
+	try:
+		Component.disconnect()
+	except (NameError, AttributeError):
+		pass
 	Print("Reconnecting..."); time.sleep(5)
 	os.execl(sys.executable, sys.executable, sys.argv[0])
 
@@ -628,6 +631,7 @@ def main():
 		Print("#-# Auth: ", False)
 		if not Component.auth(TransportID, Password):
 			Print("fail (%s/%s)!\n" % (Component.lastErr, Component.lastErrCode), True)
+			disconnectHandler(False)
 		else:
 			Print("ok.\n", False)
 			Print("#-# Initializing users", False)

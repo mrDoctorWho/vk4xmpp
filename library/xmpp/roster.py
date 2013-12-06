@@ -85,7 +85,7 @@ class Roster(PlugIn):
 			if item.getAttr("subscription") == "remove":
 				if self._data.has_key(jid):
 					del self._data[jid]
-				raise NodeProcessed # a MUST
+				raise NodeProcessed() # a MUST
 			self.DEBUG("Setting roster item %s..." % jid, "ok")
 			if jid not in self._data:
 				self._data[jid] = {}
@@ -99,7 +99,7 @@ class Roster(PlugIn):
 				self._data[jid]["groups"].append(group.getData())
 		self._data["@".join((self._owner.User, self._owner.Server))] = {"resources": {}, "name": None, "ask": None, "subscription": None, "groups": None, }
 		self.set = 1
-		raise NodeProcessed # a MUST. Otherwise you'll get back an <iq type='error'/>
+		raise NodeProcessed() # a MUST. Otherwise you'll get back an <iq type='error'/>
 
 	def PresenceHandler(self, dis, pres):
 		"""

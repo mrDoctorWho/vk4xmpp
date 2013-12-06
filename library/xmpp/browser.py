@@ -145,7 +145,7 @@ class Browser(PlugIn):
 				return None, None
 		if cur.has_key(1) or set:
 			return cur, 1
-		raise "Corrupted data"
+		raise Exception("Corrupted data")
 
 	def setDiscoHandler(self, handler, node="", jid=""):
 		"""

@@ -195,7 +195,7 @@ class SASL(PlugIn):
 			return
 		self.startsasl = "in-process"
 		self._owner.send(node.__str__())
-		raise NodeProcessed
+		raise NodeProcessed()
 
 	def SASLHandler(self, conn, challenge):
 		"""
@@ -259,7 +259,7 @@ class SASL(PlugIn):
 		else:
 			self.startsasl = "failure"
 			self.DEBUG("Failed SASL authentification: unknown challenge", "error")
-		raise NodeProcessed
+		raise NodeProcessed()
 
 class Bind(PlugIn):
 	"""

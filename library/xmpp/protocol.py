@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: protocol.py, v1.62 2013/10/21 alkorgun Exp $
+# $Id: protocol.py, v1.63 2013/12/06 alkorgun Exp $
 
 """
 Protocol module contains tools that is needed for processing of
@@ -1213,13 +1213,13 @@ class DataItem(Node):
 		"""
 		return self.getTag("field", attrs={"var": name})
 
-	def setField(self, name):
+	def setField(self, name, value=None, typ=None):
 		"""
 		Create if nessessary or get the existing datafield object with name "name" and return it.
 		"""
 		field = self.getField(name)
 		if not field:
-			field = self.addChild(node=DataField(name))
+			field = self.addChild(node=DataField(name, value, typ))
 		return field
 
 	def asDict(self):
@@ -1360,13 +1360,13 @@ class DataForm(Node):
 		"""
 		return self.getTag("field", attrs={"var": name})
 
-	def setField(self, name):
+	def setField(self, name, value=None, typ=None):
 		"""
 		Create if nessessary or get the existing datafield object with name "name" and return it.
 		"""
 		field = self.getField(name)
-		if field:
-			field = self.addChild(node=DataField(name))
+		if not field:
+			field = self.addChild(node=DataField(name, value, typ))
 		return field
 
 	def asDict(self):

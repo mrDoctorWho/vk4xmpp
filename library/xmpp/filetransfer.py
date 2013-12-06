@@ -70,7 +70,7 @@ class IBB(PlugIn):
 			self.StreamOpenReplyHandler(conn, stanza)
 		else:
 			conn.send(Error(stanza, ERR_BAD_REQUEST))
-		raise NodeProcessed
+		raise NodeProcessed()
 
 	def StreamOpenHandler(self, conn, stanza):
 		"""

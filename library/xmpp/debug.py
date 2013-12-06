@@ -85,7 +85,7 @@ class Debug:
 		else:
 			self._fh = sys.stdout
 		if time_stamp not in (0, 1, 2):
-			raise "Invalid time_stamp param", str(time_stamp)
+			raise Exception("Invalid time_stamp param", str(time_stamp))
 		self.prefix = prefix
 		self.sufix = sufix
 		self.time_stamp = time_stamp
@@ -104,7 +104,7 @@ class Debug:
 		if isinstance(flag_show, (str, type(None))):
 			self.flag_show = flag_show
 		else:
-			raise "Invalid type for flag_show!", str(flag_show)
+			raise Exception("Invalid type for flag_show!", str(flag_show))
 
 	def show(self, msg, flag=None, prefix=None, sufix=None, lf=0):
 		"""
@@ -254,7 +254,7 @@ class Debug:
 		Filter out any dupes.
 		"""
 		if not isinstance(item, str):
-			raise "Invalid item type (should be string)", str(item)
+			raise Exception("Invalid item type (should be string)", str(item))
 		if item not in lst:
 			lst.append(item)
 		return lst
@@ -266,7 +266,7 @@ class Debug:
 		if flags:
 			for flag in self._as_one_list(flags):
 				if not flag in self.debug_flags:
-					raise "Invalid debugflag given", str(flag)
+					raise Exception("Invalid debugflag given", str(flag))
 
 	def _remove_dupe_flags(self):
 		"""

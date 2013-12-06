@@ -37,6 +37,7 @@ from simplexml import ustr
 from plugin import PlugIn
 from protocol import *
 
+# http://pydns.sourceforge.net
 try:
 	import dns
 except ImportError:
@@ -364,7 +365,7 @@ class TLS(PlugIn):
 		self._owner.RegisterHandlerOnce("proceed", self.StartTLSHandler, xmlns=NS_TLS)
 		self._owner.RegisterHandlerOnce("failure", self.StartTLSHandler, xmlns=NS_TLS)
 		self._owner.Connection.send("<starttls xmlns=\"%s\"/>" % NS_TLS)
-		raise NodeProcessed
+		raise NodeProcessed()
 
 	def pending_data(self, timeout=0):
 		"""
