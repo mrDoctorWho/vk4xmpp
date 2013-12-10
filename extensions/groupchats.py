@@ -54,7 +54,7 @@ def groupchatMessage(chat, text, jidFrom, subj = None, timestamp = 0):
 	message.setType("groupchat")
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
-		message.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp), xmpp.NS_DELAY)
+		message.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
 	if not subj:
 		message.setBody(text)
 	else:
