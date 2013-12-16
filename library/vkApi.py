@@ -33,9 +33,7 @@ def try_execute(f, max_retries=5):
                 return f(*args, **kwargs)
             except (urllib2.URLError, ssl.SSLError):
                 retries += 1
-            except RuntimeError:
-                return {}
-        raise RuntimeError
+        return {}
 
     return wrapper
 
