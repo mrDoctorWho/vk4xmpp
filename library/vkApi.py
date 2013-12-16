@@ -36,13 +36,15 @@ def try_execute(f, max_retries=5):
             except RuntimeError:
                 return {}
         raise RuntimeError
+
     return wrapper
 
 
 class RequestProcessor(object):
     headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
                              " Gecko/20130309 Firefox/21.0",
-               "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+               "Content-Type": "application/x-www-form-urlencoded;"
+                               " charset=UTF-8",
                "Accept-Language": "ru-RU, utf-8"}
 
     def __init__(self):
@@ -75,7 +77,7 @@ class RequestProcessor(object):
         except (urllib2.URLError, ssl.SSLError):
             retry_count += 1
             result = self.safe_execute_deprecated(func, args, retry_count)
-        except RuntimeError:    # We're so sad :( for this fact, really, very sad
+        except RuntimeError:    # Very sad
             result = {}
         return result
 
@@ -101,7 +103,9 @@ class RequestProcessor(object):
         response = try_execute(self.open)(request)
         try:
             if response:
-                body = response.read()        # we can't use safeExecution because .read() method can be used once
+                body = response.read()        # we can't use safeExecution
+                                              # because .read() method can
+                                              # be used once
             if retry_count > 2:
                 raise RuntimeError
         except (urllib2.URLError, ssl.SSLError):
@@ -158,7 +162,8 @@ class APIBinding:
             raise AuthError("Invalid password")
 
         if "security_check" in response.url:
-            security_hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", body)[0]
+            security_regexp = r"security_check.*?hash: '(.*?)'\};"
+            security_hash = webtools.regexp(security_regexp, body)[0]
             code = self.number[2:-2]
             if len(self.number) == 12:
                 if not self.number.startswith("+"):
@@ -205,7 +210,8 @@ class APIBinding:
             if "access_token" in response.url:
                 token = response.url.split("=")[1].split("&")[0]
             else:
-                post_target = webtools.getTagArg("form method=\"post\"", "action", body, "form")
+                post_target = webtools.getTagArg("form method=\"post\"",
+                                                 "action", body, "form")
                 if post_target:
                     post = self.rip.post(post_target)   # why no data?
                     body, response = post
@@ -221,7 +227,7 @@ class APIBinding:
         values["access_token"] = self.token
         values["v"] = "3.0"
 
-        if self.captcha and self.captcha.has_key("key"):
+        if self.captcha and 'key' in self.captcha:
             values["captcha_sid"] = self.captcha["sid"]
             values["captcha_key"] = self.captcha["key"]
             self.captcha = {}
@@ -229,7 +235,7 @@ class APIBinding:
         self.last.append(time.time())
         if len(self.last) > 2:
             if (self.last.pop() - self.last.pop(0)) < 1.1:
-                time.sleep(0.3) # warn: it was 0.4 // does it matter?
+                time.sleep(0.3)     # warn: it was 0.4 // does it matter?
 
         post = self.rip.post(url, values)
 
@@ -269,8 +275,9 @@ class APIBinding:
             elif error_code == 9:
                 return {}
             if error_code == 14:    # captcha
-                if error.has_key("captcha_sid"):
-                    self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
+                if "captcha_sid" in error:
+                    self.captcha = {"sid": error["captcha_sid"],
+                                    "img": error["captcha_img"]}
                     raise CaptchaNeeded
             raise VkApiError(body["error"])
 
