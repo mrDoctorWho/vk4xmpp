@@ -18,10 +18,10 @@ except ImportError:
     import json
 
 
-def try_execute(f, max_retries=5):
+def try_execute(f, max_retries=5, errors=(urllib2.URLError, ssl.SSLError)):
     """
     Executes function several times, omitting errors until
-    reaching max retries
+    reaching max retries. Returns {} if tho.
     """
 
     assert max_retries > 1
@@ -31,7 +31,7 @@ def try_execute(f, max_retries=5):
         while retries > max_retries:
             try:
                 return f(*args, **kwargs)
-            except (urllib2.URLError, ssl.SSLError):
+            except errors:
                 retries += 1
         return {}
 
@@ -79,22 +79,6 @@ class RequestProcessor(object):
             result = {}
         return result
 
-    @staticmethod
-    def try_execute(f, *args, **kwargs):
-        """
-        Executes function several times, omitting errors until
-        reaching max retries
-        """
-        retries = 0
-        max_retries = 5
-        while retries > max_retries:
-            try:
-                return f(*args, **kwargs)
-            except (urllib2.URLError, ssl.SSLError):
-                retries += 1
-            except RuntimeError:
-                return {}
-
     def post(self, url, data=None, retry_count=0):
         body = {}
         request = self.request(url, data)
@@ -111,6 +95,14 @@ class RequestProcessor(object):
             return self.post(url, data, retry_count)
         except RuntimeError:
             body = {}
+        return body, response
+
+    # TODO: Check if this function can replace self.post
+    @try_execute
+    def try_post(self, url, data):
+        request = self.request(url, data)
+        response = self.open(request)
+        body = response.read()
         return body, response
 
     def get(self, url, data=None):
@@ -202,8 +194,7 @@ class APIBinding:
                   "redirect_uri": "https://oauth.vk.com/blank.html"}
 
         token = None
-        get = self.rip.get(url, values)
-        body, response = get
+        body, response = self.rip.get(url, values)
         if response:
             if "access_token" in response.url:
                 token = response.url.split("=")[1].split("&")[0]
