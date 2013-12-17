@@ -35,10 +35,12 @@ def attemptTo(f):
 
 
 class RequestProcessor(object):
-	headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
-				" Gecko/20130309 Firefox/21.0",
-				"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-				"Accept-Language": "ru-RU, utf-8"}
+	headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
+									" Gecko/20130309 Firefox/21.0",
+		   	   	"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+				"Accept-Language": "ru-RU, utf-8"
+			  }
+	# TODO: fix identation
 
 	def __init__(self):
 		self.cookieJar = cookielib.CookieJar()
@@ -102,11 +104,12 @@ class APIBinding:
 
 	def loginByPassword(self):
 		url = "https://login.vk.com/"
-		values = {"act": "login",
-		"utf8": "1",    # check if it needed
-		"email": self.number,
-		"pass": self.password}
-
+		values = { "act": "login",
+				   "utf8": "1", # check if it needed
+				   "email": self.number,
+				   "pass": self.password
+				  }
+		# TODO: fix identation
 		post = self.RIP.post(url, values)
 		body, response = post
 		RemixSID = self.RIP.getCookie("remixsid")
@@ -130,13 +133,14 @@ class APIBinding:
 				if self.number.startswith("+"):
 					code = self.number[4:-2]
 
-			values = {"act": "security_check",
-			"al": "1",
-			"al_page": "3",
-			"code": code,
-			"hash": Hash,
-			"to": ""}
-
+			values = { "act": "security_check",
+					   "al": "1",
+					   "al_page": "3",
+					   "code": code,
+					   "hash": Hash,
+					   "to": ""
+					  }
+			# TODO: fix identation
 			post = self.RIP.post("https://vk.com/login.php", values)
 			body, response = post
 			if response and not body.split("<!>")[4] == "4":
@@ -154,12 +158,13 @@ class APIBinding:
 
 	def confirmThisApp(self):
 		url = "https://oauth.vk.com/authorize"
-		values = {"display": "mobile",
-		"scope": self.scope,
-		"client_id": self.app_id,
-		"response_type": "token",
-		"redirect_uri": "https://oauth.vk.com/blank.html"}
-
+		values = { "display": "mobile",
+				   "scope": self.scope,
+				   "client_id": self.app_id,
+				   "response_type": "token",
+				   "redirect_uri": "https://oauth.vk.com/blank.html"
+				  }
+		# TODO: fix identation
 		token = None
 		get = self.RIP.get(url, values)
 		body, response = get
