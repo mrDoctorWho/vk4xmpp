@@ -114,7 +114,7 @@ class APIBinding:
 		RemixSID = self.RIP.getCookie("remixsid")
 
 		if RemixSID:
-			self.sid = RemixSIDsafeExecution
+			self.sid = RemixSID
 
 		elif "sid=" in response.url:
 			raise AuthError("Captcha!")
