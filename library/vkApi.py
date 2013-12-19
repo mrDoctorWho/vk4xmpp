@@ -53,8 +53,7 @@ class RequestProcessor(object):
 				return cookie.value
 
 	def request(self, url, data=None, headers=None):
-		if not headers:
-			headers = self.headers
+		headers = headers or self.headers
 		if data:
 			data = urllib.urlencode(data)
 		request = urllib2.Request(url, data, headers)
@@ -115,7 +114,7 @@ class APIBinding:
 		RemixSID = self.RIP.getCookie("remixsid")
 
 		if RemixSID:
-			self.sid = RemixSID
+			self.sid = RemixSIDsafeExecution
 
 		elif "sid=" in response.url:
 			raise AuthError("Captcha!")
@@ -182,9 +181,7 @@ class APIBinding:
 		self.token = token
 
 	def method(self, method, values=None):
-		if values is None:
-			values = {}
-
+		values = values or None
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
 		values["v"] = "3.0"
