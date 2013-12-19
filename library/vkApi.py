@@ -65,13 +65,9 @@ class RequestProcessor(object):
 	@attemptTo
 	def post(self, url, data=None):
 		body = {}
-
-		if data is None:
-			data = {}
-
+		data = data or {}
 		request = self.request(url, data)
 		response = self.open(request)
-
 		return body, response
 
 	def get(self, url, data=None):
