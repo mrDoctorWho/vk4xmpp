@@ -87,7 +87,6 @@ AdditionalAbout = ""
 ConferenceServer = ""
 
 allowBePublic = True
-alreadyPublic = False
 
 startTime = int(time.time())
 
@@ -95,7 +94,8 @@ try:
 	execfile(Config)
 	Print("#-# Config loaded successfully.")
 except:
-	Print("#-# Config file doesn't exists.")
+	Print("#-# Error while loading config file. Check crash logs.")
+	crashLog("config")
 	exit()
 
 setVars(DefLang, __file__)
@@ -629,12 +629,10 @@ def disconnectHandler(crash = True):
 def makeMeKnown():
 	if WhiteList:
 		WhiteList.append("anon.anakee.ru")
-	if TransportID.split(".")[1] != "localhost" and not alreadyPublic:
+	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
 		RIP.post("http://anakee.ru/vkxmpp/hosts.php", {"add": TransportID})
-		Print("#\nInformation about myself successfully bublished.")
-		with open(Config, "a") as file:
-			file.write("\nalreadyPublic = True # Do not touch it after publishing")
+		Print("#\nInformation about myself successfully published.")
 
 def main():
 	Counter = [0, 0]
