@@ -392,7 +392,7 @@ class Dispatcher(PlugIn):
 					handler["func"](session, stanza)
 				except NodeProcessed:
 					user = 0
-				except:
+				except Exception:
 					self._pendingExceptions.insert(0, sys.exc_info())
 		if user and self._defaultHandler:
 			self._defaultHandler(session, stanza)

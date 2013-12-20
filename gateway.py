@@ -5,8 +5,7 @@
 # © simpleApps, 01.08.2013
 # Program published under MIT license.
 
-import re, os, sys, time, signal, urllib, socket, logging, traceback, threading
-from datetime import datetime
+import re, os, sys, time, signal, socket, logging, threading
 from hashlib import sha1
 from math import ceil
 
@@ -24,7 +23,6 @@ reload(sys).setdefaultencoding("utf-8")
 socket.setdefaulttimeout(10)
 
 import gc
-gc.enable()
 
 ## xmpppy.
 import xmpp
@@ -46,21 +44,21 @@ jidToID = {}
 unAllowedChars = [unichr(x) for x in xrange(32) if x not in (9, 10, 13)] + [unichr(57003)]
 
 TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
-					  xmpp.NS_DISCO_INFO,
-					  xmpp.NS_RECEIPTS,
-					  xmpp.NS_REGISTER,
-					  xmpp.NS_GATEWAY,
-					  xmpp.NS_VERSION,
-					  xmpp.NS_CAPTCHA,
-					  xmpp.NS_STATS,
-					  xmpp.NS_VCARD,
-					  xmpp.NS_DELAY,
-					  xmpp.NS_PING,
-					  xmpp.NS_LAST ]
+					xmpp.NS_DISCO_INFO,
+					xmpp.NS_RECEIPTS,
+					xmpp.NS_REGISTER,
+					xmpp.NS_GATEWAY,
+					xmpp.NS_VERSION,
+					xmpp.NS_CAPTCHA,
+					xmpp.NS_STATS,
+					xmpp.NS_VCARD,
+					xmpp.NS_DELAY,
+					xmpp.NS_PING,
+					xmpp.NS_LAST ]
 
-IDentifier = {	"type": "vk",
-				"category": "gateway",
-				"name": "VK4XMPP Transport" }
+IDentifier = { "type": "vk",
+			"category": "gateway",
+			"name": "VK4XMPP Transport" }
 
 Semaphore = threading.Semaphore()
 
@@ -76,7 +74,9 @@ crashDir = "crash"
 
 from optparse import OptionParser
 oParser = OptionParser(usage = "%prog [options]")
-oParser.add_option("-c", "--config", dest = "Config", help = "general config file", metavar = "Config", default = "Config.txt")
+oParser.add_option("-c", "--config", dest = "Config",
+				help = "general config file",
+				metavar = "Config", default = "Config.txt")
 (options, args) = oParser.parse_args()
 Config = options.Config
 
@@ -85,6 +85,9 @@ DefLang = "ru"
 evalJID = ""
 AdditionalAbout = ""
 ConferenceServer = ""
+
+allowBePublic = True
+alreadyPublic = False
 
 startTime = int(time.time())
 
@@ -104,13 +107,13 @@ if THREAD_STACK_SIZE:
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(logging.DEBUG)
 loggerHandler = logging.FileHandler(logFile)
-Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", "[%d.%m.%Y %H:%M:%S]")
+Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s",
+				"[%d.%m.%Y %H:%M:%S]")
 loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
-
 def gatewayRev():
-	revNumber, rev = 126, 0
+	revNumber, rev = 128, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -153,13 +156,12 @@ def threadRun(func, args = (), name = None):
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
 
-compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.UNICODE | re.DOTALL)
+compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.DOTALL)
+compile_msg = re.compile("|".join(unAllowedChars))
 def escapeName(text):
 	return compile_name.sub("", text)
 def escapeMsg(text):
-	for char in unAllowedChars:
-		text = text.replace(char, "")
-	return text
+	return compile_msg.sub("", text)
 
 
 class VKLogin(object):
@@ -183,7 +185,6 @@ class VKLogin(object):
 			crashLog("VKLogin.auth")
 		logger.debug("VKLogin.auth completed")
 		self.Online = True
-		self.onlineMe(900)
 		return self.Online
 
 	def checkData(self):
@@ -210,7 +211,8 @@ class VKLogin(object):
 			return False
 		return True
 
-	def method(self, method, args = {}):
+	def method(self, method, args = None):
+		args = args or {}
 		result = {}
 		if not self.engine.captcha and self.Online:
 			try:
@@ -278,7 +280,8 @@ class VKLogin(object):
 	def getToken(self):
 		return self.engine.token
 
-	def getFriends(self, fields = ["screen_name"]):
+	def getFriends(self, fields = None):
+		fields = fields or ["screen_name"]
 		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) or {} # friends.getOnline
 		friendsDict = {}
 		for friend in friendsRaw:
@@ -304,10 +307,6 @@ class VKLogin(object):
 			values["last_message_id"] = lastMsgID
 		return self.method("messages.get", values)
 
-	def onlineMe(self, timeout = 900):
-		if self.Online:
-			self.method("account.setOnline")
-			threading.Timer(timeout, self.onlineMe, (timeout,)).start()
 
 class tUser(object):
 
@@ -330,7 +329,7 @@ class tUser(object):
 		self.vk = VKLogin(self.username, self.password, self.jidFrom)
 		logger.debug("initializing tUser for %s" % self.jidFrom)
 		with Database(DatabaseFile, Semaphore) as db:
-			base = db("select * from users where jid=?", (self.jidFrom,))
+			db("select * from users where jid=?", (self.jidFrom,))
 			desc = db.fetchone()
 			if desc:
 				if not self.token or not self.password:
@@ -390,7 +389,7 @@ class tUser(object):
 			crashLog("tUser.Connect")
 			return False
 
-		if self.auth and self.vk.getToken(): #!
+		if self.auth and self.vk.getToken():
 			logger.debug("tUser: updating db for %s because auth done " % self.jidFrom)
 			if not self.existsInDB:
 				with Database(DatabaseFile, Semaphore) as db:
@@ -429,7 +428,8 @@ class tUser(object):
 
 	def sendInitPresence(self):
 		self.friends = self.vk.getFriends() ## too too bad way to do it again. But it's a guarantee of the availability of friends.
-		logger.debug("tUser: sending init presence to %s (friends %s)" % (self.jidFrom, "exists" if self.friends else "empty"))
+		logger.debug("tUser: sending init presence to %s (friends %s)" %\
+					(self.jidFrom, "exists" if self.friends else "empty"))
 		for uid, value in self.friends.iteritems():
 			if value["online"]:
 				self.sendPresence(self.jidFrom, vk2xmpp(uid), None, value["name"])
@@ -441,7 +441,8 @@ class tUser(object):
 		for uid in self.friends.keys() + [TransportID]:
 			self.sendPresence(target, vk2xmpp(uid), "unavailable", reason = reason)
 
-	def rosterSubscribe(self, dist = {}):
+	def rosterSubscribe(self, dist = None):
+		dist = dist or {}
 		for uid, value in dist.iteritems():
 			self.sendPresence(self.jidFrom, vk2xmpp(uid), "subscribe", value["name"])
 			time.sleep(0.2)
@@ -449,9 +450,11 @@ class tUser(object):
 		if dist:
 			self.rosterSet = True
 			with Database(DatabaseFile, Semaphore) as db:
-				db("update users set rosterSet=? where jid=?", (self.rosterSet, self.jidFrom))
+				db("update users set rosterSet=? where jid=?",
+					(self.rosterSet, self.jidFrom))
 
-	def getUserData(self, uid, fields = ["screen_name"]):
+	def getUserData(self, uid, fields = None):
+		fields = fields or ["screen_name"]
 		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
 		if data:
 			data = data.pop()
@@ -545,9 +548,9 @@ def vk2xmpp(id):
 	return id
 
 DESC = _("© simpleApps, 2013."
-	   "\nYou can support developing of any project"
-	   " via donation by WebMoney:"
-	   "\nZ405564701378 | R330257574689.")
+	"\nYou can support developing of any project"
+	" via donation by WebMoney:"
+	"\nZ405564701378 | R330257574689.")
 
 def updateTransportsList(user, add=True):
 	global lengthOfTransportsList
@@ -581,7 +584,6 @@ def getPid():
 				Print("%d killed.\n" % oldPid, False)
 	wFile(pidFile, str(nowPid))
 
-
 def hyperThread(start, end):
 	while True:
 		SliceOfLife = TransportsList[start:end]
@@ -594,11 +596,13 @@ def hyperThread(start, end):
 				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
 					user.last_udate = time.time()
 					friends = user.vk.getFriends() ## TODO: Maybe update only statuses? Again friends.getOnline...
+					user.vk.method("account.setOnline")
 					if friends != user.friends:
 						for uid, value in friends.iteritems():
 							if uid in user.friends:
 								if user.friends[uid]["online"] != value["online"]:
-									user.sendPresence(user.jidFrom, vk2xmpp(uid), None if value["online"] else "unavailable")
+									user.sendPresence(user.jidFrom, vk2xmpp(uid),
+										None if value["online"] else "unavailable")
 							else:
 								user.rosterSubscribe({uid: friends[uid]})
 						user.friends = friends
@@ -620,6 +624,17 @@ def disconnectHandler(crash = True):
 		pass
 	Print("Reconnecting..."); time.sleep(5)
 	os.execl(sys.executable, sys.executable, sys.argv[0])
+
+## Public transport's list: http://anakee.ru/vkxmpp
+def makeMeKnown():
+	if WhiteList:
+		WhiteList.append("anon.anakee.ru")
+	if TransportID.split(".")[1] != "localhost" and not alreadyPublic:
+		RIP = api.RequestProcessor()
+		RIP.post("http://anakee.ru/vkxmpp/hosts.php", {"add": TransportID})
+		Print("#\nInformation about myself successfully bublished.")
+		with open(Config, "a") as file:
+			file.write("\nalreadyPublic = True # Do not touch it after publishing")
 
 def main():
 	Counter = [0, 0]
@@ -675,8 +690,10 @@ def main():
 				threadRun(hyperThread, (start, end), "hyperThread-%d" % start)
 
 			Print("\n#-# Finished.")
+			if allowBePublic:
+				makeMeKnown()
 
-def exit(signal = None, frame = None): 	# LETS BURN CPU AT LAST TIME!
+def exit(signal = None, frame = None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
 	Print("#! %s" % status, False)
 	for Class in TransportsList:
@@ -708,7 +725,7 @@ if __name__ == "__main__":
 
 	while True:
 		try:
-			Component.iter(4)
+			Component.iter(6)
 		except AttributeError:
 			disconnectHandler(False)
 		except xmpp.StreamError:

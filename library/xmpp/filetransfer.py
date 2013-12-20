@@ -82,7 +82,7 @@ class IBB(PlugIn):
 		self.DEBUG("StreamOpenHandler called sid->%s blocksize->%s" % (sid, blocksize), "info")
 		try:
 			blocksize = int(blocksize)
-		except:
+		except Exception:
 			err = ERR_BAD_REQUEST
 		if not sid or not blocksize:
 			err = ERR_BAD_REQUEST
@@ -153,7 +153,7 @@ class IBB(PlugIn):
 		try:
 			seq = int(seq)
 			data = decodestring(data)
-		except:
+		except Exception:
 			seq = data = ""
 		err = None
 		if not sid in self._streams.keys():

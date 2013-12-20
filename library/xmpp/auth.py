@@ -207,7 +207,7 @@ class SASL(PlugIn):
 			self.startsasl = "failure"
 			try:
 				reason = challenge.getChildren()[0]
-			except:
+			except Exception:
 				reason = challenge
 			self.DEBUG("Failed SASL authentification: %s" % reason, "error")
 			raise NodeProcessed()

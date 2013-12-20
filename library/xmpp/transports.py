@@ -147,9 +147,13 @@ class TCPsocket(PlugIn):
 			self._sock.connect(server)
 			self._send = self._sock.sendall
 			self._recv = self._sock.recv
-		except socket.error, (errno, strerror):
-			self.DEBUG("Failed to connect to remote host %s: %s (%s)" % (repr(server), strerror, errno), "error")
-		except:
+		except socket.error as error:
+			try:
+				code, error = error
+			except Exception:
+				code = -1
+			self.DEBUG("Failed to connect to remote host %s: %s (%s)" % (repr(server), error, code), "error")
+		except Exception:
 			pass
 		else:
 			self.DEBUG("Successfully connected to remote host %s." % repr(server), "start")
@@ -180,12 +184,12 @@ class TCPsocket(PlugIn):
 			sys.exc_clear()
 			self._owner.disconnected()
 			raise IOError("Disconnected!")
-		except:
+		except Exception:
 			data = ""
 		while self.pending_data(0):
 			try:
 				add = self._recv(BUFLEN)
-			except:
+			except Exception:
 				break
 			if not add:
 				break
@@ -213,7 +217,7 @@ class TCPsocket(PlugIn):
 			data = ustr(data).encode("utf-8")
 		try:
 			self._send(data)
-		except:
+		except Exception:
 			self.DEBUG("Socket error while sending data.", "error")
 			self._owner.disconnected()
 		else:
@@ -297,7 +301,7 @@ class HTTPPROXYsocket(TCPsocket):
 			return None
 		try:
 			proto, code, desc = reply.split("\n")[0].split(" ", 2)
-		except:
+		except Exception:
 			raise error("Invalid proxy reply")
 		if code != "200":
 			self.DEBUG("Invalid proxy reply: %s %s %s" % (proto, code, desc), "error")

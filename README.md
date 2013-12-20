@@ -39,14 +39,18 @@ VK4XMPP представляет собой легковесный трансп�
 * vk.helldev.net
 * vk.xxo.su
 * vk.anakee.ru
+* vk.nixman.info
 
-Установка (для серверов): [Раз](http://is.gd/u0No4y) | [Два](http://is.gd/A22Qxz)
+Установка (для серверов): [Arch](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody) | [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/Установка-(только-для-серверов)) | [Gentoo](http://blog.stv-fian.ru/?p=375)
+Настройка jabber-серверов: [Ejabberd](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) [Ejabberd (2)](http://nixman.info/?p=2315) | [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody) | [Generic](http://dsy.name/?q=vk4xmpp) 
 
 Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/) | [Pidgin](http://xmppserv.ru/pidgin/) | [VacuumIM](http://xmppserv.ru/vacuum/) | [Kopete](http://xmppserv.ru/kopete/)
 
 Обсуждения: [На 4pda](http://is.gd/t10ZIc) | [На форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041) | [На форуме Debian](http://debianforum.ru/index.php?topic=6037)
 
 Другое: [FAQ](http://is.gd/zgOMp9) | [Отзывы и предложения](http://vk4xmpp.userecho.com) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp) | [Группа во ВКонтакте](https://vk.com/vk4xmpp) 
+
+Также рекомендуется заглянуть в [WiKi](https://github.com/mrDoctorWho/vk4xmpp/wiki/).
 
 Запуск:
 python ./gateway.py

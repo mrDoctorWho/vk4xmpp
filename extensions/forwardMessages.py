@@ -2,6 +2,8 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2013.
 
+from datetime import datetime
+
 if not require("attachments"):
 	raise
 

@@ -92,7 +92,7 @@ class Commands(PlugIn):
 		jid = str(request.getTo())
 		try:
 			node = request.getTagAttr("command", "node")
-		except:
+		except Exception:
 			conn.send(Error(request, ERR_BAD_REQUEST))
 			raise NodeProcessed()
 		if self._handlers.has_key(jid):
@@ -268,11 +268,11 @@ class Command_Handler_Prototype(PlugIn):
 		# New request or old?
 		try:
 			session = request.getTagAttr("command", "sessionid")
-		except:
+		except Exception:
 			session = None
 		try:
 			action = request.getTagAttr("command", "action")
-		except:
+		except Exception:
 			action = None
 		if action == None:
 			action = "execute"
@@ -331,7 +331,7 @@ class TestCommand(Command_Handler_Prototype):
 		# This is the only place this should be repeated as all other stages should have SessionIDs
 		try:
 			session = request.getTagAttr("command", "sessionid")
-		except:
+		except Exception:
 			session = None
 		if session == None:
 			session = self.getSessionID()
@@ -413,14 +413,14 @@ class TestCommand(Command_Handler_Prototype):
 	def cmdThirdStage(self, conn, request):
 		form = DataForm(node=request.getTag(name="command").getTag(name="x", namespace=NS_DATA))
 		try:
-			num = float(form.getField("radius").getValue())
-		except:
+			numb = float(form.getField("radius").getValue())
+		except Exception:
 			self.cmdSecondStageReply(conn, request)
 		from math import pi
 		if self.sessions[request.getTagAttr("command", "sessionid")]["data"]["type"] == "circlearea":
-			result = (num ** 2) * pi
+			result = (numb ** 2) * pi
 		else:
-			result = num * 2 * pi
+			result = numb * 2 * pi
 		reply = request.buildReply("result")
 		form = DataForm(typ="result", data=[DataField(desc="result", name="result", value=result)])
 		reply.addChild(name="command",

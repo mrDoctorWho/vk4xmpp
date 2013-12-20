@@ -65,7 +65,7 @@ LINE_FEED = "\n"
 
 class Debug:
 
-	def __init__(self, active_flags=None, log_file=sys.stderr, prefix="DEBUG: ", sufix="\n", time_stamp=0, flag_show=None, validate_flags=1, welcome= -1):
+	def __init__(self, active_flags=None, log_file=sys.stderr, prefix="DEBUG: ", sufix="\n", time_stamp=0, flag_show=None, validate_flags=False, welcome=-1):
 		self.debug_flags = []
 		if welcome == -1:
 			if active_flags and len(active_flags):
@@ -77,8 +77,8 @@ class Debug:
 			if isinstance(log_file, str):
 				try:
 					self._fh = open(log_file, "w")
-				except:
-					print "ERROR: can open %s for writing."
+				except Exception:
+					print("ERROR: can open %s for writing." % log_file)
 					sys.exit(0)
 			else: # assume its a stream type object
 				self._fh = log_file
@@ -97,7 +97,7 @@ class Debug:
 			caller = sys._getframe(1) # used to get name of caller
 			try:
 				mod_name = ":%s" % caller.f_locals["__name__"]
-			except:
+			except Exception:
 				mod_name = ""
 			self.show("Debug created for %s%s" % (caller.f_code.co_filename, mod_name))
 			self.show(" flags defined: %s" % ",".join(self.active))
@@ -160,7 +160,7 @@ class Debug:
 				output = output[:-1]
 		try:
 			self._fh.write(output)
-		except:
+		except Exception:
 			# unicode strikes again ;)
 			s = u""
 			for i in xrange(len(output)):
@@ -211,7 +211,7 @@ class Debug:
 			# assume comma string
 			try:
 				flags = active_flags.split(",")
-			except:
+			except Exception:
 				self.show("***")
 				self.show("*** Invalid debug param given: %s" % active_flags)
 				self.show("*** please correct your param!")

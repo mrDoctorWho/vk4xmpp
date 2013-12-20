@@ -523,7 +523,7 @@ class Protocol(Node):
 			try:
 				if not self.getTimestamp() or x.getAttr("stamp") < self.getTimestamp():
 					self.setTimestamp(x.getAttr("stamp"))
-			except:
+			except Exception:
 				pass
 		if timestamp is not None:
 			self.setTimestamp(timestamp) # To auto-timestamp stanza just pass timestamp=""
@@ -534,7 +534,7 @@ class Protocol(Node):
 		"""
 		try:
 			to = self["to"]
-		except:
+		except Exception:
 			to = None
 		return to
 
@@ -544,7 +544,7 @@ class Protocol(Node):
 		"""
 		try:
 			frm = self["from"]
-		except:
+		except Exception:
 			frm = None
 		return frm
 

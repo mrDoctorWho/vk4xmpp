@@ -260,7 +260,7 @@ class Node(object):
 		"""
 		try:
 			attr = self.attrs[key]
-		except:
+		except Exception:
 			attr = None
 		return attr
 
@@ -321,7 +321,7 @@ class Node(object):
 		"""
 		try:
 			attr = self.getTag(tag).attrs[attr]
-		except:
+		except Exception:
 			attr = None
 		return attr
 
@@ -331,7 +331,7 @@ class Node(object):
 		"""
 		try:
 			data = self.getTag(tag).getData()
-		except:
+		except Exception:
 			data = None
 		return data
 
@@ -433,7 +433,7 @@ class Node(object):
 		"""
 		try:
 			self.getTag(tag).attrs[attr] = val
-		except:
+		except Exception:
 			self.addChild(tag, attrs={attr: val})
 
 	def setTagData(self, tag, val, attrs={}):
@@ -443,7 +443,7 @@ class Node(object):
 		"""
 		try:
 			self.getTag(tag, attrs).setData(ustr(val))
-		except:
+		except Exception:
 			self.addChild(tag, attrs, payload=[ustr(val)])
 
 	def has_attr(self, key):
@@ -600,9 +600,9 @@ class NodeBuilder:
 			ns = self._document_nsp.get(nsp, "http://www.gajim.org/xmlns/undeclared-root")
 			try:
 				self.stream_header_received(ns, name, attrs)
-			except ValueError as e:
+			except ValueError:
 				self._document_attrs = None
-				raise ValueError(str(e))
+				raise
 		if not self.last_is_data and self._ptr.parent:
 			self._ptr.parent.data.append("")
 		self.last_is_data = 0

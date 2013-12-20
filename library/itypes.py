@@ -21,7 +21,7 @@ else:
 __all__ = [
 	"Number",
 	"Database"
-				]
+]
 
 __version__ = "0.8"
 
@@ -50,17 +50,17 @@ class Number(object):
 
 	__oct__ = lambda self: self.number.__oct__()
 
-	__eq__ = lambda self: self.number.__eq__()
+	__eq__ = lambda self, number: self.number == number
 
-	__ne__ = lambda self: self.number.__ne__()
+	__ne__ = lambda self, number: self.number != number
 
-	__gt__ = lambda self: self.number.__gt__()
+	__gt__ = lambda self, number: self.number > number
 
-	__lt__ = lambda self: self.number.__lt__()
+	__lt__ = lambda self, number: self.number < number
 
-	__ge__ = lambda self: self.number.__ge__()
+	__ge__ = lambda self, number: self.number >= number
 
-	__le__ = lambda self: self.number.__le__()
+	__le__ = lambda self, number: self.number <= number
 
 class LazyDescriptor(object): # not really lazy, but setter is not needed
 

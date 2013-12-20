@@ -175,7 +175,7 @@ def getPrivacyLists(disp):
 				dict["lists"].append(list.getAttr("name"))
 			else:
 				dict[list.getName()] = list.getAttr("name")
-	except:
+	except Exception:
 		pass
 	else:
 		return dict
@@ -189,7 +189,7 @@ def getPrivacyList(disp, listname):
 		resp = disp.SendAndWaitForResponse(Iq("get", NS_PRIVACY, payload=[Node("list", {"name": listname})]))
 		if isResultNode(resp):
 			return resp.getQueryPayload()[0]
-	except:
+	except Exception:
 		pass
 
 def setActivePrivacyList(disp, listname=None, typ="active"):

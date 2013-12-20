@@ -46,6 +46,9 @@ AdditionalAbout = ""
 # F.e. conference.example.com
 ConferenceServer = ""
 
+## Public transports list: http://anakee.ru/vkxmpp
+allowBePublic = True
+
 # Users limit. How much users can be stored on your server?
 # Save as 0 if you won't limit registrations.
 USER_LIMIT = 0

@@ -126,7 +126,7 @@ class CommonClient:
 		"""
 		Default event handler. To be overriden.
 		"""
-		print "Event: ", (eventName, args)
+		print("Event: %s-%s" % (eventName, args))
 
 	def isConnected(self):
 		"""
@@ -370,5 +370,5 @@ class Component(CommonClient):
 				return "sasl"
 			else:
 				raise auth.NotAuthorized(self.SASL.startsasl)
-		except:
+		except Exception:
 			self.DEBUG(self.DBG, "Failed to authenticate %s" % name, "error")
