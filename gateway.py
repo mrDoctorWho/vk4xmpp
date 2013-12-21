@@ -94,8 +94,8 @@ try:
 	execfile(Config)
 	Print("#-# Config loaded successfully.")
 except:
-	Print("#-# Error while loading config file. Check crash logs.")
-	crashLog("config")
+	Print("#! Error while loading config file:")
+	wException()
 	exit()
 
 setVars(DefLang, __file__)
@@ -113,7 +113,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 128, 0
+	revNumber, rev = 131, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -156,7 +156,7 @@ def threadRun(func, args = (), name = None):
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
 
-compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.DOTALL)
+compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.UNICODE | re.DOTALL)
 compile_msg = re.compile("|".join(unAllowedChars))
 def escapeName(text):
 	return compile_name.sub("", text)
