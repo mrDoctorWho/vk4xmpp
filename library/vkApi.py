@@ -10,28 +10,42 @@ import logging, json, webtools
 logger = logging.getLogger("vk4xmpp")
 
 
-def attemptTo(func):
+def attemptTo(maxRetries, resultType, *errors):
 	"""
-	Tries to execute function for 3 times, silences (urllib2.URLError, ssl.SSLError)
+	Tries to execute function ignoring specified errors specified number of
+	times and returns specified result type on try limit.
 	"""
-	def wrapper(*args, **kwargs):
-		maxRetries = 3
-		retries = 0
-		while maxRetries > retries:
-			try:
-				return func(*args, **kwargs)
-			except (urllib2.URLError, ssl.SSLError) as e:
-				logger.debug("Error %s occured on safeExecute" % e)
-				retries += 1
-		return {}
-	return wrapper
+	if not isinstance(resultType, type):
+		resultType = lambda result = resultType: result
+	if not errors:
+		errors = Exception
 
+	def decorator(func):
+
+		def wrapper(*args, **kwargs):
+			retries = 0
+			while retries < maxRetries:
+				try:
+					data = func(*args, **kwargs)
+				except errors as exc:
+					retries += 1
+				else:
+					break
+			else:
+				data = resultType()
+				logger.debug("Error %s occured on executing %s" % (exc, func))
+			return data
+
+		wrapper.__name__ = func.__name__
+		return wrapper
+
+	return decorator
 
 class RequestProcessor(object):
 	"""
 	Processing base requests: POST (multipart/form-data) and GET.
 	"""
-	headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"\
+	headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
 					" Gecko/20130309 Firefox/21.0",
 				"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
 				"Accept-Language": "ru-RU, utf-8" 
@@ -39,7 +53,8 @@ class RequestProcessor(object):
 	def __init__(self):
 		self.cookieJar = cookielib.CookieJar()
 		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
-		self.Opener = urllib2.build_opener(self.cookieProcessor)
+		self.open = urllib2.build_opener(self.cookieProcessor).open
+		self.open.im_func.func_defaults = (None, 3)
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
@@ -53,24 +68,19 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	def open(self, request, timeout = 3):
-		return attemptTo(self.Opener.open)(request, None, timeout)
-	
-	@attemptTo
-	def post(self, url, data = None):
-		data = data or {}
-		request = self.request(url, data)
-		response = self.open(request)
-		body = response.read()
-		return (body, response)
+	@attemptTo(4, dict, urllib2.URLError, ssl.SSLError)
+	def post(self, url, data = {}):
+		resp = self.open(self.request(url, data))
+		body = resp.read()
+		return (body, resp)
 
-	def get(self, url, data = {}):
-		if data:
-			url += "/?%s" % urllib.urlencode(data)
-		request = self.request(url)
-		response = response = attemptTo(self.open)(request)
-		body = response.read()
-		return (body, response)     # I'd like brackets. Why not?
+	@attemptTo(4, dict, urllib2.URLError, ssl.SSLError)
+	def get(self, url, query = {}):
+		if query:
+			url += "/?%s" % urllib.urlencode(query)
+		resp = self.open(self.request(url))
+		body = resp.read()
+		return (body, resp)     # I'd like brackets. Why not?
 
 
 class APIBinding:
