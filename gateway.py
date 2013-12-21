@@ -623,7 +623,7 @@ def disconnectHandler(crash = True):
 	except (NameError, AttributeError):
 		pass
 	Print("Reconnecting..."); time.sleep(5)
-	os.execl(sys.executable, sys.executable, sys.argv[0])
+	os.execl(sys.executable, sys.executable, *sys.argv)
 
 ## Public transport's list: http://anakee.ru/vkxmpp
 def makeMeKnown():

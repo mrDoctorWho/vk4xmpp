@@ -18,7 +18,6 @@ def prsHandler(cl, prs):
 				if Class.lastStatus == "unavailable" and len(Class.resources) == 1:
 					if not Class.vk.Online:
 						Class.vk.Online = True
-						Class.vk.onlineMe()
 				Class.sendInitPresence()
 
 		elif pType == "unavailable":
