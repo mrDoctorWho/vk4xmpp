@@ -235,9 +235,9 @@ class APIBinding:
 						raise CaptchaNeeded
 				raise VkApiError(body["error"])
 
-		def retry(self):
-			if self.lastMethod:
-				return self.method(*self.lastMethod)
+	def retry(self):
+		if self.lastMethod:
+			return self.method(*self.lastMethod)
 
 
 class VkApiError(Exception):
