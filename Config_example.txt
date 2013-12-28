@@ -18,9 +18,6 @@ TransportID = "vk.example.com"
 ## Connection password.
 Password = "secret"
 
-## Default status (1 — online (recommented) / 0 — offline) 
-DefaultStatus = 1
-
 ## Use API feature lastMessageID (transport will save last user message id, 1 — use (recommented), 2 — not use)
 UseLastMessageID = 1
 
@@ -67,7 +64,7 @@ USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN = 120
 MAX_ROSTER_UPDATE_TIMEOUT = 180
 
 ## Default roster update timeout (when user is active)
-ROSTER_UPDATE_TIMEOUT = 6
+ROSTER_UPDATE_TIMEOUT = 4
 
 ## Maximum forwarded messages depth.
 MAXIMUM_FORWARD_DEPTH = 5
@@ -92,3 +89,6 @@ logFile = "vk4xmpp.log"
 
 ## Directory for storage crash logs.
 crashDir = "crash"
+
+## Log level (logging.DEBUG, logging.ERROR, logging.CRITICAL)
+LOG_LEVEL = logging.DEBUG

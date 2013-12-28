@@ -23,12 +23,14 @@ def prsHandler(cl, prs):
 		elif pType == "unavailable":
 			if jidTo == TransportID and Resource in Class.resources:
 				Class.resources.remove(Resource)
-				if not Class.resources:
-					Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
-					Class.vk.disconnect()
-					Class.friends = {} # May cause errors sometimes
-				else:
+				if Class.resources:
 					Class.sendOutPresence(jidFrom)
+			if not Class.resources:
+				Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
+				Class.vk.disconnect()
+				if jidFromStr in Transport:
+					del Transport[jidFromStr]
+				updateTransportsList(jidFromStr, False)
 	
 		elif pType == "error":
 			eCode = prs.getErrorCode()
@@ -54,3 +56,21 @@ def prsHandler(cl, prs):
 		if jidToStr == TransportID:
 			Class.lastStatus = pType
 
+	elif pType in ("available", None):
+		logger.debug("User %s not in transport but want to be in" % jidFromStr)
+		with Database(DatabaseFile) as db:
+			db("select * from users where jid=?", (jidFromStr,))
+			user = db.fetchone()
+			if user:
+				logger.debug("User %s found in db" % jidFromStr)
+				jid, phone = user[:2]
+				Transport[jid] = user = tUser((phone, None), jid)
+				try:
+					if user.connect():
+						user.init(None, True)
+						updateTransportsList(user)
+					else:
+						crashLog("prs.connect", 0, False)
+						msgSend(Component, jid, _("Auth failed! If this error repeated, please register again. This incident will be reported."), TransportID)
+				except:
+					crashLog("prs.init")

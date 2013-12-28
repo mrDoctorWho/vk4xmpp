@@ -5,13 +5,14 @@
 import urllib
 
 def parseAttachments(self, msg):
-	body = str()
+	result = ""
 	if msg.has_key("attachments"):
 		if msg["body"]:
 			body += _("\nAttachments:")
 		searchlink = "https://vk.com/search?c[q]=%s&c[section]=audio"
 		attachments = msg["attachments"]
 		for att in attachments:
+			body = ""
 			key = att.get("type")
 			if key == "wall":
 				body += "\nWall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
@@ -31,7 +32,7 @@ def parseAttachments(self, msg):
 				body += "\nDocument: %(title)s — %(url)s"
 			else:
 				body += "\nUnknown attachment: " + str(att[key])
-			body = body % att.get(key, {})
-	return body
+			result += body % att.get(key, {})
+	return result
 
 Handlers["msg01"].append(parseAttachments)

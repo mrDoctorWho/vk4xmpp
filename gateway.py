@@ -62,6 +62,7 @@ IDentifier = { "type": "vk",
 
 Semaphore = threading.Semaphore()
 
+LOG_LEVEL = logging.DEBUG
 SLICE_STEP = 8
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
@@ -105,7 +106,7 @@ if THREAD_STACK_SIZE:
 	threading.stack_size(THREAD_STACK_SIZE)
 
 logger = logging.getLogger("vk4xmpp")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
 Formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s",
 				"[%d.%m.%Y %H:%M:%S]")
@@ -124,9 +125,6 @@ Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 Revision = gatewayRev()
 
 Handlers = {"msg01": [], "msg02": []}
-
-def require(name):
-	return os.path.exists("extensions/%s.py" % name)
 
 def initDatabase(filename):
 	if not os.path.exists(filename):
@@ -156,13 +154,10 @@ def threadRun(func, args = (), name = None):
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
 
-compile_name = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.UNICODE | re.DOTALL)
-compile_msg = re.compile("|".join(unAllowedChars))
-def escapeName(text):
-	return compile_name.sub("", text)
-def escapeMsg(text):
-	return compile_msg.sub("", text)
 
+escapeName = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.UNICODE | re.DOTALL).sub
+escapeMsg = re.compile("|".join(unAllowedChars)).sub
+require = lambda name: os.path.exists("extensions/%s.py" % name)
 
 class VKLogin(object):
 
@@ -286,7 +281,7 @@ class VKLogin(object):
 		friendsDict = {}
 		for friend in friendsRaw:
 			uid = friend["uid"]
-			name = escapeName(u"%s %s" % (friend["first_name"], friend["last_name"]))
+			name = escapeName("", u"%s %s" % (friend["first_name"], friend["last_name"]))
 			try:
 				friendsDict[uid] = {"name": name, "online": friend["online"]}
 				for key in fields:
@@ -458,7 +453,7 @@ class tUser(object):
 		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
 		if data:
 			data = data.pop()
-			data["name"] = escapeName(u"%s %s" % (data["first_name"], data["last_name"]))
+			data["name"] = escapeName("", u"%s %s" % (data["first_name"], data["last_name"]))
 			del data["first_name"], data["last_name"]
 		else:
 			data = {}
@@ -492,7 +487,7 @@ class tUser(object):
 						else:
 							body += result
 					else:
-						msgSend(Component, self.jidFrom, escapeMsg(body), fromjid, message["date"])
+						msgSend(Component, self.jidFrom, escapeMsg("", body), fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
 					with Database(DatabaseFile, Semaphore) as db:
@@ -591,7 +586,7 @@ def hyperThread(start, end):
 			break
 		cTime = time.time()
 		for user in SliceOfLife:
-			if user.vk.Online: 			# TODO: delete user from memory when he offline
+			if user.vk.Online:
 				if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
 				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
 					user.last_udate = time.time()
@@ -617,7 +612,7 @@ def WatcherMsg(text):
 
 def disconnectHandler(crash = True):
 	if crash:
-		crashLog("main.Disconnect")
+		crashLog("main.disconnect")
 	try:
 		Component.disconnect()
 	except (NameError, AttributeError):
@@ -632,7 +627,7 @@ def makeMeKnown():
 	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
 		RIP.post("http://anakee.ru/vkxmpp/hosts.php", {"add": TransportID})
-		Print("#\nInformation about myself successfully published.")
+		Print("#! Information about myself successfully published.")
 
 def main():
 	Counter = [0, 0]
@@ -650,43 +645,15 @@ def main():
 			disconnectHandler(False)
 		else:
 			Print("ok.\n", False)
-			Print("#-# Initializing users", False)
-			with Database(DatabaseFile) as db:
-				users = db("select * from users").fetchall()
-				for user in users:
-					jid, phone = user[:2]
-					Transport[jid] = tUser((phone, None), jid)
-					try:
-						if Transport[jid].connect():
-							TransportsList.append(Transport[jid])
-							if DefaultStatus:
-								Transport[jid].init(None, True)
-							Print(".", False)
-							Counter[0] += 1
-						else:
-							Print("!", False)
-							Counter[1] += 1
-							crashLog("main.connect", 0, False)
-							msgSend(Component, jid, _("Auth failed! If this error repeated, please register again. This incident will be reported."), TransportID)
-					except KeyboardInterrupt:
-						exit()
-					except:
-						crashLog("main.init")
-						continue
-			Print("\n#-# Connected %d/%d users." % (Counter[0], len(TransportsList)))
-			if Counter[1]:
-				Print("#-# Failed to connect %d users." % Counter[1])
-
-			globals()["lengthOfTransportsList"] = int(ceil(float(len(TransportsList)) / SLICE_STEP) * SLICE_STEP)
 			Component.RegisterHandler("iq", iqHandler)
 			Component.RegisterHandler("presence", prsHandler)
 			Component.RegisterHandler("message", msgHandler)
 			Component.RegisterDisconnectHandler(disconnectHandler)
-
-			for start in xrange(0, lengthOfTransportsList, SLICE_STEP):
-				end = start + SLICE_STEP
-				threadRun(hyperThread, (start, end), "hyperThread-%d" % start)
-
+			Print("#-# Initializing users", False)
+			with Database(DatabaseFile) as db:
+				users = db("select * from users").fetchall()
+				for user in users:
+					Sender(Component, xmpp.Presence(user[0], "probe", frm = TransportID))
 			Print("\n#-# Finished.")
 			if allowBePublic:
 				makeMeKnown()
@@ -695,7 +662,7 @@ def exit(signal = None, frame = None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
 	Print("#! %s" % status, False)
 	for Class in TransportsList:
-		Class.sendOutPresence(Class.jidFrom, status)
+		Class.sendPresence(Class.jidFrom, TransportID, "unavailable", reason = status)
 		Print("." * len(Class.friends))
 	Print("\n")
 	try:
@@ -713,6 +680,7 @@ def loadSomethingMore(dir):
 	for something in os.listdir(dir):
 		execfile("%s/%s" % (dir, something), globals())
 
+lengthOfTransportsList = 0
 if __name__ == "__main__":
 	threadRun(garbageCollector, (), "gc")
 	signal.signal(signal.SIGTERM, exit)
