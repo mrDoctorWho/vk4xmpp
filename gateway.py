@@ -653,6 +653,7 @@ def main():
 			with Database(DatabaseFile) as db:
 				users = db("select * from users").fetchall()
 				for user in users:
+					Print(".", False)
 					Sender(Component, xmpp.Presence(user[0], "probe", frm = TransportID))
 			Print("\n#-# Finished.")
 			if allowBePublic:

@@ -29,6 +29,7 @@ def attemptTo(maxRetries, resultType, *errors):
 					data = func(*args, **kwargs)
 				except errors as exc:
 					retries += 1
+					time.sleep(0.2)
 				else:
 					break
 			else:
@@ -54,7 +55,7 @@ class RequestProcessor(object):
 		self.cookieJar = cookielib.CookieJar()
 		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.open = urllib2.build_opener(self.cookieProcessor).open
-		self.open.im_func.func_defaults = (None, 3)
+		self.open.im_func.func_defaults = (None, 4)
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
@@ -68,13 +69,13 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(4, dict, urllib2.URLError, ssl.SSLError)
+	@attemptTo(5, dict, urllib2.URLError, ssl.SSLError)
 	def post(self, url, data = {}):
 		resp = self.open(self.request(url, data))
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(4, dict, urllib2.URLError, ssl.SSLError)
+	@attemptTo(5, dict, urllib2.URLError, ssl.SSLError)
 	def get(self, url, query = {}):
 		if query:
 			url += "/?%s" % urllib.urlencode(query)
@@ -194,47 +195,49 @@ class APIBinding:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
 				time.sleep(0.3)    # warn: it was 0.4 // does it matter?
 
-		body, response = self.RIP.post(url, values)
-		if body:
-			body = json.loads(body)
-# Debug:
-#		if method in ("users.get", "messages.get", "messages.send"):
-#			print "method %s with values %s" % (method, str(values))
-#			print "response for method %s: %s" % (method, str(body))
-		if "response" in body:
-			return body["response"]
+		response = self.RIP.post(url, values)
+		if response:
+			body, response = response
+			if body:
+				body = json.loads(body)
+	# Debug:
+	#		if method in ("users.get", "messages.get", "messages.send"):
+	#			print "method %s with values %s" % (method, str(values))
+	#			print "response for method %s: %s" % (method, str(body))
+			if "response" in body:
+				return body["response"]
 
-		elif "error" in body:
-			error = body["error"]
-			eCode = error["error_code"]
-## TODO: Check this code
-			if eCode == 5:     # invalid token
-				self.attempts += 1
-				if self.attempts < 3:
-					retry = self.retry()
-					if retry:
-						self.attempts = 0
-						return retry
-				else:
-					raise TokenError(error["error_msg"])
-			if eCode == 6:     # too fast
-				time.sleep(3)
-				return self.method(method, values)
-			elif eCode == 5:     # auth failed
-				raise VkApiError("Logged out")
-			if eCode == 7:
-				raise NotAllowed
-			elif eCode == 9:
-				return {}
-			if eCode == 14:     # captcha
-				if "captcha_sid" in error:
-					self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
-					raise CaptchaNeeded
-			raise VkApiError(body["error"])
+			elif "error" in body:
+				error = body["error"]
+				eCode = error["error_code"]
+	## TODO: Check this code
+				if eCode == 5:     # invalid token
+					self.attempts += 1
+					if self.attempts < 3:
+						retry = self.retry()
+						if retry:
+							self.attempts = 0
+							return retry
+					else:
+						raise TokenError(error["error_msg"])
+				if eCode == 6:     # too fast
+					time.sleep(3)
+					return self.method(method, values)
+				elif eCode == 5:     # auth failed
+					raise VkApiError("Logged out")
+				if eCode == 7:
+					raise NotAllowed
+				elif eCode == 9:
+					return {}
+				if eCode == 14:     # captcha
+					if "captcha_sid" in error:
+						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
+						raise CaptchaNeeded
+				raise VkApiError(body["error"])
 
-	def retry(self):
-		if self.lastMethod:
-			return self.method(*self.lastMethod)
+		def retry(self):
+			if self.lastMethod:
+				return self.method(*self.lastMethod)
 
 
 class VkApiError(Exception):
