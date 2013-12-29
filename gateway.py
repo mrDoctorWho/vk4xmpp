@@ -155,7 +155,7 @@ def threadRun(func, args = (), name = None):
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
 
 
-escapeName = re.compile(u"[^-0-9a-zа-яёë\._\'\ ]", re.IGNORECASE | re.UNICODE | re.DOTALL).sub
+escapeName = re.compile(u"[^-0-9a-zа-яёë\._\'\ ґїє]", re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 escapeMsg = re.compile("|".join(unAllowedChars)).sub
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 

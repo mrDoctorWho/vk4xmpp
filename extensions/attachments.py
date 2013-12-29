@@ -8,7 +8,7 @@ def parseAttachments(self, msg):
 	result = ""
 	if msg.has_key("attachments"):
 		if msg["body"]:
-			body += _("\nAttachments:")
+			result += _("\nAttachments:")
 		searchlink = "https://vk.com/search?c[q]=%s&c[section]=audio"
 		attachments = msg["attachments"]
 		for att in attachments:
