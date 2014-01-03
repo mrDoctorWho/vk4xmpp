@@ -614,7 +614,8 @@ def disconnectHandler(crash = True):
 	if crash:
 		crashLog("main.disconnect")
 	try:
-		Component.disconnect()
+		if Component.isConnected():
+			Component.disconnect()
 	except (NameError, AttributeError):
 		pass
 	Print("Reconnecting..."); time.sleep(5)
@@ -695,9 +696,11 @@ if __name__ == "__main__":
 			Component.iter(6)
 		except AttributeError:
 			disconnectHandler(False)
+			break ## To be sure that it will restart.
 		except xmpp.StreamError:
 			crashLog("Component.iter")
 		except:
+			break
 			logger.critical("DISCONNECTED")
 			crashLog("Component.iter")
 			disconnectHandler(False)
