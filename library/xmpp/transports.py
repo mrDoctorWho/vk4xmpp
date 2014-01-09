@@ -206,7 +206,7 @@ class TCPsocket(PlugIn):
 			raise IOError("Disconnected!")
 		return data
 
-	def send(self, data):
+	def send(self, data, timeout=0.002):
 		"""
 		Writes raw outgoing data. Blocks until done.
 		If supplied data is unicode string, encodes it to utf-8 before send.
@@ -215,17 +215,20 @@ class TCPsocket(PlugIn):
 			data = data.encode("utf-8")
 		elif not isinstance(data, str):
 			data = ustr(data).encode("utf-8")
-		try:
-			self._send(data)
-		except Exception:
-			self.DEBUG("Socket error while sending data.", "error")
-			self._owner.disconnected()
+		while not select((), [self._sock], (), 0.002)[1]:
+			pass
 		else:
-			if not data.strip():
-				data = repr(data)
-			self.DEBUG(data, "sent")
-			if hasattr(self._owner, "Dispatcher"):
-				self._owner.Dispatcher.Event("", DATA_SENT, data)
+			try:
+				self._send(data)
+			except Exception:
+				self.DEBUG("Socket error while sending data.", "error")
+				self._owner.disconnected()
+			else:
+				if not data.strip():
+					data = repr(data)
+				self.DEBUG(data, "sent")
+				if hasattr(self._owner, "Dispatcher"):
+					self._owner.Dispatcher.Event("", DATA_SENT, data)
 
 	def pending_data(self, timeout=0):
 		"""

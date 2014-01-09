@@ -221,6 +221,7 @@ class VKLogin(object):
 			except api.VkApiError as e:
 				if e.message == "User authorization failed: user revoke access for this token.":
 					try:
+						logger.critical("VKLogin: %s" % e.message)
 						Transport[self.jidFrom].deleteUser()
 					except KeyError:
 						pass
@@ -376,6 +377,7 @@ class tUser(object):
 			return True
 		except api.TokenError as e:
 			if e.message == "User authorization failed: user revoke access for this token.":
+				logger.critical("tUser: %s" % e.message)
 				self.deleteUser()
 			elif e.message == "User authorization failed: invalid access_token.":
 				msgSend(Component, self.jidFrom, _(e.message + " Please, register again"), TransportID)
@@ -394,8 +396,10 @@ class tUser(object):
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set token=? where jid=?", (self.vk.getToken(), self.jidFrom))
 			try:
-				self.UserID = self.vk.method("users.get")[0]["uid"]
+				_ = self.vk.method("users.get")
+				self.UserID = _[0]["uid"]
 			except (KeyError, TypeError):
+				logger.error("tUser: could not recieve user id. JSON: %s" % str(_))
 				self.UserID = 0
 
 			jidToID[self.UserID] = self.jidFrom
@@ -418,7 +422,6 @@ class tUser(object):
 		if nick:
 			Presence.setTag("nick", namespace = xmpp.NS_NICK)
 			Presence.setTagData("nick", nick)
-		time.sleep(0.001)
 		Sender(Component, Presence)
 
 	def sendInitPresence(self):
@@ -440,7 +443,6 @@ class tUser(object):
 		dist = dist or {}
 		for uid, value in dist.iteritems():
 			self.sendPresence(self.jidFrom, vk2xmpp(uid), "subscribe", value["name"])
-			time.sleep(0.2)
 		self.sendPresence(self.jidFrom, TransportID, "subscribe", IDentifier["name"])
 		if dist:
 			self.rosterSet = True
@@ -507,7 +509,6 @@ msgSort = lambda Br, Ba: Br["date"] - Ba["date"]
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
-		time.sleep(0.007)
 	except KeyboardInterrupt:
 		pass
 	except IOError:
