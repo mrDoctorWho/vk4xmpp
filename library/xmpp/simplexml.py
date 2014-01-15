@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: simplexml.py, v1.35 2013/10/21 alkorgun Exp $
+# $Id: simplexml.py, v1.36 2014/01/10 alkorgun Exp $
 
 """
 Simplexml module provides xmpppy library with all needed tools to handle
@@ -25,8 +25,6 @@ import xml.parsers.expat
 
 XML_ls = (
 	("&", "&amp;"),
-	("\x0C", ""),
-	("\x1B", ""),
 	("<", "&lt;"),
 	(">", "&gt;"),
 	('"', "&quot;"),
@@ -108,7 +106,7 @@ class Node(object):
 				self.nsp_cache[k] = v
 		for attr, val in attrs.items():
 			if attr == "xmlns":
-				self.nsd[u""] = val
+				self.nsd[""] = val
 			elif attr.startswith("xmlns:"):
 				self.nsd[attr[6:]] = val
 			self.attrs[attr] = attrs[attr]
@@ -149,39 +147,39 @@ class Node(object):
 		if self.namespace:
 			if not self.parent or self.parent.namespace != self.namespace:
 				if "xmlns" not in self.attrs:
-					s = s + " xmlns=\"%s\"" % self.namespace
+					s += " xmlns=\"%s\"" % self.namespace
 		for key in self.attrs.keys():
 			val = ustr(self.attrs[key])
-			s = s + " %s=\"%s\"" % (key, XMLescape(val))
-		s = s + ">"
+			s += " %s=\"%s\"" % (key, XMLescape(val))
+		s += ">"
 		cnt = 0
 		if self.kids:
 			if fancy:
-				s = s + "\n"
+				s += "\n"
 			for a in self.kids:
 				if not fancy and (len(self.data) - 1) >= cnt:
-					s = s + XMLescape(self.data[cnt])
+					s += XMLescape(self.data[cnt])
 				elif (len(self.data) - 1) >= cnt:
-					s = s + XMLescape(self.data[cnt].strip())
+					s += XMLescape(self.data[cnt].strip())
 				if isinstance(a, Node):
-					s = s + a.__str__(fancy and fancy + 1)
+					s += a.__str__(fancy and fancy + 1)
 				elif a:
-					s = s + a.__str__()
-				cnt = cnt + 1
+					s += a.__str__()
+				cnt += 1
 		if not fancy and (len(self.data) - 1) >= cnt:
-			s = s + XMLescape(self.data[cnt])
+			s += XMLescape(self.data[cnt])
 		elif (len(self.data) - 1) >= cnt:
-			s = s + XMLescape(self.data[cnt].strip())
+			s += XMLescape(self.data[cnt].strip())
 		if not self.kids and s.endswith(">"):
 			s = s[:-1] + " />"
 			if fancy:
-				s = s + "\n"
+				s += "\n"
 		else:
 			if fancy and not self.data:
-				s = s + (fancy - 1) * 2 * " "
-			s = s + "</" + self.name + ">"
+				s += (fancy - 1) * 2 * " "
+			s += "</" + self.name + ">"
 			if fancy:
-				s = s + "\n"
+				s += "\n"
 		return s
 
 	def getCDATA(self):
@@ -193,12 +191,12 @@ class Node(object):
 		cnt = 0
 		if self.kids:
 			for a in self.kids:
-				s = s + self.data[cnt]
+				s += self.data[cnt]
 				if a:
-					s = s + a.getCDATA()
-				cnt = cnt + 1
+					s += a.getCDATA()
+				cnt += 1
 		if (len(self.data) - 1) >= cnt:
-			s = s + self.data[cnt]
+			s += self.data[cnt]
 		return s
 
 	def addChild(self, name=None, attrs={}, payload=[], namespace=None, node=None):
@@ -216,7 +214,7 @@ class Node(object):
 		if namespace:
 			newnode.setNamespace(namespace)
 		self.kids.append(newnode)
-		self.data.append(u"")
+		self.data.append("")
 		return newnode
 
 	def addData(self, data):
@@ -301,7 +299,7 @@ class Node(object):
 		["text1", <nodea instance>, <nodeb instance>, " text2"].
 		"""
 		pl = []
-		for i in range(max(len(self.data), len(self.kids))):
+		for i in xrange(max(len(self.data), len(self.kids))):
 			if i < len(self.data) and self.data[i]:
 				pl.append(self.data[i])
 			if i < len(self.kids) and self.kids[i]:

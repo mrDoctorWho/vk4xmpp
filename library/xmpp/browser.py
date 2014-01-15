@@ -122,7 +122,7 @@ class Browser(PlugIn):
 		get returns "" or None as the key or None as the dict.
 		Used internally.
 		"""
-		if self._handlers.has_key(jid):
+		if jid in self._handlers:
 			cur = self._handlers[jid]
 		elif set:
 			self._handlers[jid] = {}

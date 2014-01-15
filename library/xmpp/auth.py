@@ -20,20 +20,19 @@ Can be used both for client and transport authentication.
 """
 
 import dispatcher
-import sha
+import hashlib
 
 from base64 import encodestring, decodestring
-from hashlib import md5 as __md5
 from plugin import PlugIn
 from protocol import *
 from random import random as _random
 from re import findall as re_findall
 
 def HH(some):
-	return __md5(some).hexdigest()
+	return hashlib.md5(some).hexdigest()
 
 def H(some):
-	return __md5(some).digest()
+	return hashlib.md5(some).digest()
 
 def C(some):
 	return ":".join(some)
@@ -70,7 +69,8 @@ class NonSASL(PlugIn):
 		query.setTagData("resource", self.resource)
 		if query.getTag("digest"):
 			self.DEBUG("Performing digest authentication", "ok")
-			query.setTagData("digest", sha.new(owner.Dispatcher.Stream._document_attrs["id"] + self.password).hexdigest())
+			hash = hashlib.sha1(owner.Dispatcher.Stream._document_attrs["id"] + self.password).hexdigest()
+			query.setTagData("digest", hash)
 			if query.getTag("password"):
 				query.delChild("password")
 			method = "digest"
@@ -78,9 +78,9 @@ class NonSASL(PlugIn):
 			token = query.getTagData("token")
 			seq = query.getTagData("sequence")
 			self.DEBUG("Performing zero-k authentication", "ok")
-			hash = sha.new(sha.new(self.password).hexdigest() + token).hexdigest()
-			for foo in xrange(int(seq)):
-				hash = sha.new(hash).hexdigest()
+			hash = hashlib.sha1(hashlib.sha1(self.password).hexdigest() + token).hexdigest()
+			for i in xrange(int(seq)):
+				hash = hashlib.sha1(hash).hexdigest()
 			query.setTagData("hash", hash)
 			method = "0k"
 		else:
@@ -101,7 +101,8 @@ class NonSASL(PlugIn):
 		Authenticate component. Send handshake stanza and wait for result. Returns "ok" on success.
 		"""
 		self.handshake = 0
-		owner.send(Node(NS_COMPONENT_ACCEPT + " handshake", payload=[sha.new(owner.Dispatcher.Stream._document_attrs["id"] + self.password).hexdigest()]))
+		hash = hashlib.sha1(owner.Dispatcher.Stream._document_attrs["id"] + self.password).hexdigest()
+		owner.send(Node(NS_COMPONENT_ACCEPT + " handshake", payload=[hash]))
 		owner.RegisterHandler("handshake", self.handshakeHandler, xmlns=NS_COMPONENT_ACCEPT)
 		while not self.handshake:
 			self.DEBUG("waiting on handshake", "notify")
@@ -235,7 +236,7 @@ class SASL(PlugIn):
 			resp["realm"] = self._owner.Server
 			resp["nonce"] = chal["nonce"]
 			cnonce = ""
-			for i in range(7):
+			for i in xrange(7):
 				cnonce += hex(int(_random() * 65536 * 4096))[2:]
 			resp["cnonce"] = cnonce
 			resp["nc"] = ("00000001")
@@ -247,8 +248,8 @@ class SASL(PlugIn):
 			resp["response"] = response
 			resp["charset"] = "utf-8"
 			sasl_data = ""
-			for key in ["charset", "username", "realm", "nonce", "nc", "cnonce", "digest-uri", "response", "qop"]:
-				if key in ["nc", "qop", "response", "charset"]:
+			for key in ("charset", "username", "realm", "nonce", "nc", "cnonce", "digest-uri", "response", "qop"):
+				if key in ("nc", "qop", "response", "charset"):
 					sasl_data += "%s=%s," % (key, resp[key])
 				else:
 					sasl_data += "%s=\"%s\"," % (key, resp[key])

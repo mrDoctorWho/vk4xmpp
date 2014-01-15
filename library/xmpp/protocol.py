@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: protocol.py, v1.63 2013/12/06 alkorgun Exp $
+# $Id: protocol.py, v1.64 2014/01/10 alkorgun Exp $
 
 """
 Protocol module contains tools that is needed for processing of
@@ -109,13 +109,15 @@ NS_MUC_ROOMS					 = NS_MUC + "#rooms"							# XEP-0045
 NS_MUC_TRAFIC					 = NS_MUC + "#traffic"							# XEP-0045
 NS_NICK				 = "http://jabber.org/protocol/nick"						# XEP-0172
 NS_OFFLINE			 = "http://jabber.org/protocol/offline"						# XEP-0013
+NS_OOB				 = "jabber:x:oob"											# XEP-0066
 NS_PHYSLOC			 = "http://jabber.org/protocol/physloc"						# XEP-0112
 NS_PRESENCE			 = "presence"												# Jabberd2
 NS_PRIVACY			 = "jabber:iq:privacy"										# RFC 3921
 NS_PRIVATE			 = "jabber:iq:private"										# XEP-0049
 NS_PUBSUB			 = "http://jabber.org/protocol/pubsub"						# XEP-0060
-NS_REGISTER			 = "jabber:iq:register"										# XEP-0077
 NS_RC				 = "http://jabber.org/protocol/rc"							# XEP-0146
+NS_REGISTER			 = "jabber:iq:register"										# XEP-0077
+NS_RECEIPTS			 = "urn:xmpp:receipts"										# XEP-0184
 NS_ROSTER			 = "jabber:iq:roster"										# RFC 3921
 NS_ROSTERX			 = "http://jabber.org/protocol/rosterx"						# XEP-0144
 NS_RPC				 = "jabber:iq:rpc"											# XEP-0009
@@ -126,10 +128,15 @@ NS_SESSION			 = "urn:ietf:params:xml:ns:xmpp-session"					# RFC 3921
 NS_SI				 = "http://jabber.org/protocol/si"							# XEP-0096
 NS_SI_PUB			 = "http://jabber.org/protocol/sipub"						# XEP-0137
 NS_SIGNED			 = "jabber:x:signed"										# XEP-0027
+NS_SOFTWAREINFO		 = "urn:xmpp:dataforms:softwareinfo"						# XEP-0155
 NS_STANZAS			 = "urn:ietf:params:xml:ns:xmpp-stanzas"					# RFC 3920
+NS_STATS			 = "http://jabber.org/protocol/stats"						# XEP-0039
 NS_STREAMS			 = "http://etherx.jabber.org/streams"						# RFC 3920
 NS_TIME				 = "jabber:iq:time"											# XEP-0090 (deprecated)
 NS_TLS				 = "urn:ietf:params:xml:ns:xmpp-tls"						# RFC 3920
+NS_URN_ATTENTION	 = "urn:xmpp:attention:0"									# XEP-0224
+NS_URN_OOB			 = "urn:xmpp:bob"											# XEP-0158
+NS_URN_TIME			 = "urn:xmpp:time"											# XEP-0202
 NS_VACATION			 = "http://jabber.org/protocol/vacation"					# XEP-0109
 NS_VCARD			 = "vcard-temp"												# XEP-0054
 NS_VCARD_UPDATE		 = "vcard-temp:x:update"									# XEP-0153
@@ -137,14 +144,9 @@ NS_VERSION			 = "jabber:iq:version"										# XEP-0092
 NS_WAITINGLIST		 = "http://jabber.org/protocol/waitinglist"					# XEP-0130
 NS_XHTML_IM			 = "http://jabber.org/protocol/xhtml-im"					# XEP-0071
 NS_XMPP_STREAMS		 = "urn:ietf:params:xml:ns:xmpp-streams"					# RFC 3920
-NS_STATS			 = "http://jabber.org/protocol/stats"						# XEP-0039
 NS_PING				 = "urn:xmpp:ping"											# XEP-0199
+
 NS_MUC_FILTER		 = "http://jabber.ru/muc-filter"
-NS_URN_TIME			 = "urn:xmpp:time"											# XEP-0202
-NS_RECEIPTS			 = "urn:xmpp:receipts"										# XEP-0184
-NS_OOB				 = "jabber:x:oob"											# XEP-0066
-NS_URN_ATTENTION	 = "urn:xmpp:attention:0"									# XEP-0224
-NS_URN_OOB			 = "urn:xmpp:bob"											# XEP-0158
 
 STREAM_NOT_AUTHORIZED			 = NS_XMPP_STREAMS + " not-authorized"
 STREAM_REMOTE_CONNECTION_FAILED	 = NS_XMPP_STREAMS + " remote-connection-failed"
@@ -234,7 +236,7 @@ ERRORS = {
 	"urn:ietf:params:xml:ns:xmpp-streams invalid-from": ["cancel", "", "The JID or hostname provided in a \"from\" address does not match an authorized JID or validated domain negotiated between servers via SASL or dialback, or between a client and a server via authentication and resource authorization."],
 	"urn:ietf:params:xml:ns:xmpp-streams bad-format": ["", "", "The entity has sent XML that cannot be processed."],
 	"urn:ietf:params:xml:ns:xmpp-streams resource-constraint": ["", "", "The server lacks the system resources necessary to service the stream."],
-	"urn:ietf:params:xml:ns:xmpp-stanzas undefined-condition": ["500", "", ""],
+	"urn:ietf:params:xml:ns:xmpp-stanzas undefined-condition": ["500", "", "The condition is undefined."],
 	"urn:ietf:params:xml:ns:xmpp-stanzas redirect": ["302", "modify", "The recipient or server is redirecting requests for this information to another entity."],
 	"urn:ietf:params:xml:ns:xmpp-streams bad-namespace-prefix": ["", "", "The entity has sent a namespace prefix that is unsupported, or has sent no namespace prefix on an element that requires such a prefix."],
 	"urn:ietf:params:xml:ns:xmpp-streams system-shutdown": ["", "", "The server is being shut down and all active streams are being closed."],
@@ -704,7 +706,7 @@ class Message(Protocol):
 	def buildReply(self, text=None):
 		"""
 		Builds and returns another message object with specified text.
-		The to, from and thread properties of new message are pre-set as reply to this message.
+		The to, from type and thread properties of new message are pre-set as reply to this message.
 		"""
 		msg = Message(to=self.getFrom(), frm=self.getTo(), body=text)
 		thr = self.getThread()
@@ -835,9 +837,15 @@ class Iq(Protocol):
 		if queryNS:
 			self.setQueryNS(queryNS)
 
+	def getQuery(self):
+		"""
+		Returns the query node.
+		"""
+		return self.getTag("query")
+
 	def getQueryNS(self):
 		"""
-		Return the namespace of the "query" child element.
+		Returns the namespace of the "query" child element.
 		"""
 		tag = self.getTag("query")
 		if tag:
@@ -845,13 +853,13 @@ class Iq(Protocol):
 
 	def getQuerynode(self):
 		"""
-		Return the "node" attribute value of the "query" child element.
+		Returns the "node" attribute value of the "query" child element.
 		"""
 		return self.getTagAttr("query", "node")
 
 	def getQueryPayload(self):
 		"""
-		Return the "query" child element payload.
+		Returns the "query" child element payload.
 		"""
 		tag = self.getTag("query")
 		if tag:
@@ -859,11 +867,24 @@ class Iq(Protocol):
 
 	def getQueryChildren(self):
 		"""
-		Return the "query" child element child nodes.
+		Returns the "query" child element child nodes.
 		"""
 		tag = self.getTag("query")
 		if tag:
 			return tag.getChildren()
+
+	def setQuery(self, name=None):
+		"""
+		Changes the name of the query node, creates it if needed.
+		Keep the existing name if none is given (use "query" if it's a creation).
+		Returns the query node.
+		"""
+		query = self.getQuery()
+		if query is None:
+			query = self.addChild("query")
+		if name is not None:
+			query.setName(name)
+		return query
 
 	def setQueryNS(self, namespace):
 		"""

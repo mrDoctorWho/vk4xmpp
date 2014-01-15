@@ -168,6 +168,8 @@ class VKLogin(object):
 		self.jidFrom = jidFrom
 		logger.debug("VKLogin.__init__ with number:%s from jid:%s" % (number, jidFrom))
 
+	getToken = lambda self: self.engine.token
+
 	def auth(self, token = None):
 		logger.debug("VKLogin.auth %s token" % ("with" if token else "without"))
 		try:
@@ -229,6 +231,9 @@ class VKLogin(object):
 					msgSend(Component, self.jidFrom, _(e.message + " Please, register again"), TransportID)
 				self.Online = False
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.jidFrom))
+			except api.NetworkNotFound:
+				logger.critical("VKLogin: network unavailable. Is vk down?")
+				self.Online = False
 		return result
 
 	def captchaChallenge(self):
@@ -273,9 +278,6 @@ class VKLogin(object):
 		self.method("account.setOffline")
 		self.Online = False
 
-	def getToken(self):
-		return self.engine.token
-
 	def getFriends(self, fields = None):
 		fields = fields or ["screen_name"]
 		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) or {} # friends.getOnline
@@ -316,7 +318,6 @@ class tUser(object):
 		self.lastMsgID = None
 		self.rosterSet = None
 		self.existsInDB = None
-		self.lastStatus = None
 		self.last_activity = time.time()
 		self.last_udate = time.time()
 		self.jidFrom = source
@@ -336,6 +337,11 @@ class tUser(object):
 					logger.debug("tUser: %s exists in db. Will be deleted." % self.jidFrom)
 					threadRun(self.deleteUser)
 
+	def __eq__(self, user):
+		if isinstance(user, tUser):
+			return user.jidFrom == self.jidFrom
+		return self.jidFrom == user
+
 	def deleteUser(self, roster = False):
 		logger.debug("tUser: deleting user %s from db." % self.jidFrom)
 		with Database(DatabaseFile) as db:
@@ -351,14 +357,14 @@ class tUser(object):
 			self.vk.Online = False
 		if self.jidFrom in Transport:
 			del Transport[self.jidFrom]
-			try:
-				updateTransportsList(self, False)
-			except NameError:
-				pass
+		try:
+			updateTransportsList(self, False)
+		except NameError:
+			pass
 
 	def msg(self, body, uID, mType = "user_id"):
+		self.last_activity = time.time()
 		try:
-			self.last_activity = time.time()
 			Message = self.vk.method("messages.send", {mType: uID, "message": body, "type": 0})
 		except:
 			crashLog("messages.send")
@@ -396,10 +402,10 @@ class tUser(object):
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set token=? where jid=?", (self.vk.getToken(), self.jidFrom))
 			try:
-				_ = self.vk.method("users.get")
-				self.UserID = _[0]["uid"]
+				json = self.vk.method("users.get")
+				self.UserID = json[0]["uid"]
 			except (KeyError, TypeError):
-				logger.error("tUser: could not recieve user id. JSON: %s" % str(_))
+				logger.error("tUser: could not recieve user id. JSON: %s" % str(json))
 				self.UserID = 0
 
 			jidToID[self.UserID] = self.jidFrom
@@ -504,7 +510,7 @@ class tUser(object):
 		except:
 			crashLog("tryAgain")
 
-msgSort = lambda Br, Ba: Br["date"] - Ba["date"]
+msgSort = lambda msgOne, msgTwo: msgOne["date"] - msgTwo["date"]
 
 def Sender(cl, stanza):
 	try:
@@ -543,17 +549,21 @@ def vk2xmpp(id):
 		id = u"%s@%s" % (id, TransportID)
 	return id
 
-DESC = _("© simpleApps, 2013."
+DESC = _("© simpleApps, 2013 — 2014."
 	"\nYou can support developing of any project"
 	" via donation by WebMoney:"
 	"\nZ405564701378 | R330257574689.")
 
 def updateTransportsList(user, add=True):
 	global lengthOfTransportsList
-	if add and user not in TransportsList:
-		TransportsList.append(user)
-	elif user in TransportsList:
+	if user in TransportsList:
+		if add:
+			return
 		TransportsList.remove(user)
+	elif add: 
+		TransportsList.append(user)
+	else:
+		return
 	length = len(TransportsList)
 	if length > lengthOfTransportsList:
 		start = lengthOfTransportsList

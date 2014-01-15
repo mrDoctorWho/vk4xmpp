@@ -162,13 +162,13 @@ class Debug:
 			self._fh.write(output)
 		except Exception:
 			# unicode strikes again ;)
-			s = u""
+			s = unicode()
 			for i in xrange(len(output)):
 				if ord(output[i]) < 128:
 					c = output[i]
 				else:
 					c = "?"
-				s = s + c
+				s += c
 			self._fh.write("%s%s%s" % (pre, s, suf))
 		self._fh.flush()
 

@@ -1,7 +1,6 @@
 # /* coding: utf-8 */
-# © simpleApps CodingTeam, 2013.
-# Warning: Code in this module is ugly,
-# but we can't do better.
+# © simpleApps CodingTeam, 2013 — 2014.
+
 
 import time, ssl, urllib, urllib2, cookielib
 import logging, json, webtools
@@ -27,12 +26,14 @@ def attemptTo(maxRetries, resultType, *errors):
 			while retries < maxRetries:
 				try:
 					data = func(*args, **kwargs)
-				except errors as exc:
+				except errors, exc:
 					retries += 1
 					time.sleep(0.2)
 				else:
 					break
 			else:
+				if str(exc.reason) == "[Errno 101] Network is unreachable":
+					raise NetworkNotFound()
 				data = resultType()
 				logger.debug("Error %s occured on executing %s" % (exc, func))
 			return data
@@ -172,7 +173,7 @@ class APIBinding:
 			else:
 				postTarget = webtools.getTagArg("form method=\"post\"", "action", body, "form")
 				if postTarget:
-					body, response = self.RIP.post(PostTarget)
+					body, response = self.RIP.post(postTarget)
 					token = response.url.split("=")[1].split("&")[0]
 				else:
 					raise AuthError("Couldn't execute confirmThisApp()!")
@@ -195,7 +196,7 @@ class APIBinding:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
 				time.sleep(0.3)    # warn: it was 0.4 // does it matter?
 
-		response = self.RIP.post(url, values)
+		response = self.RIP.post(url, values)  # Next func should handle NetworkNotFound
 		if response:
 			body, response = response
 			if body:
@@ -226,19 +227,25 @@ class APIBinding:
 				elif eCode == 5:     # auth failed
 					raise VkApiError("Logged out")
 				if eCode == 7:
-					raise NotAllowed
+					raise NotAllowed()
 				elif eCode == 9:
 					return {}
 				if eCode == 14:     # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
-						raise CaptchaNeeded
+						raise CaptchaNeeded()
 				raise VkApiError(body["error"])
 
 	def retry(self):
 		if self.lastMethod:
 			return self.method(*self.lastMethod)
 
+
+class NetworkNotFound(Exception):  ## maybe network is unreachable or vk is down (same as 10 jan 2014)
+	pass
+
+class UserGoesOffline(Exception):
+	pass
 
 class VkApiError(Exception):
 	pass

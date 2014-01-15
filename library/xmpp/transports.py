@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: transports.py, v1.36 2013/11/03 alkorgun Exp $
+# $Id: transports.py, v1.36 2014/01/10 alkorgun Exp $
 
 """
 This module contains the low-level implementations of xmpppy connect methods or
@@ -29,6 +29,8 @@ Also exception 'error' is defined to allow capture of this module specific excep
 
 import sys
 import socket
+if sys.hexversion >= 0x20600F0:
+	import ssl
 import dispatcher
 
 from base64 import encodestring
@@ -80,6 +82,7 @@ class TCPsocket(PlugIn):
 		self.DBG_LINE = "socket"
 		self._exported_methods = [self.send, self.disconnect]
 		self._server, self.use_srv = server, use_srv
+		self._send_queue = []
 
 	def srv_lookup(self, server):
 		"""
@@ -92,7 +95,9 @@ class TCPsocket(PlugIn):
 				dns__ = dns.Request()
 				response = dns__.req(query, qtype="SRV")
 				if response.answers:
-					(port, host) = response.answers[0]["data"][2:]
+					# Sort by priority, according to RFC 2782.
+					answers = sorted(response.answers, key=lambda a: a["data"][0])
+					(port, host) = answers[0]["data"][2:]
 					server = str(host), int(port)
 			except dns.DNSError:
 				self.DEBUG("An error occurred while looking up %s." % query, "warn")
@@ -130,41 +135,50 @@ class TCPsocket(PlugIn):
 
 	def connect(self, server=None):
 		"""
-		Try to connect to the given host/port. Does not lookup for SRV record.
+		Try to connect to the given host/port.
 		Returns non-empty string on success.
 		"""
 		if not server:
 			server = self._server
 		host, port = server
-		server = (host, int(port))
-		if ":" in host:
-			sock = socket.AF_INET6
-			server = server.__add__((0, 0))
-		else:
-			sock = socket.AF_INET
+		socktype = socket.SOCK_STREAM
 		try:
-			self._sock = socket.socket(sock, socket.SOCK_STREAM)
-			self._sock.connect(server)
-			self._send = self._sock.sendall
-			self._recv = self._sock.recv
-		except socket.error as error:
-			try:
-				code, error = error
-			except Exception:
-				code = -1
-			self.DEBUG("Failed to connect to remote host %s: %s (%s)" % (repr(server), error, code), "error")
+			lookup = reversed(socket.getaddrinfo(host, int(port), 0, socktype))
 		except Exception:
-			pass
-		else:
-			self.DEBUG("Successfully connected to remote host %s." % repr(server), "start")
-			return "ok"
+			addr = (host, int(port))
+			if ":" in host:
+				af = socket.AF_INET6
+				addr = addr.__add__((0, 0))
+			else:
+				af = socket.AF_INET
+			lookup = [(af, socktype, 1, 6, addr)]
+		for af, socktype, proto, cn, addr in lookup:
+			try:
+				self._sock = socket.socket(af, socktype)
+				self._sock.connect(addr)
+				self._send = self._sock.sendall
+				self._recv = self._sock.recv
+			except socket.error as error:
+				if getattr(self, "_sock", None):
+					self._sock.close()
+				try:
+					code, error = error
+				except Exception:
+					code = -1
+				self.DEBUG("Failed to connect to remote host %s: %s (%s)" % (repr(server), error, code), "error")
+			except Exception:
+				pass
+			else:
+				self.DEBUG("Successfully connected to remote host %s." % repr(server), "start")
+				return "ok"
 
 	def plugout(self):
 		"""
 		Disconnect from the remote server and unregister self.disconnected method from
 		the owner's dispatcher.
 		"""
-		self._sock.close()
+		if getattr(self, "_sock", None):
+			self._sock.close()
 		if hasattr(self._owner, "Connection"):
 			del self._owner.Connection
 			self._owner.UnregisterDisconnectHandler(self.disconnected)
@@ -206,7 +220,10 @@ class TCPsocket(PlugIn):
 			raise IOError("Disconnected!")
 		return data
 
-	def send(self, data, timeout=0.002):
+	def send(self, data):
+		self._send_queue.append(data)
+
+	def send_now(self, data, timeout=0.002):
 		"""
 		Writes raw outgoing data. Blocks until done.
 		If supplied data is unicode string, encodes it to utf-8 before send.
@@ -215,20 +232,17 @@ class TCPsocket(PlugIn):
 			data = data.encode("utf-8")
 		elif not isinstance(data, str):
 			data = ustr(data).encode("utf-8")
-		while not select((), [self._sock], (), 0.002)[1]:
-			pass
+		try:
+			self._send(data)
+		except Exception:
+			self.DEBUG("Socket error while sending data.", "error")
+			self._owner.disconnected()
 		else:
-			try:
-				self._send(data)
-			except Exception:
-				self.DEBUG("Socket error while sending data.", "error")
-				self._owner.disconnected()
-			else:
-				if not data.strip():
-					data = repr(data)
-				self.DEBUG(data, "sent")
-				if hasattr(self._owner, "Dispatcher"):
-					self._owner.Dispatcher.Event("", DATA_SENT, data)
+			if not data.strip():
+				data = repr(data)
+			self.DEBUG(data, "sent")
+			if hasattr(self._owner, "Dispatcher"):
+				self._owner.Dispatcher.Event("", DATA_SENT, data)
 
 	def pending_data(self, timeout=0):
 		"""
@@ -382,9 +396,12 @@ class TLS(PlugIn):
 
 	def _startSSL(self):
 		tcpsock = self._owner.Connection
-		tcpsock._sslObj = socket.ssl(tcpsock._sock, None, None)
-		tcpsock._sslIssuer = tcpsock._sslObj.issuer()
-		tcpsock._sslServer = tcpsock._sslObj.server()
+		if sys.hexversion >= 0x20600F0:
+			tcpsock._sslObj = ssl.wrap_socket(tcpsock._sock, None, None)
+		else:
+			tcpsock._sslObj = socket.ssl(tcpsock._sock, None, None)
+			tcpsock._sslIssuer = tcpsock._sslObj.issuer()
+			tcpsock._sslServer = tcpsock._sslObj.server()
 		tcpsock._recv = tcpsock._sslObj.read
 		tcpsock._send = tcpsock._sslObj.write
 		tcpsock._seen_data = 1

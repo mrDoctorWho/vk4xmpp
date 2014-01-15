@@ -27,6 +27,7 @@ import time
 
 from plugin import PlugIn
 from protocol import *
+from select import select
 from xml.parsers.expat import ExpatError
 
 DefaultTimeout = 25
@@ -151,9 +152,14 @@ class Dispatcher(PlugIn):
 		if self._pendingExceptions:
 			e = self._pendingExceptions.pop()
 			raise e[0], e[1], e[2]
-		if self._owner.Connection.pending_data(timeout):
+		conn = self._owner.Connection
+		recv, send = select([conn._sock], [conn._sock], [], timeout)[:2]
+		if send:
+			while conn._send_queue:
+				conn.send_now(conn._send_queue.pop(0))
+		if recv:
 			try:
-				data = self._owner.Connection.receive()
+				data = conn.receive()
 			except IOError:
 				return None
 			try:

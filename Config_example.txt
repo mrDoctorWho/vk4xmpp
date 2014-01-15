@@ -69,6 +69,9 @@ ROSTER_UPDATE_TIMEOUT = 4
 ## Maximum forwarded messages depth.
 MAXIMUM_FORWARD_DEPTH = 5
 
+## Users per thread.
+SLICE_STEP = 8
+
 ## Image that will be used if transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
 

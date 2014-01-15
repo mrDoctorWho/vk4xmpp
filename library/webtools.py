@@ -56,7 +56,7 @@ def regexp(reg, string, findall = 1):
 def getTagData(tag, data, close_tag = 0):
 	if not close_tag:
 		close_tag = tag
-	pattern = re.compile("<%(tag)s.*?>(.*?)</%(close_tag)s>" % vars(), flags=re.S+re.IGNORECASE)
+	pattern = re.compile("<%(tag)s.*?>(.*?)</%(close_tag)s>" % vars(), flags=re.DOTALL | re.IGNORECASE)
 	tagData = pattern.search(data)
 	if tagData:
 		tagData = tagData.group(1)
@@ -65,7 +65,7 @@ def getTagData(tag, data, close_tag = 0):
 def getTagArg(tag, argv, data, close_tag = 0):
 	if not close_tag:
 		close_tag = tag
-	pattern = re.compile("<%(tag)s.? %(argv)s=[\"']?(.*?)[\"']?\">(.*?)</%(close_tag)s>" % vars(), flags=re.DOTALL|re.IGNORECASE)
+	pattern = re.compile("<%(tag)s.? %(argv)s=[\"']?(.*?)[\"']?\">(.*?)</%(close_tag)s>" % vars(), flags=re.DOTALL | re.IGNORECASE)
 	tagData = pattern.search(data)
 	if tagData:
 		tagData = tagData.group(1)
