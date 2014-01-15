@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # vk4xmpp gateway, v1.9
-# © simpleApps, 01.08.2013
+# © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
 import re, os, sys, time, signal, socket, logging, threading
@@ -43,7 +43,7 @@ WhiteList = []
 jidToID = {}
 unAllowedChars = [unichr(x) for x in xrange(32) if x not in (9, 10, 13)] + [unichr(57003)]
 
-TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
+TransportFeatures = [xmpp.NS_DISCO_ITEMS,
 					xmpp.NS_DISCO_INFO,
 					xmpp.NS_RECEIPTS,
 					xmpp.NS_REGISTER,
@@ -54,11 +54,11 @@ TransportFeatures = [ xmpp.NS_DISCO_ITEMS,
 					xmpp.NS_VCARD,
 					xmpp.NS_DELAY,
 					xmpp.NS_PING,
-					xmpp.NS_LAST ]
+					xmpp.NS_LAST]
 
-IDentifier = { "type": "vk",
+IDentifier = {"type": "vk",
 			"category": "gateway",
-			"name": "VK4XMPP Transport" }
+			"name": "VK4XMPP Transport"}
 
 Semaphore = threading.Semaphore()
 
@@ -114,7 +114,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 138, 0
+	revNumber, rev = 141, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -707,7 +707,6 @@ if __name__ == "__main__":
 			Component.iter(6)
 		except AttributeError:
 			disconnectHandler(False)
-			break ## To be sure that it will restart.
 		except xmpp.StreamError:
 			crashLog("Component.iter")
 		except:

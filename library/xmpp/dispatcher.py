@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: dispatcher.py, v1.43 2013/10/21 alkorgun Exp $
+# $Id: dispatcher.py, v1.44 2014/01/15 alkorgun Exp $
 
 """
 Main xmpppy mechanism. Provides library with methods to assign different handlers
@@ -153,7 +153,7 @@ class Dispatcher(PlugIn):
 			e = self._pendingExceptions.pop()
 			raise e[0], e[1], e[2]
 		conn = self._owner.Connection
-		recv, send = select([conn._sock], [conn._sock], [], timeout)[:2]
+		recv, send = select([conn._sock], [conn._sock] if conn._send_queue else [], [], timeout)[:2]
 		if send:
 			while conn._send_queue:
 				conn.send_now(conn._send_queue.pop(0))

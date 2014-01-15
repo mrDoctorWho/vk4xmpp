@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: transports.py, v1.36 2014/01/10 alkorgun Exp $
+# $Id: transports.py, v1.37 2014/01/15 alkorgun Exp $
 
 """
 This module contains the low-level implementations of xmpppy connect methods or

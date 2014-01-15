@@ -133,8 +133,8 @@ class Debug:
 		if self.time_stamp == 2:
 			output = "%s%s " % (
 				pre,
-				trftime("%b %d %H:%M:%S",
-				caltime(time.time()))
+				time.strftime("%b %d %H:%M:%S",
+				time.localtime(time.time()))
 			)
 		elif self.time_stamp == 1:
 			output = "%s %s" % (

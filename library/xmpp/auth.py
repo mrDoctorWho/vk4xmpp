@@ -296,7 +296,7 @@ class Bind(PlugIn):
 		if not feats.getTag("bind", namespace=NS_BIND):
 			self.bound = "failure"
 			self.DEBUG("Server does not requested binding.", "error")
-			return Nonr
+			return None
 		if feats.getTag("session", namespace=NS_SESSION):
 			self.session = 1
 		else:
