@@ -104,7 +104,7 @@ def handleChatMessages(self, msg):
 		if not self.chatUsers[chat]:
 			groupchatSetConfig(chat, _owner, exterminate = True) # EXTERMINATE!!!
 
-		body = escapeMsg("", uHTML(msg["body"]))
+		body = escape("", uHTML(msg["body"]))
 		body += parseAttachments(self, msg)
 		body += parseForwardMessages(self, msg)
 		if body:

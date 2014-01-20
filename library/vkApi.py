@@ -1,7 +1,5 @@
-# /* coding: utf-8 */
+# coding: utf-8
 # © simpleApps CodingTeam, 2013 — 2014.
-
-
 import time, ssl, urllib, urllib2, cookielib
 import logging, json, webtools
 
@@ -32,7 +30,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				else:
 					break
 			else:
-				if str(exc.reason) == "[Errno 101] Network is unreachable":
+				if hasattr(exc, "reason") and str(exc.reason) == "[Errno 101] Network is unreachable":
 					raise NetworkNotFound()
 				data = resultType()
 				logger.debug("Error %s occured on executing %s" % (exc, func))
@@ -43,11 +41,12 @@ def attemptTo(maxRetries, resultType, *errors):
 
 	return decorator
 
+
 class RequestProcessor(object):
 	"""
 	Processing base requests: POST (multipart/form-data) and GET.
 	"""
-	headers = { "User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
+	headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
 					" Gecko/20130309 Firefox/21.0",
 				"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
 				"Accept-Language": "ru-RU, utf-8" 
@@ -82,7 +81,7 @@ class RequestProcessor(object):
 			url += "/?%s" % urllib.urlencode(query)
 		resp = self.open(self.request(url))
 		body = resp.read()
-		return (body, resp)     # I'd like brackets. Why not?
+		return (body, resp)
 
 
 class APIBinding:
@@ -150,11 +149,12 @@ class APIBinding:
 		if self.sid:
 			url = "https://vk.com/feed2.php"
 			get = self.RIP.get(url)
-			body, response = get
-			if body and response:
-				data = json.loads(body)
-				if data["user"]["id"] != -1:
-					return data
+			if get:
+				body, response = get
+				if body and response:
+					data = json.loads(body)
+					if data["user"]["id"] != -1:
+						return data
 
 	def confirmThisApp(self):
 		url = "https://oauth.vk.com/authorize"
@@ -194,9 +194,9 @@ class APIBinding:
 		self.last.append(time.time())
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
-				time.sleep(0.3)    # warn: it was 0.4 // does it matter?
+				time.sleep(0.3)
 
-		response = self.RIP.post(url, values)  # Next func should handle NetworkNotFound
+		response = self.RIP.post(url, values)    # Next func should handle NetworkNotFound
 		if response:
 			body, response = response
 			if body:
@@ -244,8 +244,6 @@ class APIBinding:
 class NetworkNotFound(Exception):  ## maybe network is unreachable or vk is down (same as 10 jan 2014)
 	pass
 
-class UserGoesOffline(Exception):
-	pass
 
 class VkApiError(Exception):
 	pass

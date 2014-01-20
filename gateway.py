@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v1.9
+# vk4xmpp gateway, v1.9.1
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
@@ -9,18 +9,15 @@ import re, os, sys, time, signal, socket, logging, threading
 from hashlib import sha1
 from math import ceil
 
-if not hasattr(sys, "argv") or not sys.argv[0]:
-	sys.argv = ["."]
-try:
-	__file__ = os.path.dirname(os.path.abspath(sys.argv[0]))
-	os.chdir(__file__)
-except OSError:
-	print "#! Incorrect launch!"
-	time.sleep(6)
+core = getattr(sys.modules["__main__"], "__file__", None)
+if core:
+	core = os.path.abspath(core)
+	root = os.path.dirname(core)
+	if root:
+		os.chdir(root)
 
 sys.path.insert(0, "library")
 reload(sys).setdefaultencoding("utf-8")
-socket.setdefaulttimeout(10)
 
 import gc
 
@@ -114,7 +111,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 141, 0
+	revNumber, rev = 142, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -154,9 +151,7 @@ def threadRun(func, args = (), name = None):
 			except KeyboardInterrupt:
 				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
 
-
-escapeName = re.compile(u"[^-0-9a-zа-яёë\._\'\ ґїє]", re.IGNORECASE | re.UNICODE | re.DOTALL).sub
-escapeMsg = re.compile("|".join(unAllowedChars)).sub
+escape = re.compile("|".join(unAllowedChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 
 class VKLogin(object):
@@ -284,7 +279,7 @@ class VKLogin(object):
 		friendsDict = {}
 		for friend in friendsRaw:
 			uid = friend["uid"]
-			name = escapeName("", u"%s %s" % (friend["first_name"], friend["last_name"]))
+			name = escape("", u"%s %s" % (friend["first_name"], friend["last_name"]))
 			try:
 				friendsDict[uid] = {"name": name, "online": friend["online"]}
 				for key in fields:
@@ -423,6 +418,7 @@ class tUser(object):
 			self.rosterSubscribe(self.friends)
 		if send: self.sendInitPresence()
 
+## TODO: Move this function otside class
 	def sendPresence(self, target, jidFrom, pType = None, nick = None, reason = None):
 		Presence = xmpp.Presence(target, pType, frm = jidFrom, status = reason)
 		if nick:
@@ -461,7 +457,7 @@ class tUser(object):
 		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
 		if data:
 			data = data.pop()
-			data["name"] = escapeName("", u"%s %s" % (data["first_name"], data["last_name"]))
+			data["name"] = escape("", u"%s %s" % (data["first_name"], data["last_name"]))
 			del data["first_name"], data["last_name"]
 		else:
 			data = {}
@@ -495,7 +491,7 @@ class tUser(object):
 						else:
 							body += result
 					else:
-						msgSend(Component, self.jidFrom, escapeMsg("", body), fromjid, message["date"])
+						msgSend(Component, self.jidFrom, escape("", body), fromjid, message["date"])
 				self.vk.msgMarkAsRead(read)
 				if UseLastMessageID:
 					with Database(DatabaseFile, Semaphore) as db:
@@ -515,8 +511,6 @@ msgSort = lambda msgOne, msgTwo: msgOne["date"] - msgTwo["date"]
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
-	except KeyboardInterrupt:
-		pass
 	except IOError:
 		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
@@ -554,7 +548,7 @@ DESC = _("© simpleApps, 2013 — 2014."
 	" via donation by WebMoney:"
 	"\nZ405564701378 | R330257574689.")
 
-def updateTransportsList(user, add=True):
+def updateTransportsList(user, add = True):
 	global lengthOfTransportsList
 	if user in TransportsList:
 		if add:
@@ -663,7 +657,7 @@ def main():
 			Component.RegisterDisconnectHandler(disconnectHandler)
 			Print("#-# Initializing users", False)
 			with Database(DatabaseFile) as db:
-				users = db("select * from users").fetchall()
+				users = db("select jid from users").fetchall()
 				for user in users:
 					Print(".", False)
 					Sender(Component, xmpp.Presence(user[0], "probe", frm = TransportID))
@@ -674,9 +668,10 @@ def main():
 def exit(signal = None, frame = None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
 	Print("#! %s" % status, False)
-	for Class in TransportsList:
-		Class.sendPresence(Class.jidFrom, TransportID, "unavailable", reason = status)
-		Print("." * len(Class.friends))
+	Component._owner.Connection.send = Component._owner.Connection.send_now
+	for user in TransportsList:
+		user.sendOutPresence(user.jidFrom, status)
+		Print("." * len(user.friends), False)
 	Print("\n")
 	try:
 		os.remove(pidFile)
@@ -710,7 +705,6 @@ if __name__ == "__main__":
 		except xmpp.StreamError:
 			crashLog("Component.iter")
 		except:
-			break
 			logger.critical("DISCONNECTED")
 			crashLog("Component.iter")
 			disconnectHandler(False)

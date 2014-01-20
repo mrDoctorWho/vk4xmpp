@@ -2,8 +2,6 @@
 
 # BlackSmith-bot module.
 # © simpleApps, 21.05.2012.
-# This module contains main web\
-# functions for site parsing.
 
 import urllib, urllib2, re
 
@@ -20,7 +18,7 @@ del Name, Numb, htmlentitydefs
 compile_ehtmls = re.compile("&(#?[xX]?(?:[0-9a-fA-F]+|\w{1,8}));")
 
 def uHTML(data):
-	if data.count("&"):
+	if "&" in data:
 
 		def e_sb(co):
 			co = co.group(1)
@@ -56,7 +54,7 @@ def regexp(reg, string, findall = 1):
 def getTagData(tag, data, close_tag = 0):
 	if not close_tag:
 		close_tag = tag
-	pattern = re.compile("<%(tag)s.*?>(.*?)</%(close_tag)s>" % vars(), flags=re.DOTALL | re.IGNORECASE)
+	pattern = re.compile("<%(tag)s.*?>(.*?)</%(close_tag)s>" % vars(), flags = re.DOTALL | re.IGNORECASE)
 	tagData = pattern.search(data)
 	if tagData:
 		tagData = tagData.group(1)
@@ -65,7 +63,7 @@ def getTagData(tag, data, close_tag = 0):
 def getTagArg(tag, argv, data, close_tag = 0):
 	if not close_tag:
 		close_tag = tag
-	pattern = re.compile("<%(tag)s.? %(argv)s=[\"']?(.*?)[\"']?\">(.*?)</%(close_tag)s>" % vars(), flags=re.DOTALL | re.IGNORECASE)
+	pattern = re.compile("<%(tag)s.? %(argv)s=[\"']?(.*?)[\"']?\">(.*?)</%(close_tag)s>" % vars(), flags = re.DOTALL | re.IGNORECASE)
 	tagData = pattern.search(data)
 	if tagData:
 		tagData = tagData.group(1)

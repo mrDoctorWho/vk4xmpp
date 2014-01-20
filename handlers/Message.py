@@ -19,7 +19,7 @@ def msgHandler(cl, msg):
 	jidFrom = msg.getFrom()
 	jidFromStr = jidFrom.getStripped()
 	if jidFromStr in Transport and mType == "chat":
-		Class = Transport[jidFromStr]
+		user = Transport[jidFromStr]
 		if body:
 			answer = None
 			if jidTo == TransportID:
@@ -42,7 +42,7 @@ def msgHandler(cl, msg):
 						msgSend(cl, jidFromStr, result, jidTo)
 			else:
 				uID = jidTo.getNode()
-				vkMessage = Class.msg(body, uID)
+				vkMessage = user.msg(body, uID)
 				if vkMessage:
 					answer = msgRecieved(msg, jidFrom, jidTo)
 			if answer:
@@ -53,17 +53,17 @@ def msgHandler(cl, msg):
 def captchaAccept(cl, args, jidTo, jidFromStr):
 	if args:
 		answer = None
-		Class = Transport[jidFromStr]
-		if Class.vk.engine.captcha:
+		user = Transport[jidFromStr]
+		if user.vk.engine.captcha:
 			logger.debug("user %s called captcha challenge" % jidFromStr)
-			Class.vk.engine.captcha["key"] = args
+			user.vk.engine.captcha["key"] = args
 			retry = False
 			try:
 				logger.debug("retrying for user %s" % jidFromStr)
-				retry = Class.vk.engine.retry()
+				retry = user.vk.engine.retry()
 			except api.CaptchaNeeded:
 				logger.error("retry for user %s failed!" % jidFromStr)
-				Class.vk.captchaChallenge()
+				user.vk.captchaChallenge()
 			if retry:
 				logger.debug("retry for user %s OK" % jidFromStr)
 				answer = _("Captcha valid.")
@@ -71,7 +71,7 @@ def captchaAccept(cl, args, jidTo, jidFromStr):
 				Presence.setStatus("") # is it needed?
 				Presence.setShow("available")
 				Sender(Component, Presence)
-				Class.tryAgain()
+				user.tryAgain()
 			else:
 				answer = _("Captcha invalid.")
 		else:

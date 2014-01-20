@@ -1,12 +1,13 @@
 [Unit]
 Description=VK4XMPP is an Vk.com transport for Jabber/XMPP
+After=prosody.service
+Wants=prosody.service
 
 [Service]
 Type=simple
-PIDFile=/var/run/vk4xmpp/vk4xmpp.pid
+PIDFile=/var/lib/vk4xmpp/vk4xmpp.pid
 ExecStart=/usr/bin/env python2 /usr/share/vk4xmpp/gateway.py -c/etc/vk4xmpp.conf
 User=nobody
-Group=nobody
 
 [Install]
 WantedBy=multi-user.target

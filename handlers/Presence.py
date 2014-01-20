@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013.
+# © simpleApps, 2013 — 2014.
 
 def prsHandler(cl, prs):
 	pType = prs.getType()
@@ -25,9 +25,11 @@ def prsHandler(cl, prs):
 			if not user.resources:
 				Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
 				user.vk.disconnect()
-				if jidFromStr in Transport:
-					del Transport[jidFromStr]
 				updateTransportsList(user, False)
+				try: 
+					del Transport[jidFromStr]
+				except KeyError: 
+					pass
 	
 		elif pType == "error":
 			eCode = prs.getErrorCode()

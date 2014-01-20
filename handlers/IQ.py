@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013.
+# © simpleApps, 2013 — 2014.
 
 def iqHandler(cl, iq):
 	jidFrom = iq.getFrom()
@@ -67,7 +67,8 @@ def iqRegisterHandler(cl, iq):
 		count = calcStats()[0]
 		if count >= USER_LIMIT and not jidFromStr in Transport:
 			cl.send(iqBuildError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
-			raise xmpp.NodeProcessed
+			raise xmpp.NodeProcessed()
+
 	if iType == "get" and jidToStr == TransportID and not IQChildren:
 		form = xmpp.DataForm()
 		logger.debug("Sending register form to %s" % jidFromStr)
@@ -147,8 +148,8 @@ def iqRegisterHandler(cl, iq):
 		elif Query.getTag("remove"): # Maybe exits a better way for it
 			logger.debug("user %s want to remove me :(" % jidFromStr)
 			if jidFromStr in Transport:
-				Class = Transport[jidFromStr]
-				Class.deleteUser(True)
+				user = Transport[jidFromStr]
+				user.deleteUser(True)
 				result.setPayload([], add = 0)
 				WatcherMsg(_("User removed registration: %s") % jidFromStr)
 		else:
@@ -157,13 +158,10 @@ def iqRegisterHandler(cl, iq):
 
 def calcStats():
 	countTotal = 0
-	countOnline = 0
+	countOnline = len(TransportsList)
 	with Database(DatabaseFile, Semaphore) as db:
 		db("select count(*) from users")
 		countTotal = db.fetchone()[0]
-	for key in TransportsList:
-		if hasattr(key, "vk") and key.vk.Online:
-			countOnline += 1
 	return [countTotal, countOnline]
 
 def iqUptimeHandler(cl, iq):
@@ -192,12 +190,13 @@ def iqVersionHandler(cl, iq):
 	raise xmpp.NodeProcessed()
 
 sDict = {
-		  "users/total": "users",
-		  "users/online": "users",
-		  "memory/virtual": "KB",
-		  "memory/real": "KB",
-		  "cpu/percent": "percent",
-		  "cpu/time": "seconds"
+		"users/total": "users",
+		"users/online": "users",
+		"memory/virtual": "KB",
+		"memory/real": "KB",
+		"cpu/percent": "percent",
+		"cpu/time": "seconds",
+		"thread/active": "threads"
 		}
 
 def iqStatsHandler(cl, iq):
@@ -217,7 +216,7 @@ def iqStatsHandler(cl, iq):
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			memVirt, memReal, cpuPercent, cpuTime = shell[1].split()
 			stats = {"users": users, "KB": [memVirt, memReal],
-					 "percent": [cpuPercent], "seconds": [cpuTime]}
+					 "percent": [cpuPercent], "seconds": [cpuTime], "threads": [threading.activeCount()]}
 			for Child in IQChildren:
 				if Child.getName() != "stat":
 					continue
@@ -263,19 +262,19 @@ def iqGatewayHandler(cl, iq):
 		result = iq.buildReply("result")
 		if iType == "get" and not IQChildren:
 			query = xmpp.Node("query", {"xmlns": xmpp.NS_GATEWAY})
-			query.setTagData("desc", "Enter phone number")
+			query.setTagData("desc", "Enter api token")
 			query.setTag("prompt")
 			result.setPayload([query])
 
 		elif IQChildren and iType == "set":
-			phone = ""
+			token = ""
 			for node in IQChildren:
 				if node.getName() == "prompt":
-					phone = node.getData()
+					token = node.getData()
 					break
-			if phone:
+			if token:
 				xNode = xmpp.simplexml.Node("prompt")
-				xNode.setData(phone[0])
+				xNode.setData(token[0])
 				result.setQueryPayload([xNode])
 		else:
 			raise xmpp.NodeProcessed()
@@ -314,25 +313,27 @@ def iqVcardHandler(cl, iq):
 		_DESC = '\n'.join((DESC, "_" * 16, AdditionalAbout)) if AdditionalAbout else DESC
 		if jidToStr == TransportID:
 			vcard = iqVcardBuild({"NICKNAME": "VK4XMPP Transport",
-								  "DESC": _DESC,
-								  "PHOTO": "https://raw.github.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png",
-								  "URL": "http://simpleapps.ru"})
+								"DESC": _DESC,
+								"PHOTO": "https://raw.github.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png",
+								"URL": "http://simpleapps.ru"
+								})
 			result.setPayload([vcard])
 
 		elif jidFromStr in Transport:
-			Class = Transport[jidFromStr]
-			if Class.friends:
+			user = Transport[jidFromStr]
+			if user.friends:
 				id = vk2xmpp(jidToStr)
-				json = Class.getUserData(id, ["screen_name", PhotoSize])
+				json = user.getUserData(id, ["screen_name", PhotoSize])
 				values = {"NICKNAME": json.get("name", str(json)),
-						  "URL": "http://vk.com/id%s" % id,
-						  "DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC}
-				if id in Class.friends.keys():
+						"URL": "http://vk.com/id%s" % id,
+						"DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC
+						}
+				if id in user.friends.keys():
 					values["PHOTO"] = json.get(PhotoSize) or URL_VCARD_NO_IMAGE
 				vCard = iqVcardBuild(values)
 				result.setPayload([vCard])
 			else:
-				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Your friend-list is null."))
+				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Your friend-list is empty."))
 		else:
 			result = iqBuildError(iq, xmpp.ERR_REGISTRATION_REQUIRED, _("You're not registered for this action."))
 	else:
