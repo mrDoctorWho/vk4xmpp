@@ -668,7 +668,6 @@ def main():
 def exit(signal = None, frame = None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
 	Print("#! %s" % status, False)
-	Component._owner.Connection.send = Component._owner.Connection.send_now
 	for user in TransportsList:
 		user.sendOutPresence(user.jidFrom, status)
 		Print("." * len(user.friends), False)

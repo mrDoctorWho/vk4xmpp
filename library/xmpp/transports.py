@@ -31,13 +31,13 @@ import sys
 import socket
 if sys.hexversion >= 0x20600F0:
 	import ssl
-import dispatcher
+from . import dispatcher
 
 from base64 import encodestring
 from select import select
-from simplexml import ustr
-from plugin import PlugIn
-from protocol import *
+from .simplexml import ustr
+from .plugin import PlugIn
+from .protocol import *
 
 # http://pydns.sourceforge.net
 try:

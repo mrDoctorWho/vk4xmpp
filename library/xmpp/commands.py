@@ -34,8 +34,8 @@ What it supplies:
 	A means of handling requests, by redirection though the command manager.
 """
 
-from plugin import PlugIn
-from protocol import *
+from .plugin import PlugIn
+from .protocol import *
 
 class Commands(PlugIn):
 	"""

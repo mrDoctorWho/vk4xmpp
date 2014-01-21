@@ -19,9 +19,9 @@ Protocol module contains tools that is needed for processing of
 xmpp-related data structures.
 """
 
-from simplexml import Node, XML_ls, XMLescape, ustr
-
 import time
+
+from .simplexml import Node, XML_ls, XMLescape, ustr
 
 NS_ACTIVITY			 = "http://jabber.org/protocol/activity"					# XEP-0108
 NS_ADDRESS			 = "http://jabber.org/protocol/address"						# XEP-0033
@@ -518,7 +518,7 @@ class Protocol(Node):
 			self.setTo(self["to"])
 		if self["from"]:
 			self.setFrom(self["from"])
-		if node and isinstance(node, self.__class__) and self.__class__ == node.__class__ and self.attrs.has_key("id"):
+		if node and isinstance(node, self.__class__) and self.__class__ == node.__class__ and "id" in self.attrs:
 			del self.attrs["id"]
 		self.timestamp = None
 		for x in self.getTags("x", namespace=NS_DELAY):
@@ -926,7 +926,7 @@ class ErrorNode(Node):
 		Mandatory parameter: name - name of error condition.
 		Optional parameters: code, typ, text. Used for backwards compartibility with older jabber protocol.
 		"""
-		if ERRORS.has_key(name):
+		if name in ERRORS:
 			cod, type, txt = ERRORS[name]
 			ns = name.split()[0]
 		else:

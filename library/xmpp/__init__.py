@@ -25,18 +25,18 @@ session-related info. Though if you are not accessing instances variables direct
 and use only methods for access all values you should not have any problems.
 """
 
-import auth
-import browser
-import commands
-import debug
-import dispatcher
-import features
-import filetransfer
-import plugin
-import protocol
-import roster
-import simplexml
-import transports
+from . import auth
+from . import browser
+from . import commands
+from . import debug
+from . import dispatcher
+from . import features
+from . import filetransfer
+from . import plugin
+from . import protocol
+from . import roster
+from . import simplexml
+from . import transports
 
-from client import *
-from protocol import *
+from .client import *
+from .protocol import *

@@ -22,7 +22,7 @@ import time
 
 from traceback import format_exception as traceback_format_exception
 
-colors_enabled = os.environ.has_key("TERM")
+colors_enabled = "TERM" in os.environ
 
 color_none = chr(27) + "[0m"
 color_black = chr(27) + "[30m"
@@ -285,13 +285,13 @@ class Debug:
 		msg = msg.replace("\r", "\\r").replace("\n", "\\n").replace("><", ">\n  <")
 		if not colors_enabled:
 			pass
-		elif self.colors.has_key(prefix):
+		elif prefix in self.colors:
 			msg = self.colors[prefix] + msg + color_none
 		else:
 			msg = color_none + msg
 		if not colors_enabled:
 			prefixcolor = ""
-		elif self.colors.has_key(flag):
+		elif flag in self.colors:
 			prefixcolor = self.colors[flag]
 		else:
 			prefixcolor = color_none

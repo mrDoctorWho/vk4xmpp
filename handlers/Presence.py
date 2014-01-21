@@ -8,18 +8,18 @@ def prsHandler(cl, prs):
 	jidTo = prs.getTo()
 	jidFromStr = jidFrom.getStripped()
 	jidToStr = jidTo.getStripped()
+	resource = jidFrom.getResource()
 	if jidFromStr in Transport:
 		user = Transport[jidFromStr]
-		Resource = jidFrom.getResource()
 		if pType in ("available", "probe", None):
-			if jidTo == TransportID and Resource not in user.resources:
+			if jidTo == TransportID and resource not in user.resources:
 				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
-				user.resources.append(Resource)
+				user.resources.append(resource)
 				user.sendInitPresence()
 
 		elif pType == "unavailable":
-			if jidTo == TransportID and Resource in user.resources:
-				user.resources.remove(Resource)
+			if jidTo == TransportID and resource in user.resources:
+				user.resources.remove(resource)
 				if user.resources:
 					user.sendOutPresence(jidFrom)
 			if not user.resources:
@@ -66,6 +66,7 @@ def prsHandler(cl, prs):
 				try:
 					if user.connect():
 						user.init(None, True)
+						user.resources.append(resource)
 						updateTransportsList(user)
 					else:
 						crashLog("prs.connect", 0, False)

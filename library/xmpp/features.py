@@ -24,7 +24,7 @@ All these methods takes "disp" first argument that should be already connected
 (and in most cases already authorised) dispatcher instance.
 """
 
-from protocol import *
+from .protocol import *
 
 REGISTER_DATA_RECEIVED = "REGISTER DATA RECEIVED"
 

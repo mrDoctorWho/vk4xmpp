@@ -21,12 +21,12 @@ Contains one tunable attribute: DefaultTimeout (25 seconds by default). It defin
 Dispatcher.SendAndWaitForResponce method will wait for reply stanza before giving up.
 """
 
-import simplexml
 import sys
 import time
+from . import simplexml
 
-from plugin import PlugIn
-from protocol import *
+from .plugin import PlugIn
+from .protocol import *
 from select import select
 from xml.parsers.expat import ExpatError
 
@@ -151,7 +151,7 @@ class Dispatcher(PlugIn):
 			handler(self)
 		if self._pendingExceptions:
 			e = self._pendingExceptions.pop()
-			raise e[0], e[1], e[2]
+			raise e[0](e[1]).with_traceback(e[2])
 		conn = self._owner.Connection
 		recv, send = select([conn._sock], [conn._sock] if conn._send_queue else [], [], timeout)[:2]
 		if send:
@@ -168,7 +168,7 @@ class Dispatcher(PlugIn):
 				pass
 			if self._pendingExceptions:
 				e = self._pendingExceptions.pop()
-				raise e[0], e[1], e[2]
+				raise e[0](e[1]).with_traceback(e[2])
 			if data:
 				return len(data)
 		return "0"
@@ -224,11 +224,11 @@ class Dispatcher(PlugIn):
 		self.DEBUG("Registering handler %s for \"%s\" type->%s ns->%s(%s)" % (handler, name, typ, ns, xmlns), "info")
 		if not typ and not ns:
 			typ = "default"
-		if not self.handlers.has_key(xmlns):
+		if xmlns not in self.handlers:
 			self.RegisterNamespace(xmlns, "warn")
-		if not self.handlers[xmlns].has_key(name):
+		if name not in self.handlers[xmlns]:
 			self.RegisterProtocol(name, Protocol, xmlns, "warn")
-		if not self.handlers[xmlns][name].has_key(typ + ns):
+		if typ + ns not in self.handlers[xmlns][name]:
 			self.handlers[xmlns][name][typ + ns] = []
 		if makefirst:
 			self.handlers[xmlns][name][typ + ns].insert(0, {"func": handler, "system": system})
@@ -249,7 +249,7 @@ class Dispatcher(PlugIn):
 		"""
 		if not xmlns:
 			xmlns = self._owner.defaultNamespace
-		if not self.handlers.has_key(xmlns):
+		if xmlns not in self.handlers:
 			return None
 		if not typ and not ns:
 			typ = "default"
@@ -480,4 +480,4 @@ class Dispatcher(PlugIn):
 		while self.Process(1):
 			pass
 
-	iter = type(send)(Process.func_code, Process.func_globals, name = "iter", argdefs = Process.func_defaults, closure = Process.func_closure)
+	iter = type(send)(Process.__code__, Process.__globals__, name = "iter", argdefs = Process.__defaults__, closure = Process.__closure__)

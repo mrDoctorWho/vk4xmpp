@@ -21,13 +21,13 @@ examples of xmpppy structures usage.
 These classes can be used for simple applications "AS IS" though.
 """
 
-import debug
-import transports
-import dispatcher
-import auth
-import roster
+from . import debug
+from . import transports
+from . import dispatcher
+from . import auth
+from . import roster
 
-from plugin import PlugIn
+from .plugin import PlugIn
 
 Debug = debug
 Debug.DEBUGGING_IS_ON = 1
@@ -111,7 +111,7 @@ class CommonClient:
 		for dhnd in self.disconnect_handlers:
 			dhnd()
 		self.disconnect_handlers.reverse()
-		if self.__dict__.has_key("TLS"):
+		if hasattr(self, "TLS"):
 			self.TLS.PlugOut()
 
 	def DisconnectHandler(self):
@@ -141,22 +141,22 @@ class CommonClient:
 		Dispatcher_ = False
 		if not handlerssave:
 			Dispatcher_, handlerssave = True, self.Dispatcher.dumpHandlers()
-		if self.__dict__.has_key("ComponentBind"):
+		if hasattr(self, "ComponentBind"):
 			self.ComponentBind.PlugOut()
-		if self.__dict__.has_key("Bind"):
+		if hasattr(self, "Bind"):
 			self.Bind.PlugOut()
 		self._route = 0
-		if self.__dict__.has_key("NonSASL"):
+		if hasattr(self, "NonSASL"):
 			self.NonSASL.PlugOut()
-		if self.__dict__.has_key("SASL"):
+		if hasattr(self, "SASL"):
 			self.SASL.PlugOut()
-		if self.__dict__.has_key("TLS"):
+		if hasattr(self, "TLS"):
 			self.TLS.PlugOut()
 		if Dispatcher_:
 			self.Dispatcher.PlugOut()
-		if self.__dict__.has_key("HTTPPROXYsocket"):
+		if hasattr(self, "HTTPPROXYsocket"):
 			self.HTTPPROXYsocket.PlugOut()
-		if self.__dict__.has_key("TCPsocket"):
+		if hasattr(self, "TCPsocket"):
 			self.TCPsocket.PlugOut()
 		if not self.connect(server=self._Server, proxy=self._Proxy):
 			return None
@@ -192,7 +192,7 @@ class CommonClient:
 		while self.Dispatcher.Stream._document_attrs is None:
 			if not self.Process(1):
 				return None
-		if self.Dispatcher.Stream._document_attrs.has_key("version") and self.Dispatcher.Stream._document_attrs["version"] == "1.0":
+		if "version" in self.Dispatcher.Stream._document_attrs and self.Dispatcher.Stream._document_attrs["version"] == "1.0":
 			while not self.Dispatcher.Stream.features and self.Process(1):
 				pass # If we get version 1.0 stream the features tag MUST BE presented
 		return self.connected
@@ -217,7 +217,7 @@ class Client(CommonClient):
 		transports.TLS().PlugIn(self)
 		if not hasattr(self, "Dispatcher"):
 			return None
-		if not self.Dispatcher.Stream._document_attrs.has_key("version") or not self.Dispatcher.Stream._document_attrs["version"] == "1.0":
+		if "version" not in self.Dispatcher.Stream._document_attrs or not self.Dispatcher.Stream._document_attrs["version"] == "1.0":
 			return self.connected
 		while not self.Dispatcher.Stream.features and self.Process(1):
 			pass # If we get version 1.0 stream the features tag MUST BE presented
@@ -238,7 +238,7 @@ class Client(CommonClient):
 		self._User, self._Password, self._Resource = user, password, resource
 		while not self.Dispatcher.Stream._document_attrs and self.Process(1):
 			pass
-		if self.Dispatcher.Stream._document_attrs.has_key("version") and self.Dispatcher.Stream._document_attrs["version"] == "1.0":
+		if "version" in self.Dispatcher.Stream._document_attrs and self.Dispatcher.Stream._document_attrs["version"] == "1.0":
 			while not self.Dispatcher.Stream.features and self.Process(1):
 				pass # If we get version 1.0 stream the features tag MUST BE presented
 		if sasl:
@@ -260,7 +260,7 @@ class Client(CommonClient):
 			if self.Bind.Bind(resource):
 				self.connected += "+sasl"
 				return "sasl"
-		elif self.__dict__.has_key("SASL"):
+		elif hasattr(self, "SASL"):
 			self.SASL.PlugOut()
 
 	def getRoster(self):
@@ -268,7 +268,7 @@ class Client(CommonClient):
 		Return the Roster instance, previously plugging it in and
 		requesting roster from server if needed.
 		"""
-		if not self.__dict__.has_key("Roster"):
+		if not hasattr(self, "Roster"):
 			roster.Roster().PlugIn(self)
 		return self.Roster.getRoster()
 

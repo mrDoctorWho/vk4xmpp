@@ -19,8 +19,8 @@ Simple roster implementation. Can be used though for different tasks like
 mass-renaming of contacts.
 """
 
-from plugin import PlugIn
-from protocol import *
+from .plugin import PlugIn
+from .protocol import *
 
 class Roster(PlugIn):
 	"""
@@ -83,7 +83,7 @@ class Roster(PlugIn):
 		for item in stanza.getTag("query").getTags("item"):
 			jid = item.getAttr("jid")
 			if item.getAttr("subscription") == "remove":
-				if self._data.has_key(jid):
+				if jid in self._data:
 					del self._data[jid]
 				raise NodeProcessed() # a MUST
 			self.DEBUG("Setting roster item %s..." % jid, "ok")
@@ -93,7 +93,7 @@ class Roster(PlugIn):
 			self._data[jid]["ask"] = item.getAttr("ask")
 			self._data[jid]["subscription"] = item.getAttr("subscription")
 			self._data[jid]["groups"] = []
-			if not self._data[jid].has_key("resources"):
+			if "resources" not in self._data[jid]:
 				self._data[jid]["resources"] = {}
 			for group in item.getTags("group"):
 				self._data[jid]["groups"].append(group.getData())
@@ -107,7 +107,7 @@ class Roster(PlugIn):
 		internal roster representation.
 		"""
 		jid = JID(pres.getFrom())
-		if not self._data.has_key(jid.getStripped()):
+		if jid.getStripped() not in self._data:
 			self._data[jid.getStripped()] = {"name": None, "ask": None, "subscription": "none", "groups": ["Not in roster"], "resources": {}}
 		item = self._data[jid.getStripped()]
 		typ = pres.getType()
@@ -123,7 +123,7 @@ class Roster(PlugIn):
 			if not pres.getTimestamp():
 				pres.setTimestamp()
 			res["timestamp"] = pres.getTimestamp()
-		elif typ == "unavailable" and item["resources"].has_key(jid.getResource()):
+		elif typ == "unavailable" and jid.getResource() in item["resources"]:
 			del item["resources"][jid.getResource()]
 		# Need to handle type="error" also
 
@@ -140,7 +140,7 @@ class Roster(PlugIn):
 		"""
 		if jid.find("/") + 1:
 			jid, resource = jid.split("/", 1)
-			if self._data[jid]["resources"].has_key(resource):
+			if resource in self._data[jid]["resources"]:
 				return self._data[jid]["resources"][resource][dataname]
 		elif self._data[jid]["resources"].keys():
 			lastpri = -129
@@ -251,7 +251,7 @@ class Roster(PlugIn):
 		"""
 		Get the contact in the internal format (or None if JID "item" is not in roster).
 		"""
-		if self._data.has_key(item):
+		if item in self._data:
 			return self._data[item]
 
 	def Subscribe(self, jid):

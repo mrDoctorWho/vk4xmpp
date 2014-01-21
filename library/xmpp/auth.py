@@ -19,12 +19,12 @@ Provides library with all Non-SASL and SASL authentication mechanisms.
 Can be used both for client and transport authentication.
 """
 
-import dispatcher
 import hashlib
+from . import dispatcher
 
 from base64 import encodestring, decodestring
-from plugin import PlugIn
-from protocol import *
+from .plugin import PlugIn
+from .protocol import *
 from random import random as _random
 from re import findall as re_findall
 
@@ -130,7 +130,7 @@ class SASL(PlugIn):
 		self.password = password
 
 	def plugin(self, owner):
-		if not self._owner.Dispatcher.Stream._document_attrs.has_key("version"):
+		if "version" not in self._owner.Dispatcher.Stream._document_attrs:
 			self.startsasl = "not-supported"
 		elif self._owner.Dispatcher.Stream.features:
 			try:
@@ -160,13 +160,13 @@ class SASL(PlugIn):
 		"""
 		Remove SASL handlers from owner's dispatcher. Used internally.
 		"""
-		if self._owner.__dict__.has_key("features"):
+		if hasattr(self._owner, "features"):
 			self._owner.UnregisterHandler("features", self.FeaturesHandler, xmlns=NS_STREAMS)
-		if self._owner.__dict__.has_key("challenge"):
+		if hasattr(self._owner, "challenge"):
 			self._owner.UnregisterHandler("challenge", self.SASLHandler, xmlns=NS_SASL)
-		if self._owner.__dict__.has_key("failure"):
+		if hasattr(self._owner, "failure"):
 			self._owner.UnregisterHandler("failure", self.SASLHandler, xmlns=NS_SASL)
-		if self._owner.__dict__.has_key("success"):
+		if hasattr(self._owner, "success"):
 			self._owner.UnregisterHandler("success", self.SASLHandler, xmlns=NS_SASL)
 
 	def FeaturesHandler(self, conn, feats):
@@ -230,7 +230,7 @@ class SASL(PlugIn):
 			if value[:1] == '"' and value[-1:] == '"':
 				value = value[1:-1]
 			chal[key] = value
-		if chal.has_key("qop") and "auth" in [x.strip() for x in chal["qop"].split(",")]:
+		if "qop" in chal and "auth" in [x.strip() for x in chal["qop"].split(",")]:
 			resp = {}
 			resp["username"] = self.username
 			resp["realm"] = self._owner.Server
@@ -255,7 +255,7 @@ class SASL(PlugIn):
 					sasl_data += "%s=\"%s\"," % (key, resp[key])
 			node = Node("response", attrs={"xmlns": NS_SASL}, payload=[encodestring(sasl_data[:-1]).replace("\r", "").replace("\n", "")])
 			self._owner.send(node.__str__())
-		elif chal.has_key("rspauth"):
+		elif "rspauth" in chal:
 			self._owner.send(Node("response", attrs={"xmlns": NS_SASL}).__str__())
 		else:
 			self.startsasl = "failure"

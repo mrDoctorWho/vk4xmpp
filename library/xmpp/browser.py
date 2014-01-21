@@ -24,8 +24,8 @@ Such functionality is achieved via registering "DISCO handlers" that are
 automatically called when user requests some node of your disco tree.
 """
 
-from dispatcher import *
-from plugin import PlugIn
+from .dispatcher import *
+from .plugin import PlugIn
 
 class Browser(PlugIn):
 	"""
@@ -134,16 +134,16 @@ class Browser(PlugIn):
 		else:
 			node = node.replace("/", " /").split("/")
 		for i in node:
-			if i != "" and cur.has_key(i):
+			if i != "" and i in cur:
 				cur = cur[i]
 			elif set and i != "":
 				cur[i] = {dict: cur, str: i}
 				cur = cur[i]
-			elif set or cur.has_key(""):
+			elif set or "" in cur:
 				return cur, ""
 			else:
 				return None, None
-		if cur.has_key(1) or set:
+		if 1 in cur or set:
 			return cur, 1
 		raise Exception("Corrupted data")
 
@@ -255,7 +255,7 @@ class Browser(PlugIn):
 				q.addChild("identity", id)
 			for feature in dt["features"]:
 				q.addChild("feature", {"var": feature})
-			if dt.has_key("xdata"):
+			if "xdata" in dt:
 				q.addChild(node=dt["xdata"])
 		conn.send(rep)
 		raise NodeProcessed()
