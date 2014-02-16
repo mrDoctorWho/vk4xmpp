@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v1.9.1
+# vk4xmpp gateway, v2a1
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
@@ -156,7 +156,6 @@ escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UN
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 
 
-######### IMPORTANT: REMOVE FUCKING COMMENTS AND UGLY CODE BEFORE MAKING A COMMIT!!!
 class VKLogin(object):
 
 	def __init__(self, number, password = None, jidFrom = None):
@@ -164,7 +163,7 @@ class VKLogin(object):
 		self.password = password
 		self.Online = False
 		self.source = jidFrom
-		self.longConfig = {"mode": 66, "wait": 30, "act": "a_check"} # 20 secs for user
+		self.longConfig = {"mode": 66, "wait": 30, "act": "a_check"}
 		self.longServer = ""
 		logger.debug("VKLogin.__init__ with number:%s from jid:%s" % (number, jidFrom))
 
@@ -346,6 +345,7 @@ class tUser(object):
 		self.auth = None
 		self.token = None
 		self.lastMsgID = None
+		self.lastMsgDate = 0
 		self.rosterSet = None
 		self.existsInDB = None
 		self.last_udate = time.time()
@@ -500,35 +500,41 @@ class tUser(object):
 
 	def sendMessages(self):
 		messages = self.vk.getMessages(200, self.lastMsgID if UseLastMessageID else 0)
-		if messages:
-			messages = messages[1:]
-			messages = sorted(messages, msgSort)
-			if messages:
-				read = []
-				self.lastMsgID = messages[-1]["mid"]
-				for message in messages:
-					read.append(str(message["mid"]))
-					fromjid = vk2xmpp(message["uid"])
-					body = uHTML(message["body"])
-					iter = Handlers["msg01"].__iter__()
+		if not messages:
+			return None
+		if not messages[0]:
+			return None
+		messages = sorted(messages[1:], msgSort)
+		read = []
+		for message in messages:
+			if message["date"] <= self.lastMsgDate:
+				continue
+			read.append(str(message["mid"]))
+			fromjid = vk2xmpp(message["uid"])
+			body = uHTML(message["body"])
+			iter = Handlers["msg01"].__iter__()
+			for func in iter:
+				try:
+					result = func(self, message)
+				except Exception:
+					result = None
+					crashLog("handle.%s" % func.__name__)
+				if result is None:
 					for func in iter:
-						try:
-							result = func(self, message)
-						except Exception:
-							result = None
-							crashLog("handle.%s" % func.__name__)
-						if result is None:
-							for func in iter:
-								apply(func, (self, message))
-							break
-						else:
-							body += result
-					else:
-						msgSend(Component, self.source, escape("", body), fromjid, message["date"])
-				self.vk.msgMarkAsRead(read)
-				if UseLastMessageID:
-					with Database(DatabaseFile, Semaphore) as db:
-						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
+						apply(func, (self, message))
+					break
+				else:
+					body += result
+			else:
+				msgSend(Component, self.source, escape("", body), fromjid, message["date"])
+		if read:
+			lastMsg = messages[-1]
+			self.lastMsgID = lastMsg["mid"]
+			self.lastMsgDate = lastMsg["date"]
+			self.vk.msgMarkAsRead(read)
+			if UseLastMessageID:
+				with Database(DatabaseFile, Semaphore) as db:
+					db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 	def processPollResult(self, opener):
 		data = opener.read()
