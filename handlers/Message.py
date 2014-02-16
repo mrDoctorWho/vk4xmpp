@@ -36,7 +36,7 @@ def msgHandler(cl, msg):
 						except:
 							result = returnExc()
 						msgSend(cl, jidFromStr, result, jidTo)
-					elif text == "!exec" and jidFromStr == evalJID:
+					elif text == "!exec" and args and jidFromStr == evalJID:
 						try: exec(unicode(args + "\n"), globals()); result = "Done."
 						except: result = returnExc()
 						msgSend(cl, jidFromStr, result, jidTo)

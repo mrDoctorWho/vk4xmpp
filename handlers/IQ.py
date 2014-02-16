@@ -143,7 +143,7 @@ def iqRegisterHandler(cl, iq):
 				else:
 					Transport[jidFromStr] = user
 					updateTransportsList(Transport[jidFromStr])
-					WatcherMsg(_("New user registered: %s") % jidFromStr)
+					watcherMsg(_("New user registered: %s") % jidFromStr)
 
 		elif Query.getTag("remove"): # Maybe exits a better way for it
 			logger.debug("user %s want to remove me :(" % jidFromStr)
@@ -151,7 +151,7 @@ def iqRegisterHandler(cl, iq):
 				user = Transport[jidFromStr]
 				user.deleteUser(True)
 				result.setPayload([], add = 0)
-				WatcherMsg(_("User removed registration: %s") % jidFromStr)
+				watcherMsg(_("User removed registration: %s") % jidFromStr)
 		else:
 			result = iqBuildError(iq, 0, _("Feature not implemented."))
 	Sender(cl, result)

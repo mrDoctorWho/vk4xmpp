@@ -1,11 +1,11 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v1.9.1
+# vk4xmpp gateway, v1.99 
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
-import re, os, sys, time, signal, socket, logging, threading
+import re, os, sys, time, json, signal, logging, threading
 from hashlib import sha1
 from math import ceil
 
@@ -38,7 +38,6 @@ TransportsList = []
 WatcherList = []
 WhiteList = []
 jidToID = {}
-unAllowedChars = [unichr(x) for x in xrange(32) if x not in (9, 10, 13)] + [unichr(57003)]
 
 TransportFeatures = [xmpp.NS_DISCO_ITEMS,
 					xmpp.NS_DISCO_INFO,
@@ -96,7 +95,7 @@ except:
 	wException()
 	exit()
 
-setVars(DefLang, __file__)
+setVars(DefLang, root)
 
 
 if THREAD_STACK_SIZE:
@@ -111,17 +110,18 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 142, 0
-	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
-	if shell:
-		revNumber, rev = len(shell), shell[0]
+	revNumber, rev = 0.143, 0 # 0. means testing. 
+##	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
+##	if shell:
+##		revNumber, rev = len(shell), shell[0]
 	return "#%s-%s" % (revNumber, rev)
 
 OS = "{0} {2:.16} [{4}]".format(*os.uname())
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 Revision = gatewayRev()
 
-Handlers = {"msg01": [], "msg02": []}
+Handlers = {"msg01": [], "msg02": [],
+			"evt01": [], "evt02": []}
 
 def initDatabase(filename):
 	if not os.path.exists(filename):
@@ -146,13 +146,12 @@ def threadRun(func, args = (), name = None):
 		try:
 			startThr(Thr)
 		except RuntimeError:
-			try:
-				Thr.run()
-			except KeyboardInterrupt:
-				raise KeyboardInterrupt("Interrupt (Ctrl+C)")
+			Thr.run()
 
-escape = re.compile("|".join(unAllowedChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
+badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
+escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 require = lambda name: os.path.exists("extensions/%s.py" % name)
+
 
 class VKLogin(object):
 
@@ -161,6 +160,8 @@ class VKLogin(object):
 		self.password = password
 		self.Online = False
 		self.jidFrom = jidFrom
+		self.longConfig = {"mode": 66, "wait": float(ROSTER_UPDATE_TIMEOUT)/SLICE_STEP, "act": "a_check"}
+		self.longServer = ""
 		logger.debug("VKLogin.__init__ with number:%s from jid:%s" % (number, jidFrom))
 
 	getToken = lambda self: self.engine.token
@@ -175,9 +176,37 @@ class VKLogin(object):
 			return False
 		except:
 			crashLog("VKLogin.auth")
+			return False
+
 		logger.debug("VKLogin.auth completed")
 		self.Online = True
+		self.initLongPoll()  ## warning: this may take much of time.
 		return self.Online
+
+	@api.attemptTo(5, None, api.LongPollError)
+	def initLongPoll(self):
+		logger.debug("longpoll: requesting server address for user: %s" % self.jidFrom)
+		response = self.method("messages.getLongPollServer")
+		if not response:
+			raise api.LongPollError()
+		self.longServer = "http://%s" % response.pop("server")
+		self.longConfig.update(response)
+		logger.debug("longpoll: server: %s ts: %s" % (self.longServer, self.longConfig["ts"]))
+
+	@api.attemptTo(5, None, api.LongPollError)
+	def longPoll(self):
+		data = self.engine.RIP.get(self.longServer, self.longConfig)[0]
+		if data:
+			data = json.loads(data)
+		else:
+			logger.error("longpoll: no data. Will ask again.")
+			raise api.LongPollError()
+		if "failed" in data:
+			logger.debug("longpoll: failed. Searching for new server.")
+			self.initLongPoll()
+			raise api.LongPollError()
+		self.longConfig["ts"] = data["ts"]
+		return data.get("updates")
 
 	def checkData(self):
 		if not self.engine.token and self.password:
@@ -275,7 +304,7 @@ class VKLogin(object):
 
 	def getFriends(self, fields = None):
 		fields = fields or ["screen_name"]
-		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) or {} # friends.getOnline
+		friendsRaw = self.method("friends.get", {"fields": ",".join(fields)}) # friends.getOnline
 		friendsDict = {}
 		for friend in friendsRaw:
 			uid = friend["uid"]
@@ -313,7 +342,6 @@ class tUser(object):
 		self.lastMsgID = None
 		self.rosterSet = None
 		self.existsInDB = None
-		self.last_activity = time.time()
 		self.last_udate = time.time()
 		self.jidFrom = source
 		self.resources = []
@@ -453,16 +481,18 @@ class tUser(object):
 					(self.rosterSet, self.jidFrom))
 
 	def getUserData(self, uid, fields = None):
-		fields = fields or ["screen_name"]
+		if not fields:
+			if uid in self.friends:
+				return self.friends[uid]
+			fields = ["screen_name"]
 		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
 		if data:
 			data = data.pop()
-			data["name"] = escape("", u"%s %s" % (data["first_name"], data["last_name"]))
-			del data["first_name"], data["last_name"]
+			data["name"] = escape("", u"%s %s" % (data.pop("first_name"), data.pop("last_name")))
 		else:
 			data = {}
 			for key in fields:
-				data[key] = "Unknown error when trying to get user data. We're so sorry."
+				data[key] = "None"
 		return data
 
 	def sendMessages(self):
@@ -511,8 +541,6 @@ msgSort = lambda msgOne, msgTwo: msgOne["date"] - msgTwo["date"]
 def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
-	except IOError:
-		logger.error("Panic: Couldn't send stanza: %s" % str(stanza))
 	except:
 		crashLog("Sender")
 
@@ -554,7 +582,7 @@ def updateTransportsList(user, add = True):
 		if add:
 			return
 		TransportsList.remove(user)
-	elif add: 
+	elif add:
 		TransportsList.append(user)
 	else:
 		return
@@ -584,6 +612,12 @@ def getPid():
 				Print("%d killed.\n" % oldPid, False)
 	wFile(pidFile, str(nowPid))
 
+
+def userTyping(target, instance):
+	message = xmpp.Message(target, typ = 'chat', frm = instance)
+	message.setTag('composing', namespace = xmpp.NS_CHATSTATES)
+	Sender(Component, message)
+
 def hyperThread(start, end):
 	while True:
 		SliceOfLife = TransportsList[start:end]
@@ -591,27 +625,39 @@ def hyperThread(start, end):
 			break
 		cTime = time.time()
 		for user in SliceOfLife:
-			if user.vk.Online:
-				if cTime - user.last_activity < USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN \
-				or cTime - user.last_udate > MAX_ROSTER_UPDATE_TIMEOUT:
-					user.last_udate = time.time()
-					friends = user.vk.getFriends() ## TODO: Maybe update only statuses? Again friends.getOnline...
-					user.vk.method("account.setOnline")
-					if friends != user.friends:
-						for uid, value in friends.iteritems():
-							if uid in user.friends:
-								if user.friends[uid]["online"] != value["online"]:
-									user.sendPresence(user.jidFrom, vk2xmpp(uid),
-										None if value["online"] else "unavailable")
-							else:
-								user.rosterSubscribe({uid: friends[uid]})
-						user.friends = friends
-					user.sendMessages()
-					del friends
-		del SliceOfLife, cTime
-		time.sleep(ROSTER_UPDATE_TIMEOUT)
+			updates = user.vk.longPoll()
+			if cTime - user.last_udate > 600:
+				user.vk.method("account.setOnline")
+				user.last_udate = cTime
+				friends = user.vk.getFriends()
+				if set(friends) != set(user.friends):
+					for uid in friends:
+						if uid not in user.friends:
+							user.rosterSubscribe({uid: friends[uid]})
+					for uid in user.friends:
+						if uid not in friends:
+							user.sendPresence(user.jidFrom, vk2xmpp(uid), "unsubscribe")
+							user.sendPresence(user.jidFrom, vk2xmpp(uid), "unsubscribed")
+					user.friends = friends
 
-def WatcherMsg(text):
+			if updates:
+				for evt in updates:
+					type = evt.pop(0)
+					if type == 4:	 # message
+						user.sendMessages()
+
+					elif type == 8: # user leaved
+						uid = abs(evt[0])
+						user.sendPresence(user.jidFrom, vk2xmpp(uid), nick = user.getUserData(uid)["name"])
+					
+					elif type == 9: # user online
+						uid = abs(evt[0])
+						user.sendPresence(user.jidFrom, vk2xmpp(uid), "unavailable")
+
+					elif type == 61: # user typing
+						userTyping(user.jidFrom, vk2xmpp(evt[0]))
+
+def watcherMsg(text):
 	for jid in WatcherList:
 		msgSend(Component, jid, text, TransportID)
 
@@ -623,6 +669,8 @@ def disconnectHandler(crash = True):
 			Component.disconnect()
 	except (NameError, AttributeError):
 		pass
+	for event in Handlers["evt02"]:
+		event()
 	Print("Reconnecting..."); time.sleep(5)
 	os.execl(sys.executable, sys.executable, *sys.argv)
 
@@ -636,7 +684,6 @@ def makeMeKnown():
 		Print("#! Information about myself successfully published.")
 
 def main():
-	Counter = [0, 0]
 	getPid()
 	initDatabase(DatabaseFile)
 	globals()["Component"] = xmpp.Component(Host, debug = DEBUG_XMPPPY)
@@ -664,6 +711,8 @@ def main():
 			Print("\n#-# Finished.")
 			if allowBePublic:
 				makeMeKnown()
+			for event in Handlers["evt01"]:
+				threadRun(event)
 
 def exit(signal = None, frame = None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
@@ -672,6 +721,8 @@ def exit(signal = None, frame = None):
 		user.sendOutPresence(user.jidFrom, status)
 		Print("." * len(user.friends), False)
 	Print("\n")
+	for event in Handlers["evt02"]:
+		event()
 	try:
 		os.remove(pidFile)
 	except OSError:
@@ -698,7 +749,7 @@ if __name__ == "__main__":
 
 	while True:
 		try:
-			Component.iter(6)
+			Component.iter(1)
 		except AttributeError:
 			disconnectHandler(False)
 		except xmpp.StreamError:

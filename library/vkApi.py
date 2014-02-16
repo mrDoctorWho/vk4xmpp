@@ -1,11 +1,11 @@
 # coding: utf-8
 # © simpleApps CodingTeam, 2013 — 2014.
-import time, ssl, urllib, urllib2, cookielib
+import time, ssl, socket, urllib, urllib2, cookielib
 import logging, json, webtools
 
 
 logger = logging.getLogger("vk4xmpp")
-
+socket.setdefaulttimeout(30)		# we should waste all time.
 
 def attemptTo(maxRetries, resultType, *errors):
 	"""
@@ -24,7 +24,7 @@ def attemptTo(maxRetries, resultType, *errors):
 			while retries < maxRetries:
 				try:
 					data = func(*args, **kwargs)
-				except errors, exc:
+				except errors as exc:
 					retries += 1
 					time.sleep(0.2)
 				else:
@@ -49,13 +49,13 @@ class RequestProcessor(object):
 	headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
 					" Gecko/20130309 Firefox/21.0",
 				"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-				"Accept-Language": "ru-RU, utf-8" 
-				}
+				"Accept-Language": "ru-RU, utf-8"}
+
 	def __init__(self):
 		self.cookieJar = cookielib.CookieJar()
 		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.open = urllib2.build_opener(self.cookieProcessor).open
-		self.open.im_func.func_defaults = (None, 4)
+		self.open.im_func.func_defaults = (None, 30)
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
@@ -69,19 +69,24 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(5, dict, urllib2.URLError, ssl.SSLError)
+	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
 	def post(self, url, data = {}):
 		resp = self.open(self.request(url, data))
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(5, dict, urllib2.URLError, ssl.SSLError)
+	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
 	def get(self, url, query = {}):
 		if query:
-			url += "/?%s" % urllib.urlencode(query)
+			url += "?%s" % urllib.urlencode(query)
 		resp = self.open(self.request(url))
 		body = resp.read()
 		return (body, resp)
+
+	def getOpener(self, url, query = {}):
+		if query:
+			url += "?%s" % urllib.urlencode(query)
+		return self.open(self.request(url))
 
 
 class APIBinding:
@@ -107,8 +112,7 @@ class APIBinding:
 		values = {"act": "login",
 				"utf8": "1", # check if it needed
 				"email": self.number,
-				"pass": self.password
-				}
+				"pass": self.password}
 
 		body, response = self.RIP.post(url, values)
 		remixSID = self.RIP.getCookie("remixsid")
@@ -123,7 +127,7 @@ class APIBinding:
 
 		if "security_check" in response.url:
 			# This code should be rewritten! Users from another countries can have problems because of it!
-			Hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", body)[0]
+			hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", body)[0]
 			code = self.number[2:-2]
 			if len(self.number) == 12:
 				if not self.number.startswith("+"):
@@ -137,9 +141,8 @@ class APIBinding:
 					"al": "1",
 					"al_page": "3",
 					"code": code,
-					"hash": Hash,
-					"to": ""
-					}
+					"hash": hash,
+					"to": ""}
 			post = self.RIP.post("https://vk.com/login.php", values)
 			body, response = post
 			if response and not body.split("<!>")[4] == "4":
@@ -157,13 +160,12 @@ class APIBinding:
 						return data
 
 	def confirmThisApp(self):
-		url = "https://oauth.vk.com/authorize"
+		url = "https://oauth.vk.com/authorize/"
 		values = {"display": "mobile",
 				"scope": self.scope,
 				"client_id": self.app_id,
 				"response_type": "token",
-				"redirect_uri": "https://oauth.vk.com/blank.html"
-				}
+				"redirect_uri": "https://oauth.vk.com/blank.html"}
 
 		token = None
 		body, response = self.RIP.get(url, values)
@@ -226,10 +228,12 @@ class APIBinding:
 					return self.method(method, values)
 				elif eCode == 5:     # auth failed
 					raise VkApiError("Logged out")
-				if eCode == 7:
+				elif eCode == 7:     # not allowed
 					raise NotAllowed()
-				elif eCode == 9:
+				elif eCode == 9:     # ????
 					return {}
+				elif eCode == 10:    # internal server error
+					raise InternalServerError()
 				if eCode == 14:     # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
@@ -244,12 +248,18 @@ class APIBinding:
 class NetworkNotFound(Exception):  ## maybe network is unreachable or vk is down (same as 10 jan 2014)
 	pass
 
+class LongPollError(Exception):
+	pass
 
 class VkApiError(Exception):
 	pass
 
 
 class AuthError(VkApiError):
+	pass
+
+
+class InternalServerError(VkApiError):
 	pass
 
 
