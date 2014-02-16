@@ -1,4 +1,4 @@
-# /* coding: utf-8 */
+# coding: utf-8
 # © simpleApps, 2010
 
 import __main__
@@ -25,14 +25,14 @@ def crashLog(name, text = 0, fixMe = True):
 		fixme(name)
 	try:
 		File = "%s/%s.txt" % (__main__.crashDir, name)
-		if not os.path.exists(__main__.crashDir): 
+		if not os.path.exists(__main__.crashDir):
 			os.makedirs(__main__.crashDir)
 		exception = wException(True)
 		if exception not in ("None", lastErrorBody):
 			Timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
 			wFile(File, Timestamp + exception + "\n", "a")
 		lastErrorBody = exception
-	except:
+	except Exception:
 		fixme("crashlog")
 		wException()
 
@@ -57,8 +57,8 @@ def wException(File = False):
 
 def returnExc():
 	exc = sys.exc_info()
-	if any(exc):
+	if all(exc):
 		error = "\n%s: %s " % (exc[0].__name__, exc[1])
 	else:
-		error = `None`
+		error = "None"
 	return error

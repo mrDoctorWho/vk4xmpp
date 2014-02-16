@@ -137,12 +137,12 @@ def iqRegisterHandler(cl, iq):
 					user.init()
 				except api.CaptchaNeeded:
 					user.vk.captchaChallenge()
-				except:
+				except Exception:
 					crashLog("iq.user.init")
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 				else:
 					Transport[jidFromStr] = user
-					updateTransportsList(Transport[jidFromStr])
+					Poll.add(Transport[jidFromStr])
 					watcherMsg(_("New user registered: %s") % jidFromStr)
 
 		elif Query.getTag("remove"): # Maybe exits a better way for it
@@ -289,7 +289,7 @@ def vCardGetPhoto(url, encode = True):
 		return data
 	except IOError:
 		pass
-	except:
+	except Exception:
 		crashLog("vcard.getPhoto")
 
 def iqVcardBuild(tags):

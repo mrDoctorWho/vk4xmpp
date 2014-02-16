@@ -33,12 +33,16 @@ def msgHandler(cl, msg):
 					elif text == "!eval" and args and jidFromStr == evalJID:
 						try:
 							result = unicode(eval(args))
-						except:
+						except Exception:
 							result = returnExc()
 						msgSend(cl, jidFromStr, result, jidTo)
 					elif text == "!exec" and args and jidFromStr == evalJID:
-						try: exec(unicode(args + "\n"), globals()); result = "Done."
-						except: result = returnExc()
+						try:
+							exec(unicode(args + "\n"), globals())
+						except Exception:
+							result = returnExc()
+						else:
+							result = "Done."
 						msgSend(cl, jidFromStr, result, jidTo)
 			else:
 				uID = jidTo.getNode()

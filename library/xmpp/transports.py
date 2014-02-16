@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: transports.py, v1.37 2014/01/15 alkorgun Exp $
+# $Id: transports.py, v1.38 2014/02/16 alkorgun Exp $
 
 """
 This module contains the low-level implementations of xmpppy connect methods or
@@ -61,13 +61,15 @@ class SendSemaphore(object):
 		self.__released = 0
 		self.interval = SEND_INTERVAL
 
-	def set_inteval(self, interval):
+	def set_send_interval(self, interval):
 		self.interval = interval
 
 	def acquire(self, blocking=1):
 		rc = self.__lock.acquire(blocking)
-		if blocking and self.interval and time.time() - self.__released < self.interval:
-			time.sleep(self.interval)
+		if blocking and self.interval:
+			elapsed = time.time() - self.__released
+			if elapsed < self.interval:
+				time.sleep(self.interval - elapsed)
 		return rc
 
 	__enter__ = acquire
@@ -108,8 +110,8 @@ class TCPsocket(PlugIn):
 		"""
 		PlugIn.__init__(self)
 		self.DBG_LINE = "socket"
-		self.__queue = SendSemaphore()
-		self.set_send_interval = self.__queue.set_inteval
+		self._sequence = SendSemaphore()
+		self.set_send_interval = self._sequence.set_send_interval
 		self._exported_methods = [self.send, self.disconnect, self.set_send_interval]
 		self._server, self.use_srv = server, use_srv
 
@@ -258,7 +260,7 @@ class TCPsocket(PlugIn):
 			data = data.encode("utf-8")
 		elif not isinstance(data, str):
 			data = ustr(data).encode("utf-8")
-		with self.__queue:
+		with self._sequence:
 			try:
 				self._send(data)
 			except Exception:

@@ -1,11 +1,18 @@
 # coding: utf-8
 # © simpleApps CodingTeam, 2013 — 2014.
-import time, ssl, socket, urllib, urllib2, cookielib
-import logging, json, webtools
+
+import cookielib
+import json
+import logging
+import socket
+import ssl
+import time
+import urllib
+import urllib2
+import webtools
 
 
 logger = logging.getLogger("vk4xmpp")
-socket.setdefaulttimeout(30)		# we should waste all time.
 
 def attemptTo(maxRetries, resultType, *errors):
 	"""
@@ -55,7 +62,7 @@ class RequestProcessor(object):
 		self.cookieJar = cookielib.CookieJar()
 		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.open = urllib2.build_opener(self.cookieProcessor).open
-		self.open.im_func.func_defaults = (None, 30)
+		self.open.__func__.___defaults__ = (None, 30)
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:

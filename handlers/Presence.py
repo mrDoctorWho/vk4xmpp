@@ -25,10 +25,10 @@ def prsHandler(cl, prs):
 			if not user.resources:
 				Sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
 				user.vk.disconnect()
-				updateTransportsList(user, False)
-				try: 
+				Poll.remove(user)
+				try:
 					del Transport[jidFromStr]
-				except KeyError: 
+				except KeyError:
 					pass
 	
 		elif pType == "error":
@@ -51,7 +51,7 @@ def prsHandler(cl, prs):
 		elif pType == "unsubscribe":
 			if jidFromStr in Transport and jidToStr == TransportID:
 				user.deleteUser(True)
-				WatcherMsg(_("User removed registration: %s") % jidFromStr)
+				watcherMsg(_("User removed registration: %s") % jidFromStr)
 
 
 	elif pType in ("available", None):
@@ -67,9 +67,9 @@ def prsHandler(cl, prs):
 					if user.connect():
 						user.init(None, True)
 						user.resources.append(resource)
-						updateTransportsList(user)
+						Poll.add(user)
 					else:
 						crashLog("prs.connect", 0, False)
 						msgSend(Component, jid, _("Auth failed! If this error repeated, please register again. This incident will be reported."), TransportID)
-				except:
+				except Exception:
 					crashLog("prs.init")
