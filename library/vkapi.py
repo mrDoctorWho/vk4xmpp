@@ -50,11 +50,11 @@ def attemptTo(maxRetries, resultType, *errors):
 	return decorator
 
 
-class AcyncHTTPRequest(HTTPConnection):
+class AcyncHTTPRequest(httplib.HTTPConnection):
 
 	def __init__(self, url, data=None, headers=(), timeout=30):
 		host = urllib.splithost(url)[0]
-		super(self.__class__, self).__init__(host, timeout=timeout)
+		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
 		self.url = url
 		self.data = data
 		self.headers = self.headers
