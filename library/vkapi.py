@@ -53,11 +53,11 @@ def attemptTo(maxRetries, resultType, *errors):
 class AcyncHTTPRequest(httplib.HTTPConnection):
 
 	def __init__(self, url, data=None, headers=(), timeout=30):
-		host = urllib.splithost(url)[0]
+		host = urllib.splithost(urllib.splittype(url)[1])[0]
 		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
 		self.url = url
 		self.data = data
-		self.headers = self.headers
+		self.headers = headers or {}
 
 	def open(self):
 		self.connect()
