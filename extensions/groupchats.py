@@ -129,7 +129,7 @@ def incomingGroupchatMessageHandler(msg):
 
 ## TODO:
 ##def onShutdown():
-##	for user in Transport.itervalues():
+##	for user in Transport.values():
 ##		if user.chatUsers
 ##
 

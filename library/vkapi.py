@@ -2,6 +2,7 @@
 # © simpleApps CodingTeam, 2013 — 2014.
 
 import cookielib
+import httplib
 import json
 import logging
 import socket
@@ -40,7 +41,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				if hasattr(exc, "reason") and str(exc.reason) == "[Errno 101] Network is unreachable":
 					raise NetworkNotFound()
 				data = resultType()
-				logger.debug("Error %s occured on executing %s" % (exc, func))
+				logger.debug("Error %s occurred on executing %s" % (exc, func))
 			return data
 
 		wrapper.__name__ = func.__name__
@@ -48,6 +49,30 @@ def attemptTo(maxRetries, resultType, *errors):
 
 	return decorator
 
+
+class AcyncHTTPRequest(HTTPConnection):
+
+	def __init__(self, url, data=None, headers=(), timeout=30):
+		host = urllib.splithost(url)[0]
+		super(self.__class__, self).__init__(host, timeout=timeout)
+		self.url = url
+		self.data = data
+		self.headers = self.headers
+
+	def open(self):
+		self.connect()
+		self.request(("POST" if self.data else "GET"), self.url, self.data, self.headers)
+		return self
+
+	def read(self):
+		with self as resp:
+			return resp.read()
+
+	def __enter__(self):
+		return self.getresponse()
+
+	def __exit__(self, *args):
+		self.close()
 
 class RequestProcessor(object):
 	"""
@@ -93,7 +118,7 @@ class RequestProcessor(object):
 	def getOpener(self, url, query = {}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
-		return self.open(self.request(url))
+		return AcyncHTTPRequest(url).open()
 
 
 class APIBinding:

@@ -113,7 +113,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 777, 0
+	revNumber, rev = 0.143, 0 # 0. means testing. 
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -251,8 +251,8 @@ class VKLogin(object):
 					msgSend(Component, self.source, _("You're not allowed to perform this action."), vk2xmpp(args.get("user_id", TransportID)))
 			except api.VkApiError as e:
 				if e.message == "User authorization failed: user revoke access for this token.":
+					logger.critical("VKLogin: %s" % e.message)
 					try:
-						logger.critical("VKLogin: %s" % e.message)
 						Transport[self.source].deleteUser()
 					except KeyError:
 						pass
@@ -372,6 +372,7 @@ class tUser(object):
 			return user.source == self.source
 		return self.source == user
 
+## TODO: Move this function otside class
 	def deleteUser(self, roster = False):
 		logger.debug("tUser: deleting user %s from db." % self.source)
 		with Database(DatabaseFile) as db:
@@ -402,7 +403,6 @@ class tUser(object):
 		self.auth = False
 		try:
 			self.auth = self.vk.auth(self.token)
-			logger.debug("tUser: auth=%s for %s" % (self.auth, self.source))
 		except api.CaptchaNeeded:
 			self.rosterSubscribe()
 			self.vk.captchaChallenge()
@@ -417,6 +417,8 @@ class tUser(object):
 		except Exception:
 			crashLog("tUser.Connect")
 			return False
+		else:
+			logger.debug("tUser: auth=%s for %s" % (self.auth, self.source))
 
 		if self.auth and self.vk.getToken():
 			logger.debug("tUser: updating db for %s because auth done " % self.source)
@@ -551,10 +553,10 @@ class tUser(object):
 			typ = evt.pop(0)
 			if typ == 4:  # message
 				threadRun(self.sendMessages)
-			elif typ == 8: # user leaved
+			elif typ == 8: # user online
 				uid = abs(evt[0])
 				self.sendPresence(self.source, vk2xmpp(uid), nick = self.getUserData(uid)["name"])
-			elif typ == 9: # user online
+			elif typ == 9: # user leaved
 				uid = abs(evt[0])
 				self.sendPresence(self.source, vk2xmpp(uid), "unavailable")
 			elif typ == 61: # user typing
@@ -562,7 +564,7 @@ class tUser(object):
 				userTyping(self.source, vk2xmpp(evt[0]))
 
 	def updateTypingUsers(self, cTime):
-		for user, last in self.typing.iteritems():
+		for user, last in self.typing.items():
 			if cTime - last > 5:
 				del self.typing[user]
 				userTyping(self.source, vk2xmpp(user), "paused")
@@ -572,6 +574,9 @@ class tUser(object):
 			self.vk.method("account.setOnline")
 			self.last_udate = cTime
 			friends = self.vk.getFriends()
+			if not friends:
+				logger.error("updateFriends: no friends received (user: %s)." % self.source)
+				return None
 			if set(friends) != set(self.friends):
 				for uid in friends:
 					if uid not in self.friends:
@@ -695,7 +700,7 @@ class Poll:
 	@classmethod
 	def __add(cls, user):
 		opener = user.vk.makePoll()
-		cls.__poll[opener.fp] = (user, opener)
+		cls.__poll[opener.sock] = (user, opener)
 
 	@classmethod
 	def add(cls, some_user):
@@ -743,7 +748,7 @@ class Poll:
 
 def updateCron():
 	while True:
-		for user in Transport.itervalues():
+		for user in Transport.values():
 			cTime = time.time()
 			user.updateTypingUsers(cTime)
 			user.updateFriends(cTime)
