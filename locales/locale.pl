@@ -7,7 +7,6 @@ Null password=Puste hasło lub access-token!
 Incorrect password or access token!=Błędne hasło lub access-token!
 Initialization failed.=Błąd inicjalizacji.
 Feature not implemented.=Funkcja nie realizowana.
-© simpleApps, 2013 — 2014.\nYou can support developing of any project via donation by WebMoney:\nZ405564701378 | R330257574689.=© simpleApps, 2013 — 2014.\nВы можете поддержать разработку с помощью пожертвования через WebMoney:\nZ405564701378 | R330257574689.
 If you found any problems, please contact us:\nhttp://github.com/mrDoctorWho/vk4xmpp • xmpp:simpleapps@conference.jabber.ru=Если вы столкнулись с какой-либо проблемой и считаете, что сделали всё верно, то, пожалуйста, свяжитесь с нами:\nhttp://github.com/mrDoctorWho/vk4xmpp • xmpp:simpleapps@conference.jabber.ru
 Contact uses VK4XMPP Transport\n%s=Контакт использует транспорт VK4XMPP\n%s
 User is not your friend.=Użytkownik nie jest twoim przyjacielem!

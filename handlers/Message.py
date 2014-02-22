@@ -18,8 +18,13 @@ def msgHandler(cl, msg):
 	jidToStr = jidTo.getStripped()
 	jidFrom = msg.getFrom()
 	jidFromStr = jidFrom.getStripped()
+
 	if jidFromStr in Transport and mType == "chat":
 		user = Transport[jidFromStr]
+		if msg.getTag("composing"):
+			target = vk2xmpp(jidToStr)
+			if target != TransportID:
+				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"})
 		if body:
 			answer = None
 			if jidTo == TransportID:

@@ -44,6 +44,7 @@ jidToID = {}
 
 TransportFeatures = [xmpp.NS_DISCO_ITEMS,
 					xmpp.NS_DISCO_INFO,
+					xmpp.NS_CHATSTATES,
 					xmpp.NS_RECEIPTS,
 					xmpp.NS_REGISTER,
 					xmpp.NS_GATEWAY,
@@ -353,6 +354,7 @@ class tUser(object):
 		self.source = source
 		self.resources = []
 		self.chatUsers = {}
+		self.__sync = threading._allocate_lock()
 		self.vk = VKLogin(self.username, self.password, self.source)
 		logger.debug("initializing tUser for %s" % self.source)
 		with Database(DatabaseFile, Semaphore) as db:
@@ -501,42 +503,43 @@ class tUser(object):
 		return data
 
 	def sendMessages(self):
-		messages = self.vk.getMessages(200, self.lastMsgID if UseLastMessageID else 0)
-		if not messages:
-			return None
-		if not messages[0]:
-			return None
-		messages = sorted(messages[1:], msgSort)
-		read = []
-		for message in messages:
-			if message["date"] <= self.lastMsgDate:
-				continue
-			read.append(str(message["mid"]))
-			fromjid = vk2xmpp(message["uid"])
-			body = uHTML(message["body"])
-			iter = Handlers["msg01"].__iter__()
-			for func in iter:
-				try:
-					result = func(self, message)
-				except Exception:
-					result = None
-					crashLog("handle.%s" % func.__name__)
-				if result is None:
-					for func in iter:
-						apply(func, (self, message))
-					break
+		with self.__sync:
+			messages = self.vk.getMessages(200, self.lastMsgID if UseLastMessageID else 0)
+			if not messages:
+				return None
+			if not messages[0]:
+				return None
+			messages = sorted(messages[1:], msgSort)
+			read = []
+			for message in messages:
+#				if message["date"] <= self.lastMsgDate:
+#					continue
+				read.append(str(message["mid"]))
+				fromjid = vk2xmpp(message["uid"])
+				body = uHTML(message["body"])
+				iter = Handlers["msg01"].__iter__()
+				for func in iter:
+					try:
+						result = func(self, message)
+					except Exception:
+						result = None
+						crashLog("handle.%s" % func.__name__)
+					if result is None:
+						for func in iter:
+							apply(func, (self, message))
+						break
+					else:
+						body += result
 				else:
-					body += result
-			else:
-				msgSend(Component, self.source, escape("", body), fromjid, message["date"])
-		if read:
-			lastMsg = messages[-1]
-			self.lastMsgID = lastMsg["mid"]
-			self.lastMsgDate = lastMsg["date"]
-			self.vk.msgMarkAsRead(read)
-			if UseLastMessageID:
-				with Database(DatabaseFile, Semaphore) as db:
-					db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
+					msgSend(Component, self.source, escape("", body), fromjid, message["date"])
+			if read:
+				lastMsg = messages[-1]
+				self.lastMsgID = lastMsg["mid"]
+				self.lastMsgDate = lastMsg["date"]
+				self.vk.msgMarkAsRead(read)
+				if UseLastMessageID:
+					with Database(DatabaseFile, Semaphore) as db:
+						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 	def processPollResult(self, opener):
 		data = opener.read()
@@ -560,8 +563,9 @@ class tUser(object):
 				uid = abs(evt[0])
 				self.sendPresence(self.source, vk2xmpp(uid), "unavailable")
 			elif typ == 61: # user typing
-				self.typing[evt[0]] = time.time()
-				userTyping(self.source, vk2xmpp(evt[0]))
+				if evt[0] not in self.typing:
+					self.typing[evt[0]] = time.time()
+					userTyping(self.source, vk2xmpp(evt[0]))
 
 	def updateTypingUsers(self, cTime):
 		for user, last in self.typing.items():
@@ -596,7 +600,7 @@ class tUser(object):
 		except Exception:
 			crashLog("tryAgain")
 
-msgSort = lambda msgOne, msgTwo: msgOne["date"] - msgTwo["date"]
+msgSort = lambda msgOne, msgTwo: msgOne["mid"] - msgTwo["mid"]
 
 def Sender(cl, stanza):
 	try:
@@ -606,6 +610,7 @@ def Sender(cl, stanza):
 
 def msgSend(cl, jidTo, body, jidFrom, timestamp = 0):
 	msg = xmpp.Message(jidTo, body, "chat", frm = jidFrom)
+	msg.setTag("active", namespace = xmpp.NS_CHATSTATES)
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
 		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
@@ -632,9 +637,9 @@ def vk2xmpp(id):
 	return id
 
 DESC = _("© simpleApps, 2013 — 2014."
-	"\nYou can support developing of any project"
-	" via donation by WebMoney:"
-	"\nZ405564701378 | R330257574689.")
+	"\nYou can support developing of this project"
+	" via donation by:\nYandex.Money: 410012169830956"
+	"\nWebMoney: Z405564701378 | R330257574689.")
 
 def getPid():
 	nowPid = os.getpid()
@@ -653,7 +658,7 @@ def getPid():
 				Print("%d killed.\n" % oldPid, False)
 	wFile(pidFile, str(nowPid))
 
-
+## TODO: remove this function and add it's code into msgSend.
 def userTyping(target, instance, typ = "composing"):
 	message = xmpp.Message(target, typ = "chat", frm = instance)
 	message.setTag(typ, namespace = xmpp.NS_CHATSTATES)
@@ -730,10 +735,11 @@ class Poll:
 				time.sleep(0.02)
 			ready, error = select.select(socks, [], socks, 2)[::2]
 			for sock in error:
-				try:
-					cls.__add(cls.__poll.pop(sock)[0])
-				except KeyError:
-					continue
+				with cls.__lock:
+					try:
+						cls.__add(cls.__poll.pop(sock)[0])
+					except KeyError:
+						continue
 			for sock in ready:
 				with cls.__lock:
 					try:
