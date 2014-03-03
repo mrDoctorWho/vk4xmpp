@@ -5,7 +5,7 @@
 Host = "localhost"
 
 ## Connection server (usually equals host)
-## For Prosody "example.com"
+## For Prosody "localhost"
 Server = "localhost" 
 
 ## Connection port (as you set in your jabber-server config)
@@ -38,7 +38,7 @@ WatcherList = []
 # Additional about text. It was shown after main about text in transports vcard.
 AdditionalAbout = ""
 
-# Conference server. Don't change if you won't allow your users to use groupchats (depends from jabber-server's MUC)
+# Conference server. Don't change if you won't allow your users to use groupchats (depends on jabber-server's MUC)
 # It's an alpha! Testers are welcome, but don't use it everytime!
 # F.e. conference.example.com
 ConferenceServer = ""

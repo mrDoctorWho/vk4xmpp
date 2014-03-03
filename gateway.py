@@ -563,9 +563,9 @@ class tUser(object):
 				uid = abs(evt[0])
 				self.sendPresence(self.source, vk2xmpp(uid), "unavailable")
 			elif typ == 61: # user typing
-				self.typing[evt[0]] = time.time()
 				if evt[0] not in self.typing:
 					userTyping(self.source, vk2xmpp(evt[0]))
+				self.typing[evt[0]] = time.time()
 
 	def updateTypingUsers(self, cTime):
 		for user, last in self.typing.items():

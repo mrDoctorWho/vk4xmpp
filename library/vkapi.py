@@ -50,7 +50,7 @@ def attemptTo(maxRetries, resultType, *errors):
 	return decorator
 
 
-class AcyncHTTPRequest(httplib.HTTPConnection):
+class AsyncHTTPRequest(httplib.HTTPConnection):
 
 	def __init__(self, url, data=None, headers=(), timeout=30):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
@@ -118,7 +118,7 @@ class RequestProcessor(object):
 	def getOpener(self, url, query = {}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
-		return AcyncHTTPRequest(url).open()
+		return AsyncHTTPRequest(url).open()
 
 
 class APIBinding:
