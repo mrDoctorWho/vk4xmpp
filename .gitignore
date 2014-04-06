@@ -12,3 +12,4 @@ gateway_v5.0.py
 .*project
 # exclude ~ bak files
 *~
+/.settings

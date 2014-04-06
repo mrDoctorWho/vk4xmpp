@@ -5,7 +5,7 @@
 from datetime import datetime
 
 if not require("attachments"):
-	raise
+	raise AssertionError("'forwardMessages' requires 'attachments'")
 
 def parseForwardMessages(self, msg, depth = 0):
 	body = ""

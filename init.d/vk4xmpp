@@ -13,6 +13,10 @@
 #                    that supports the Connect component mechanism.  
 ### END INIT INFO
 
+
+# /etc/init.d/vk4xmpp: start and stop VK4XMPP Transport service
+
+
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin
 
 . /lib/lsb/init-functions
@@ -32,22 +36,17 @@ OPTIONS="$APPDIR/gateway.py"
 
 test -f "$(which python2)" || exit 0
 
-if test ! -e "$PIDDIR"; then
-        mkdir "$PIDDIR"
-        chown $USER:$GROUP "$PIDDIR"
-fi
 
 case "$1" in
 start)
         log_daemon_msg "Starting $DESC" "$NAME"
-        #sudo -b -u pyicqt /usr/bin/python /usr/share/vk4xmpp/gateway.py > /usr/share/vk4xmpp/gateway.log 2>&1
         sudo -b -u $USER $DAEMON $APPDIR/gateway.py > $LOGFILE 2>&1
         log_end_msg $?
         ;;
 stop)
         log_daemon_msg "Stopping $DESC" "$NAME"
         #eval `kill $(cat /usr/share/vk4xmpp/pidFile.txt)`
-        eval `kill $(cat $PIDFILE)`
+        eval `kill -15 $(cat $PIDFILE)`
         log_end_msg $?
         ;;
 status) 
@@ -68,7 +67,8 @@ status)
         fi
         ;;
 reload|force-reload)
-        #No-Op
+        eval `kill -9 $(cat $PIDFILE)`
+        $0 start
         ;;
 restart)
         $0 stop

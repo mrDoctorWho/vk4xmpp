@@ -7,7 +7,7 @@ import urllib
 GoogleMapLink = "https://maps.google.com/maps?q=%s"
 
 def TimeAndRelativeDimensionInSpace(self, machine):
-	body = str()
+	body = ""
 	if machine.has_key("geo"):
 		WhereAreYou = machine["geo"]
 		Place = WhereAreYou.get("place")

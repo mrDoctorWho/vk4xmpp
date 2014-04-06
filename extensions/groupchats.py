@@ -82,8 +82,8 @@ def handleChatMessages(self, msg):
 			for usr in (owner, self.UserID):
 				groupchatPresence(chat, self.getUserData(usr)["name"], vk2xmpp(usr))
 			groupchatSetConfig(chat, _owner)
-			member(chat, self.jidFrom, _owner)
-			inviteUser(chat, self.jidFrom, _owner, self.getUserData(owner)["name"]) ## TODO: Handle WHO invited me. Yes, i know that it'll be never happen. But maybe someone another do it for himself? You're welcome!
+			member(chat, self.source, _owner)
+			inviteUser(chat, self.source, _owner, self.getUserData(owner)["name"]) ## TODO: Handle WHO invited me. Yes, i know that it'll be never happen. But maybe someone another do it for himself? You're welcome!
 			groupchatMessage(chat, msg["title"], _owner, True, msg["date"])
 	
 		for user in users: ## BURN IT!
@@ -123,14 +123,14 @@ def incomingGroupchatMessageHandler(msg):
 				jidToStr = vk2xmpp(jidToStr)
 				if jidToStr in jidToID:
 					jid = jidToID[jidToStr]
-					Class = Transport[jid]
-					Class.msg(body, Node.split("#")[1], "chat_id")
+					user = Transport[jid]
+					user.msg(body, Node.split("#")[1], "chat_id")
 
 
 ## TODO:
 ##def onShutdown():
-##	for user in TransportList:
-##		if Transport[user].chatUsers
+##	for user in Transport.values():
+##		if user.chatUsers
 ##
 
 if ConferenceServer:

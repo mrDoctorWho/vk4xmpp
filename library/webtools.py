@@ -31,7 +31,7 @@ def uHTML(data):
 					Numb = int(Char, c06)
 					assert (-1 < Numb < 65535)
 					Char = unichr(Numb)
-				except:
+				except Exception:
 					Char = edefs.get(Char, "&%s;" % co)
 			else:
 				Char = edefs.get(co, "&%s;" % co)
@@ -39,7 +39,7 @@ def uHTML(data):
 
 		data = compile_ehtmls.sub(e_sb, data)
 	data = re.sub("</?br */?>", "\n", data)
-	return data	
+	return data
 
 # TODO: remove this function
 def regexp(reg, string, findall = 1):
@@ -59,7 +59,7 @@ def getTagData(tag, data, close_tag = 0):
 	if tagData:
 		tagData = tagData.group(1)
 	return tagData or " "
-	
+
 def getTagArg(tag, argv, data, close_tag = 0):
 	if not close_tag:
 		close_tag = tag
@@ -72,7 +72,7 @@ def getTagArg(tag, argv, data, close_tag = 0):
 def stripTags(data, subBy = str(), pattern = "<[^<>]+>"):
 	pattern = re.compile(pattern)
 	return pattern.sub(subBy, data)
-	
+
 ## Format size.
 def byteFormat(size):
 	if size < 1024: return '%sb' % int(size)

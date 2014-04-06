@@ -226,7 +226,8 @@ class Client(CommonClient):
 		while not self.TLS.starttls and self.Process(1):
 			pass
 		if not hasattr(self, "TLS") or self.TLS.starttls != "success":
-			self.event("tls_failed"); return self.connected
+			self.event("tls_failed")
+			return self.connected
 		self.connected = "tls"
 		return self.connected
 

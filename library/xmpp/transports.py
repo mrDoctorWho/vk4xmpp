@@ -12,7 +12,7 @@
 ##   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ##   GNU General Public License for more details.
 
-# $Id: transports.py, v1.37 2014/01/15 alkorgun Exp $
+# $Id: transports.py, v1.38 2014/02/16 alkorgun Exp $
 
 """
 This module contains the low-level implementations of xmpppy connect methods or
@@ -31,6 +31,8 @@ import sys
 import socket
 if sys.hexversion >= 0x20600F0:
 	import ssl
+import thread
+import time
 from . import dispatcher
 
 from base64 import encodestring
@@ -49,7 +51,35 @@ DATA_RECEIVED = 'DATA RECEIVED'
 DATA_SENT = 'DATA SENT'
 DBG_CONNECT_PROXY = 'CONNECTproxy'
 
-BUFLEN = 1024
+BUFLEN = 2024
+SEND_INTERVAL = 0
+
+class SendSemaphore(object):
+
+	def __init__(self):
+		self.__lock = thread.allocate_lock()
+		self.__released = 0
+		self.interval = SEND_INTERVAL
+
+	def set_send_interval(self, interval):
+		self.interval = interval
+
+	def acquire(self, blocking=1):
+		rc = self.__lock.acquire(blocking)
+		if blocking and self.interval:
+			elapsed = time.time() - self.__released
+			if elapsed < self.interval:
+				time.sleep(self.interval - elapsed)
+		return rc
+
+	__enter__ = acquire
+
+	def release(self):
+		self.__released = time.time()
+		self.__lock.release()
+
+	def __exit__(self, *args):
+		self.release()
 
 class error:
 	"""
@@ -80,9 +110,10 @@ class TCPsocket(PlugIn):
 		"""
 		PlugIn.__init__(self)
 		self.DBG_LINE = "socket"
-		self._exported_methods = [self.send, self.disconnect]
+		self._sequence = SendSemaphore()
+		self.set_send_interval = self._sequence.set_send_interval
+		self._exported_methods = [self.send, self.disconnect, self.set_send_interval]
 		self._server, self.use_srv = server, use_srv
-		self._send_queue = []
 
 	def srv_lookup(self, server):
 		"""
@@ -221,9 +252,6 @@ class TCPsocket(PlugIn):
 		return data
 
 	def send(self, data):
-		self._send_queue.append(data)
-
-	def send_now(self, data, timeout=0.002):
 		"""
 		Writes raw outgoing data. Blocks until done.
 		If supplied data is unicode string, encodes it to utf-8 before send.
@@ -232,17 +260,18 @@ class TCPsocket(PlugIn):
 			data = data.encode("utf-8")
 		elif not isinstance(data, str):
 			data = ustr(data).encode("utf-8")
-		try:
-			self._send(data)
-		except Exception:
-			self.DEBUG("Socket error while sending data.", "error")
-			self._owner.disconnected()
-		else:
-			if not data.strip():
-				data = repr(data)
-			self.DEBUG(data, "sent")
-			if hasattr(self._owner, "Dispatcher"):
-				self._owner.Dispatcher.Event("", DATA_SENT, data)
+		with self._sequence:
+			try:
+				self._send(data)
+			except Exception:
+				self.DEBUG("Socket error while sending data.", "error")
+				self._owner.disconnected()
+			else:
+				if not data.strip():
+					data = repr(data)
+				self.DEBUG(data, "sent")
+				if hasattr(self._owner, "Dispatcher"):
+					self._owner.Dispatcher.Event("", DATA_SENT, data)
 
 	def pending_data(self, timeout=0):
 		"""

@@ -5,7 +5,7 @@
 Host = "localhost"
 
 ## Connection server (usually equals host)
-## For Prosody "example.com"
+## For Prosody "localhost"
 Server = "localhost" 
 
 ## Connection port (as you set in your jabber-server config)
@@ -38,7 +38,7 @@ WatcherList = []
 # Additional about text. It was shown after main about text in transports vcard.
 AdditionalAbout = ""
 
-# Conference server. Don't change if you won't allow your users to use groupchats (depends from jabber-server's MUC)
+# Conference server. Don't change if you won't allow your users to use groupchats (depends on jabber-server's MUC)
 # It's an alpha! Testers are welcome, but don't use it everytime!
 # F.e. conference.example.com
 ConferenceServer = ""
@@ -51,20 +51,11 @@ allowBePublic = True
 USER_LIMIT = 0
 
 #! Danger zone.
-#! Edit next settings ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
+#! Edit settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
 ## Thread stack size (WARNING: MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
 ## It's needed for optimize memory consuming.
 ## minimum value is 32768 bytes (32kb)
 THREAD_STACK_SIZE = 0
-
-## Timeout when user considered inactive (seconds)
-USER_CONSIDERED_ACTIVE_IF_LAST_ACTIVITY_LESS_THAN = 120
-
-## Max roster update timeout (when user inactive, seconds)
-MAX_ROSTER_UPDATE_TIMEOUT = 180
-
-## Default roster update timeout (when user is active)
-ROSTER_UPDATE_TIMEOUT = 4
 
 ## Maximum forwarded messages depth.
 MAXIMUM_FORWARD_DEPTH = 5
