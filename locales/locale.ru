@@ -31,3 +31,5 @@ Type password, access-token or url (recommented)=Введите пароль, ac
 User authorization failed: invalid access_token. Please, register again=Ошибка авторизации: неправильный access_token. Пожалуйста, пройдите регистрацию снова.
 You're not allowed to perform this action.=Вам не разрешено выполнять это действие.
 Transport's admins limited registrations, sorry.=Нам очень жаль, но администрация транспорта ограничила количество регистраций.
+Sorry but we have failed to send this image. Seems you haven't enough permissions. Your token should be updated, register again.=Очень жаль, но отправить изображение не удалось. Похоже, ваш access-token должен быть обновлён для получения прав на отправку изображений.
+Your image was successfully sent.=Ваше изображение было успешно отправлено!

@@ -4,21 +4,21 @@
 
 def iqHandler(cl, iq):
 	jidFrom = iq.getFrom()
-	jidFromStr = jidFrom.getStripped()
+	source = jidFrom.getStripped()
 	if WhiteList:
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
 			Sender(cl, iqBuildError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
 			raise xmpp.NodeProcessed()
 
 	if iq.getType() == "set" and iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
-		if jidFromStr in Transport:
+		if source in Transport:
 			jidTo = iq.getTo()
 			if jidTo == TransportID:
 				cTag = iq.getTag("captcha")
 				cxTag = cTag.getTag("x", {}, xmpp.NS_DATA)
 				fcxTag = cxTag.getTag("field", {"var": "ocr"})
 				cValue = fcxTag.getTagData("value")
-				captchaAccept(cl, cValue, jidTo, jidFromStr)
+				captchaAccept(cl, cValue, jidTo, source)
 
 	ns = iq.getQueryNS()
 	if ns == xmpp.NS_REGISTER:
@@ -58,20 +58,20 @@ URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html"
 def iqRegisterHandler(cl, iq):
 	jidTo = iq.getTo()
 	jidFrom = iq.getFrom()
-	jidFromStr = jidFrom.getStripped()
-	jidToStr = jidTo.getStripped()
+	source = jidFrom.getStripped()
+	destination = jidTo.getStripped()
 	iType = iq.getType()
 	IQChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
 	if USER_LIMIT:
 		count = calcStats()[0]
-		if count >= USER_LIMIT and not jidFromStr in Transport:
+		if count >= USER_LIMIT and not source in Transport:
 			cl.send(iqBuildError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
 			raise xmpp.NodeProcessed()
 
-	if iType == "get" and jidToStr == TransportID and not IQChildren:
+	if iType == "get" and destination == TransportID and not IQChildren:
 		form = xmpp.DataForm()
-		logger.debug("Sending register form to %s" % jidFromStr)
+		logger.debug("Sending register form to %s" % source)
 		form.addChild(node=xmpp.Node("instructions")).setData(_("Type data in fields"))
 		link = form.setField("link", URL_ACCEPT_APP)
 		link.setLabel(_("Autorization page"))
@@ -89,7 +89,7 @@ def iqRegisterHandler(cl, iq):
 		password.setDesc(_("Type password, access-token or url (recommented)"))
 		result.setQueryPayload((form,))
 
-	elif iType == "set" and jidToStr == TransportID and IQChildren:
+	elif iType == "set" and destination == TransportID and IQChildren:
 		phone, password, usePassword, token = False, False, False, False
 		Query = iq.getTag("query")
 		if Query.getTag("x"):
@@ -111,18 +111,18 @@ def iqRegisterHandler(cl, iq):
 					usePassword = 0
 			usePassword = int(usePassword)
 			if not usePassword:
-				logger.debug("user %s won't to use password" % jidFromStr)
+				logger.debug("user %s won't use password" % source)
 				token = password
 				password = None
 			else:
-				logger.debug("user %s want to use password" % jidFromStr)
+				logger.debug("user %s wants use password" % source)
 				if not phone:
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
-			if jidFromStr in Transport:
-				user = Transport[jidFromStr]
-				user.deleteUser()
+			if source in Transport:
+				user = Transport[source]
+				deleteUser(user)
 			else:
-				user = tUser((phone, password), jidFromStr)
+				user = User((phone, password), source)
 			if not usePassword:
 				try:
 					token = token.split("#access_token=")[1].split("&")[0].strip()
@@ -130,7 +130,7 @@ def iqRegisterHandler(cl, iq):
 					pass
 				user.token = token
 			if not user.connect():
-				logger.error("user %s connection failed (from iq)" % jidFromStr)
+				logger.error("user %s connection failed (from iq)" % source)
 				result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 			else:
 				try:
@@ -141,17 +141,20 @@ def iqRegisterHandler(cl, iq):
 					crashLog("iq.user.init")
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 				else:
-					Transport[jidFromStr] = user
-					Poll.add(Transport[jidFromStr])
-					watcherMsg(_("New user registered: %s") % jidFromStr)
+					Transport[source] = user
+					Poll.add(Transport[source])
+					watcherMsg(_("New user registered: %s") % source)
 
 		elif Query.getTag("remove"): # Maybe exits a better way for it
-			logger.debug("user %s want to remove me :(" % jidFromStr)
-			if jidFromStr in Transport:
-				user = Transport[jidFromStr]
-				user.deleteUser(True)
+			logger.debug("user %s wants remove me..." % source)
+			if source in Transport:
+				user = Transport[source]
+				deleteUser(user, True)
 				result.setPayload([], add = 0)
-				watcherMsg(_("User removed registration: %s") % jidFromStr)
+				watcherMsg(_("User removed registration: %s") % source)
+			else:
+				logger.debug("... but he do not know he already removed!")
+
 		else:
 			result = iqBuildError(iq, 0, _("Feature not implemented."))
 	Sender(cl, result)
@@ -200,11 +203,11 @@ sDict = {
 		}
 
 def iqStatsHandler(cl, iq):
-	jidToStr = iq.getTo()
+	destination = iq.getTo()
 	iType = iq.getType()
 	IQChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
-	if iType == "get" and jidToStr == TransportID:
+	if iType == "get" and destination == TransportID:
 		QueryPayload = list()
 		if not IQChildren:
 			keys = sorted(sDict.keys(), reverse = True)
@@ -233,32 +236,39 @@ def iqStatsHandler(cl, iq):
 			Sender(cl, result)
 
 def iqDiscoHandler(cl, iq):
-	jidFromStr = iq.getFrom().getStripped()
-	jidToStr = iq.getTo().getStripped()
+	source = iq.getFrom().getStripped()
+	destination = iq.getTo().getStripped()
 	iType = iq.getType()
 	ns = iq.getQueryNS()
 	Node = iq.getTagAttr("query", "node")
 	if iType == "get":
-		if not Node and jidToStr == TransportID:
+		if not Node:
 			QueryPayload = []
+			if destination == TransportID:
+				features = TransportFeatures
+			else:
+				features = UserFeatures
+
 			result = iq.buildReply("result")
 			QueryPayload.append(xmpp.Node("identity", IDentifier))
 			if ns == xmpp.NS_DISCO_INFO:
-				for key in TransportFeatures:
+				for key in features:
 					xNode = xmpp.Node("feature", {"var": key})
 					QueryPayload.append(xNode)
 				result.setQueryPayload(QueryPayload)
+			
 			elif ns == xmpp.NS_DISCO_ITEMS:
 				result.setQueryPayload(QueryPayload)
+
 			Sender(cl, result)
 	raise xmpp.NodeProcessed()
 
 def iqGatewayHandler(cl, iq):
 	jidTo = iq.getTo()
 	iType = iq.getType()
-	jidToStr = jidTo.getStripped()
+	destination = jidTo.getStripped()
 	IQChildren = iq.getQueryChildren()
-	if jidToStr == TransportID:
+	if destination == TransportID:
 		result = iq.buildReply("result")
 		if iType == "get" and not IQChildren:
 			query = xmpp.Node("query", {"xmlns": xmpp.NS_GATEWAY})
@@ -305,13 +315,13 @@ def iqVcardBuild(tags):
 def iqVcardHandler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
-	jidFromStr = jidFrom.getStripped()
-	jidToStr = jidTo.getStripped()
+	source = jidFrom.getStripped()
+	destination = jidTo.getStripped()
 	iType = iq.getType()
 	result = iq.buildReply("result")
 	if iType == "get":
 		_DESC = '\n'.join((DESC, "_" * 16, AdditionalAbout)) if AdditionalAbout else DESC
-		if jidToStr == TransportID:
+		if destination == TransportID:
 			vcard = iqVcardBuild({"NICKNAME": "VK4XMPP Transport",
 								"DESC": _DESC,
 								"PHOTO": "https://raw.github.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png",
@@ -319,10 +329,10 @@ def iqVcardHandler(cl, iq):
 								})
 			result.setPayload([vcard])
 
-		elif jidFromStr in Transport:
-			user = Transport[jidFromStr]
+		elif source in Transport:
+			user = Transport[source]
 			if user.friends:
-				id = vk2xmpp(jidToStr)
+				id = vk2xmpp(destination)
 				json = user.getUserData(id, ["screen_name", PhotoSize])
 				values = {"NICKNAME": json.get("name", str(json)),
 						"URL": "http://vk.com/id%s" % id,

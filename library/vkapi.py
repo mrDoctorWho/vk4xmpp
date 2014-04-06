@@ -1,10 +1,11 @@
 # coding: utf-8
-# © simpleApps CodingTeam, 2013 — 2014.
+# © simpleApps, 2013 — 2014.
 
 import cookielib
 import httplib
 import json
 import logging
+import mimetools
 import socket
 import ssl
 import time
@@ -74,19 +75,20 @@ class AsyncHTTPRequest(httplib.HTTPConnection):
 	def __exit__(self, *args):
 		self.close()
 
+
 class RequestProcessor(object):
 	"""
-	Processing base requests: POST (multipart/form-data) and GET.
+	Processing base requests: POST (application/x-www-form-urlencoded and multipart/form-data) and GET.
 	"""
 	headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
 					" Gecko/20130309 Firefox/21.0",
-				"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
 				"Accept-Language": "ru-RU, utf-8"}
+	boundary = mimetools.choose_boundary()
 
 	def __init__(self):
 		self.cookieJar = cookielib.CookieJar()
-		self.cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
-		self.open = urllib2.build_opener(self.cookieProcessor).open
+		cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
+		self.open = urllib2.build_opener(cookieProcessor).open
 		self.open.__func__.___defaults__ = (None, 30)
 
 	def getCookie(self, name):
@@ -94,16 +96,28 @@ class RequestProcessor(object):
 			if cookie.name == name:
 				return cookie.value
 
-	def request(self, url, data = None, headers = None):
+	def multipart(self, key, name, ctype, data):
+		start = ["--" + self.boundary, "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"" % (key, name), \
+									"Content-Type: %s" % ctype, "", ""] ## We already have content type so maybe we shouldn't detect it
+		end = ["", "--" + self.boundary + "--", ""]
+		start = "\n".join(start) #\r\n
+		end = "\n".join(end) # \r\n
+		data = start + data + end
+		return data
+
+	def request(self, url, data = None, headers = None, urlencode = True):
 		headers = headers or self.headers
-		if data:
+		if data and urlencode:
+			headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
 			data = urllib.urlencode(data)
+		else:
+			headers["Content-Type"] = "multipart/form-data; boundary=%s" % self.boundary
 		request = urllib2.Request(url, data, headers)
 		return request
 
 	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
-	def post(self, url, data = {}):
-		resp = self.open(self.request(url, data))
+	def post(self, url, data = "", urlencode = True):
+		resp = self.open(self.request(url, data, urlencode = urlencode))
 		body = resp.read()
 		return (body, resp)
 
@@ -121,9 +135,11 @@ class RequestProcessor(object):
 		return AsyncHTTPRequest(url).open()
 
 
+
+
 class APIBinding:
 	def __init__(self, number, password = None, token = None, app_id = 3789129,
-	scope = 69634):
+	scope = 69638):
 		self.password = password
 		self.number = number
 
@@ -214,7 +230,7 @@ class APIBinding:
 		self.token = token
 
 
-	def method(self, method, values = None):
+	def method(self, method, values = None, nodecode = False):
 		values = values or {}
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
@@ -231,14 +247,17 @@ class APIBinding:
 				time.sleep(0.3)
 
 		response = self.RIP.post(url, values)    # Next func should handle NetworkNotFound
-		if response:
+		if response and not nodecode:
 			body, response = response
 			if body:
-				body = json.loads(body)
-	# Debug:
-	#		if method in ("users.get", "messages.get", "messages.send"):
-	#			print "method %s with values %s" % (method, str(values))
-	#			print "response for method %s: %s" % (method, str(body))
+				try:
+					body = json.loads(body)
+				except ValueError:
+					return {}
+##	 Debug:
+##			if method in ("users.get", "messages.get", "messages.send"):
+##				print "method %s with values %s" % (method, str(values))
+##				print "response for method %s: %s" % (method, str(body))
 			if "response" in body:
 				return body["response"]
 

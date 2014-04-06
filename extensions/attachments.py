@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013.
+# © simpleApps, 2013 — 2014.
 
 import urllib
 
@@ -18,9 +18,9 @@ def parseAttachments(self, msg):
 				body += "\nWall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
 			elif key == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
-				for dKey in keys:
-					if att[key].has_key(dKey):
-						body += "\n" + att[key][dKey]
+				for _key in keys:
+					if _key in att[key]:
+						body += "\n" + att[key][_key]
 						break
 			elif key == "video":
 				body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
@@ -30,6 +30,12 @@ def parseAttachments(self, msg):
 				body += "\nAudio: %(performer)s — %(title)s — %(url)s"
 			elif key == "doc":
 				body += "\nDocument: %(title)s — %(url)s"
+			elif key == "sticker":
+				keys = ("photo_256", "photo_128", "photo_64")
+				for _key in keys:
+					if _key in att[key]:
+						body += "\nSticker: " + att[key][_key]
+						break
 			else:
 				body += "\nUnknown attachment: " + str(att[key])
 			result += body % att.get(key, {})

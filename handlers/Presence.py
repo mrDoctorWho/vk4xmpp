@@ -6,14 +6,14 @@ def prsHandler(cl, prs):
 	pType = prs.getType()
 	jidFrom = prs.getFrom()
 	jidTo = prs.getTo()
-	jidFromStr = jidFrom.getStripped()
-	jidToStr = jidTo.getStripped()
+	source = jidFrom.getStripped()
+	destination = jidTo.getStripped()
 	resource = jidFrom.getResource()
-	if jidFromStr in Transport:
-		user = Transport[jidFromStr]
+	if source in Transport:
+		user = Transport[source]
 		if pType in ("available", "probe", None):
 			if jidTo == TransportID and resource not in user.resources:
-				logger.debug("%s from user %s, will send sendInitPresence" % (pType, jidFromStr))
+				logger.debug("%s from user %s, will send sendInitPresence" % (pType, source))
 				user.resources.append(resource)
 				user.sendInitPresence()
 
@@ -27,7 +27,7 @@ def prsHandler(cl, prs):
 				user.vk.disconnect()
 				Poll.remove(user)
 				try:
-					del Transport[jidFromStr]
+					del Transport[source]
 				except KeyError:
 					pass
 	
@@ -37,35 +37,35 @@ def prsHandler(cl, prs):
 				user.vk.disconnect()
 
 		elif pType == "subscribe":
-			if jidToStr == TransportID:
-				Sender(cl, xmpp.Presence(jidFromStr, "subscribed", frm = TransportID))
+			if destination == TransportID:
+				Sender(cl, xmpp.Presence(source, "subscribed", frm = TransportID))
 				Sender(cl, xmpp.Presence(jidFrom, frm = TransportID))
 			else:
-				Sender(cl, xmpp.Presence(jidFromStr, "subscribed", frm = jidTo))
+				Sender(cl, xmpp.Presence(source, "subscribed", frm = jidTo))
 				if user.friends:
-					id = vk2xmpp(jidToStr)
+					id = vk2xmpp(destination)
 					if id in user.friends:
 						if user.friends[id]["online"]:
 							Sender(cl, xmpp.Presence(jidFrom, frm = jidTo))
 	
 		elif pType == "unsubscribe":
-			if jidFromStr in Transport and jidToStr == TransportID:
-				user.deleteUser(True)
-				watcherMsg(_("User removed registration: %s") % jidFromStr)
+			if source in Transport and destination == TransportID:
+				deleteUser(user, True)
+				watcherMsg(_("User removed registration: %s") % source)
 
 
-	elif pType in ("available", None):
-		logger.debug("User %s not in transport but want to be in" % jidFromStr)
+	elif pType in ("available", None) and destination == TransportID:
+		logger.debug("User %s not in transport but want to be in" % source)
 		with Database(DatabaseFile) as db:
-			db("select jid,username from users where jid=?", (jidFromStr,))
+			db("select jid,username from users where jid=?", (source,))
 			data = db.fetchone()
 			if data:
-				logger.debug("User %s found in db" % jidFromStr)
+				logger.debug("User %s found in db" % source)
 				jid, phone = data
-				Transport[jid] = user = tUser((phone, None), jid)
+				Transport[jid] = user = User((phone, None), jid)
 				try:
 					if user.connect():
-						user.init(None, True)
+						user.init(None, True) ## Maybe do it in another thread. 
 						user.resources.append(resource)
 						Poll.add(user)
 					else:

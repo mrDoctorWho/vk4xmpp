@@ -6,7 +6,7 @@ import os, sys, time, logging, traceback
 
 logger = logging.getLogger("vk4xmpp")
 
-fixme = lambda msg: Print("\n#! fixme: \"%s\"." % msg)
+fixme = lambda msg: Print("\n#! [%s] fixme: \"%s\"." % (time.strftime("%H:%M:%S"), msg))
 
 lastErrorBody = None
 

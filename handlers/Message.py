@@ -1,6 +1,9 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013.
+# © simpleApps, 2013 — 2014.
+
+import urllib
+import random
 
 def msgRecieved(msg, jidFrom, jidTo):
 	if msg.getTag("request"):
@@ -11,6 +14,34 @@ def msgRecieved(msg, jidFrom, jidTo):
 		answer.setID(msg.getID())
 		return answer
 
+
+def sendPhoto(user, data, type, address):
+	mask = user.vk.method("account.getAppPermissions")
+	if address == TransportID:
+		answer = _("Are you kidding me?")
+	elif mask:
+		if mask & 4 == 4: ## we have enough access?
+			ext = type.split("/")[1]
+			name = "vk4xmpp_%s.%s" % (random.randint(1000, 9000), ext)
+			server = str(user.vk.method("photos.getMessagesUploadServer")["upload_url"])
+			response = json.loads(user.vk.engine.RIP.post(
+					server, 
+					user.vk.engine.RIP.multipart("photo", str(name), str(type), data),
+					urlencode = False)[0])
+			
+			photo = user.vk.method("photos.saveMessagesPhoto", response)[0]
+			id = photo["id"]
+			user.msg("", vk2xmpp(address), more = {"attachment": id})
+			logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
+			answer = _("Your image was successfully sent.")
+		else:
+			answer = _("Sorry but we have failed to send this image."
+				 	" Seems you haven't enough permissions. Your token should be updated, register again.")
+	else:
+		answer = _("Something went wrong. We are so sorry.")
+	msgSend(Component, user.source, answer, address, timestamp = 1)
+
+
 def msgHandler(cl, msg):
 	mType = msg.getType()
 	body = msg.getBody()
@@ -18,13 +49,31 @@ def msgHandler(cl, msg):
 	jidToStr = jidTo.getStripped()
 	jidFrom = msg.getFrom()
 	jidFromStr = jidFrom.getStripped()
+	html = msg.getTag("html")
 
 	if jidFromStr in Transport and mType == "chat":
 		user = Transport[jidFromStr]
 		if msg.getTag("composing"):
 			target = vk2xmpp(jidToStr)
 			if target != TransportID:
-				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"})
+				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
+
+		if html and html.getTag("body"): ## XHTML-IM!
+			logger.debug("msgHandler: fetched xhtml image from %s" % jidFromStr)
+
+			raw_data = html.getTag("body").getTagAttr("img", "src")
+			raw_data = raw_data.split("data:")[1]
+			mime_type = raw_data.split(";")[0]
+			data = raw_data.split("base64,")[1]
+			if data:
+				try:
+					data = urllib.unquote(data).decode("base64")
+				except Exception:
+					logger.error("msgHandler: fetched wrong xhtml image from %s" % jidFromStr)
+					raise xmpp.NodeProcessed()
+				threadRun(sendPhoto, (user, data, mime_type, jidToStr))
+			raise xmpp.NodeProcessed() ## I think we shouldn't handle body then.
+
 		if body:
 			answer = None
 			if jidTo == TransportID:
@@ -58,6 +107,7 @@ def msgHandler(cl, msg):
 				Sender(cl, answer)
 	for func in Handlers["msg02"]:
 		func(msg)
+		
 
 def captchaAccept(cl, args, jidTo, jidFromStr):
 	if args:
@@ -76,8 +126,9 @@ def captchaAccept(cl, args, jidTo, jidFromStr):
 			if retry:
 				logger.debug("retry for user %s OK" % jidFromStr)
 				answer = _("Captcha valid.")
+				Poll.add(user)
 				Presence = xmpp.protocol.Presence(jidFromStr, frm = TransportID)
-				Presence.setStatus("") # is it needed?
+				#Presence.setStatus("") # is it needed?
 				Presence.setShow("available")
 				Sender(Component, Presence)
 				user.tryAgain()

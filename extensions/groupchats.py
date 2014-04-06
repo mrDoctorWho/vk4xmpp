@@ -123,8 +123,8 @@ def incomingGroupchatMessageHandler(msg):
 				jidToStr = vk2xmpp(jidToStr)
 				if jidToStr in jidToID:
 					jid = jidToID[jidToStr]
-					Class = Transport[jid]
-					Class.msg(body, Node.split("#")[1], "chat_id")
+					user = Transport[jid]
+					user.msg(body, Node.split("#")[1], "chat_id")
 
 
 ## TODO:
