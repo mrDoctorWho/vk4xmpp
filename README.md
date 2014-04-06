@@ -41,9 +41,20 @@ VK4XMPP представляет собой легковесный трансп�
 * vk.anakee.ru
 * vk.nixman.info
 
-Установка (для серверов): [Arch](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody) | [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/Установка-(только-для-серверов\)) | [Gentoo](http://blog.stv-fian.ru/?p=375)
+**Отдельное «спасибо»**:
+* Alexey-cv (donate, продвижение посредством создания тем на 4pda, содание FAQ, написание большинства инструкций, тесты)
+* alkorgun (предложения по лучшей реализации некоторых алгоритмов, код)
+* boriz (donate)
+* diSabler (мелкие исправления, форма капчи, логотип, donate)
+* Manazius (инструкции, общение со смертными)
+* nsof (donate, идеи)
+* Santiago26 (тестирование ранних релизов, статья на Хабре)
 
-Настройка jabber-серверов: [Ejabberd](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов\)) | [Ejabberd (2)](http://nixman.info/?p=2315) | [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody) | [Openfire](http://ky0uraku.livejournal.com/79921.html) | [Generic](http://dsy.name/?q=vk4xmpp) 
+Без этих людей не было бы транспорта таким, какой он есть.
+
+Установка (для серверов): [Arch](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody) | [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) | [Gentoo](http://blog.stv-fian.ru/?p=375)
+
+Настройка jabber-серверов: [Ejabberd](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) | [Ejabberd (2)](http://nixman.info/?p=2315) | [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody) | [Openfire](http://ky0uraku.livejournal.com/79921.html) | [Generic](http://dsy.name/?q=vk4xmpp) 
 
 Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/) | [Pidgin](http://xmppserv.ru/pidgin/) | [VacuumIM](http://xmppserv.ru/vacuum/) | [Kopete](http://xmppserv.ru/kopete/)
 
@@ -58,4 +69,4 @@ python ./gateway.py
 
 Обратиться к разработчику в сети xmpp можно в конференции [simpleapps@conference.jabber.ru](xmpp:simpleapps@conference.jabber.ru?join).
 
-© simpleApps, 2013.
+© simpleApps, 2013 — 2014.
