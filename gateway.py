@@ -550,7 +550,10 @@ class User(object):
 						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 	def processPollResult(self, opener):
-		data = opener.read()
+		try:
+			data = opener.read()
+		except socket.error:
+			return 1
 
 		if self.vk.engine.captcha:
 			opener.close()
