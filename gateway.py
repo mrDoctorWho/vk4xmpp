@@ -897,11 +897,9 @@ if __name__ == "__main__":
 	while True:
 		try:
 			Component.iter(6)
-		except AttributeError:
-			disconnectHandler(False)
 		except xmpp.StreamError:
 			crashLog("Component.iter")
-		except:
+		except Exception:
 			logger.critical("DISCONNECTED")
 			crashLog("Component.iter")
 			disconnectHandler(False)
