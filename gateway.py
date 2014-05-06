@@ -167,9 +167,9 @@ escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UN
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 
 
-def deleteUser(user, roster = False):
+def deleteUser(user, roster = False, semph = Semaphore):
 	logger.debug("User: deleting user %s from db." % user.source)
-	with Database(DatabaseFile, Semaphore) as db: ## WARNING: this may cause main thread lock
+	with Database(DatabaseFile, semph) as db: ## WARNING: this may cause main thread lock
 		db("delete from users where jid=?", (user.source,))
 		db.commit()
 	user.existsInDB = False
@@ -401,11 +401,11 @@ class User(object):
 			desc = db.fetchone()
 			if desc:
 				if not self.token or not self.password:
-					logger.debug("User: %s exists in db. Using it." % self.source)
+					logger.debug("User: %s exists in db. Have to use it." % self.source)
 					self.existsInDB = True
 					self.source, self.username, self.token, self.lastMsgID, self.rosterSet = desc
 				elif self.password or self.token: ## Warning: this may work wrong. If user exists in db we shouldn't delete him, we just should replace his token
-					logger.debug("User: %s exists in db. Will be deleted." % self.source)
+					logger.debug("User: %s exists in db. Record would be deleted." % self.source)
 					threadRun(deleteUser, (self,))
 
 	def __eq__(self, user):
@@ -413,7 +413,7 @@ class User(object):
 			return user.source == self.source
 		return self.source == user
 
-	def msg(self, body, id, mType = "user_id", more = {}):
+	def msg(self, body, id, mType="user_id", more={}):
 		try:
 			values = {mType: id, "message": body, "type": 0}
 			values.update(more)
@@ -440,7 +440,7 @@ class User(object):
 			logger.debug("User: updating db for %s because auth done " % self.source)
 			if not self.existsInDB:
 				with Database(DatabaseFile, Semaphore) as db:
-					db("insert into users values (?,?,?,?,?)", (self.source, self.username,
+					db("insert into users values (?,?,?,?,?)", (self.source, "",
 						self.vk.getToken(), self.lastMsgID, self.rosterSet))
 			elif self.password:
 				with Database(DatabaseFile, Semaphore) as db:
@@ -484,15 +484,15 @@ class User(object):
 					(self.source, "exists" if self.friends else "empty"))
 		for uid, value in self.friends.iteritems():
 			if value["online"]:
-				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps = True)
-		sendPresence(self.source, TransportID, None, IDentifier["name"], caps = True)
+				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
+		sendPresence(self.source, TransportID, None, IDentifier["name"], caps=True)
 
-	def sendOutPresence(self, target, reason = None):
+	def sendOutPresence(self, target, reason=None):
 		logger.debug("User: sending out presence to %s" % self.source)
 		for uid in self.friends.keys() + [TransportID]:
-			sendPresence(target, vk2xmpp(uid), "unavailable", reason = reason)
+			sendPresence(target, vk2xmpp(uid), "unavailable", reason=reason)
 
-	def rosterSubscribe(self, dist = None):
+	def rosterSubscribe(self, dist=None):
 		dist = dist or {}
 		for uid, value in dist.iteritems():
 			sendPresence(self.source, vk2xmpp(uid), "subscribe", value["name"])
@@ -503,7 +503,7 @@ class User(object):
 				db("update users set rosterSet=? where jid=?",
 					(self.rosterSet, self.source))
 
-	def getUserData(self, uid, fields = None):
+	def getUserData(self, uid, fields=None):
 		if not fields:
 			if uid in self.friends:
 				return self.friends[uid]
@@ -519,7 +519,7 @@ class User(object):
 
 		return data
 
-	def sendMessages(self, init = False):
+	def sendMessages(self, init=False):
 		with self.__sync:
 			date = 0
 			messages = self.vk.getMessages(200, self.lastMsgID if UseLastMessageID else 0)
