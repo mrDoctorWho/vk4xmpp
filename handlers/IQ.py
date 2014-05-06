@@ -119,7 +119,7 @@ def iqRegisterHandler(cl, iq):
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 			if source in Transport:
 				user = Transport[source]
-				deleteUser(user)
+				deleteUser(user, semph = False)
 			else:
 				user = User((phone, password), source)
 			if not usePassword:
@@ -148,7 +148,7 @@ def iqRegisterHandler(cl, iq):
 			logger.debug("user %s wants remove me..." % source)
 			if source in Transport:
 				user = Transport[source]
-				deleteUser(user, True)
+				deleteUser(user, True, False)
 				result.setPayload([], add = 0)
 				watcherMsg(_("User removed registration: %s") % source)
 			else:
@@ -198,7 +198,9 @@ sDict = {
 		"memory/real": "KB",
 		"cpu/percent": "percent",
 		"cpu/time": "seconds",
-		"thread/active": "threads"
+		"thread/active": "threads",
+		"msg/in": "messages",
+		"msg/out": "messages"
 		}
 
 def iqStatsHandler(cl, iq):
@@ -218,7 +220,8 @@ def iqStatsHandler(cl, iq):
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			memVirt, memReal, cpuPercent, cpuTime = shell[1].split()
 			stats = {"users": users, "KB": [memVirt, memReal],
-					 "percent": [cpuPercent], "seconds": [cpuTime], "threads": [threading.activeCount()]}
+					 "percent": [cpuPercent], "seconds": [cpuTime], "threads": [threading.activeCount()],
+					 "messages": [Stats["msgout"], Stats["msgin"]]}
 			for Child in IQChildren:
 				if Child.getName() != "stat":
 					continue

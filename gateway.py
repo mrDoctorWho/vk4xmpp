@@ -129,6 +129,9 @@ Revision = gatewayRev()
 Handlers = {"msg01": [], "msg02": [],
 			"evt01": [], "evt02": []}
 
+Stats = {"msgin": 0, ## from vk
+		 "msgout": 0} ## to vk
+
 def initDatabase(filename):
 	if not os.path.exists(filename):
 		with Database(filename) as db:
@@ -415,6 +418,7 @@ class User(object):
 
 	def msg(self, body, id, mType="user_id", more={}):
 		try:
+			Stats["msgout"] += 1
 			values = {mType: id, "message": body, "type": 0}
 			values.update(more)
 			Message = self.vk.method("messages.send", values)
@@ -529,6 +533,7 @@ class User(object):
 			for message in messages:
 				if message["out"]:
 					continue
+				Stats["msgin"] += 1
 				fromjid = vk2xmpp(message["uid"])
 				body = uHTML(message["body"])
 				iter = Handlers["msg01"].__iter__()
