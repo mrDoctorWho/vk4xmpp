@@ -50,7 +50,7 @@ def prsHandler(cl, prs):
 	
 		elif pType == "unsubscribe":
 			if source in Transport and destination == TransportID:
-				deleteUser(user, True)
+				deleteUser(user, True, False)
 				watcherMsg(_("User removed registration: %s") % source)
 
 

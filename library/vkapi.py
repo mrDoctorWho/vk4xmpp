@@ -39,7 +39,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				else:
 					break
 			else:
-				if hasattr(exc, "reason") and str(exc.reason) == "[Errno 101] Network is unreachable":
+				if hasattr(exc, "errno") and exc.errno == 101:
 					raise NetworkNotFound()
 				data = resultType()
 				logger.debug("Error %s occurred on executing %s" % (exc, func))
@@ -105,7 +105,7 @@ class RequestProcessor(object):
 		data = start + data + end
 		return data
 
-	def request(self, url, data = None, headers = None, urlencode = True):
+	def request(self, url, data=None, headers=None, urlencode=True):
 		headers = headers or self.headers
 		if data and urlencode:
 			headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
@@ -116,20 +116,20 @@ class RequestProcessor(object):
 		return request
 
 	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
-	def post(self, url, data = "", urlencode = True):
-		resp = self.open(self.request(url, data, urlencode = urlencode))
+	def post(self, url, data="", urlencode=True):
+		resp = self.open(self.request(url, data, urlencode=urlencode))
 		body = resp.read()
 		return (body, resp)
 
 	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
-	def get(self, url, query = {}):
+	def get(self, url, query={}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
 		resp = self.open(self.request(url))
 		body = resp.read()
 		return (body, resp)
 
-	def getOpener(self, url, query = {}):
+	def getOpener(self, url, query={}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
 		return AsyncHTTPRequest(url).open()
@@ -138,8 +138,8 @@ class RequestProcessor(object):
 
 
 class APIBinding:
-	def __init__(self, number, password = None, token = None, app_id = 3789129,
-	scope = 69638):
+	def __init__(self, number=None, password=None, token=None, app_id=3789129,
+	scope=69638):
 		self.password = password
 		self.number = number
 
@@ -230,7 +230,7 @@ class APIBinding:
 		self.token = token
 
 
-	def method(self, method, values = None, nodecode = False):
+	def method(self, method, values=None, nodecode=False):
 		values = values or {}
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
@@ -264,7 +264,7 @@ class APIBinding:
 			elif "error" in body:
 				error = body["error"]
 				eCode = error["error_code"]
-	## TODO: Check this code
+	## TODO: Check code below
 				if eCode == 5:     # invalid token
 					self.attempts += 1
 					if self.attempts < 3:

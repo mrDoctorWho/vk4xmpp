@@ -992,8 +992,8 @@ class DataField(Node):
 			self.setValue(value)
 		if typ:
 			self.setType(typ)
-		elif not typ and not node:
-			self.setType("text-single")
+#		elif not typ and not node:
+#			self.setType("text-single")
 		if required:
 			self.setRequired(required)
 		if label:

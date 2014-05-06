@@ -1,16 +1,15 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013.
+# © simpleApps, 2013 — 2014.
 # File contains parts of code from 
-# BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2013.
+# BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
 
 if not require("attachments") or not require("forwardMessages"):
 	raise
 
 def IQSender(chat, attr, data, afrls, role, jidFrom):
-	stanza = xmpp.Iq("set", to = chat, frm = jidFrom)
-	query = xmpp.Node("query")
-	query.setNamespace(xmpp.NS_MUC_ADMIN)
+	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
+	query = xmpp.Node("query", {"xmlns": xmpp.NS_MUC_ADMIN})
 	arole = query.addChild("item", {attr: data, afrls: role})
 	stanza.addChild(node = query)
 	Sender(Component, stanza)
@@ -19,39 +18,39 @@ def member(chat, jid, jidFrom):
 	IQSender(chat, "jid", jid, "affiliation", "member", jidFrom)
 
 def inviteUser(chat, jidTo, jidFrom, name):
-	invite = xmpp.Message(to = chat, frm = jidFrom)
-	x = xmpp.Node("x")
-	x.setNamespace(xmpp.NS_MUC_USER)
+	invite = xmpp.Message(to=chat, frm=jidFrom)
+	x = xmpp.Node("x", {"xmlns": xmpp.NS_MUC_USER})
 	inv = x.addChild("invite", {"to": jidTo})
 	inv.setTagData("reason", _("You're invited by user «%s»") % name)
-	invite.addChild(node = x)
+	invite.addChild(node=x)
 	Sender(Component, invite)
 
-def groupchatSetConfig(chat, jidFrom, exterminate = False):
-	iq = xmpp.Iq("set", to = chat, frm = jidFrom, xmlns = "jabber:component:accept")
-	query = iq.addChild("query", namespace = xmpp.NS_MUC_OWNER)
+def buildConfigForm(form=None, type="sumbit", fields=[]):
+	form = form or xmpp.DataForm(type)
+	for key in fields:
+		field = form.setField(key["var"], key.get("value"), key.get("type"))
+	return form
+
+## TODO: Set chatroom's name
+def groupchatSetConfig(chat, jidFrom, exterminate=False):
+	iq = xmpp.Iq("set", to=chat, frm=jidFrom, xmlns="jabber:component:accept")
+	query = iq.addChild("query", namespace=xmpp.NS_MUC_OWNER)
 	if exterminate:
 		query.addChild("destroy")
 	else:
-		form = xmpp.DataForm("submit")
-		field = form.setField("FORM_TYPE")
-		field.setType("hidden")
-		field.setValue(xmpp.NS_MUC_ROOMCONFIG)
-		membersonly = form.setField("muc#roomconfig_membersonly")
-		membersonly.setType("boolean")
-		membersonly.setValue("1")
-		whois = form.setField("muc#roomconfig_whois")
-		whois.setValue("anyone")
-		query.addChild(node = form)
+		form = buildConfigForm(fields = [{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
+										 {"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
+										 {"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "1"},
+										 {"var": "muc#roomconfig_whois", "value": "anyone"}])
+		query.addChild(node=form)
 	Sender(Component, iq)
 
-def groupchatPresence(chat, name, jidFrom, type = None):
-	prs = xmpp.Presence("%s/%s" % (chat, name), type, frm = jidFrom)
+def groupchatPresence(chat, name, jidFrom, type=None):
+	prs = xmpp.Presence("%s/%s" % (chat, name), type, frm=jidFrom)
 	Sender(Component, prs)
 
-def groupchatMessage(chat, text, jidFrom, subj = None, timestamp = 0):
-	message = xmpp.Message(chat)
-	message.setType("groupchat")
+def groupchatMessage(chat, text, jidFrom, subj=None, timestamp=0):
+	message = xmpp.Message(chat, typ="groupchat")
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
 		message.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
@@ -72,12 +71,14 @@ def handleChatMessages(self, msg):
 		users = msg["chat_active"].split(",") ## Why chat owner isn't in a chat? It may cause problems. Or not?
 		users.append(self.UserID)
 		if not users: ## is it possible?
+			logger.debug("groupchats: all users exterminated in chat: %s" % chat)
 			if chat in self.chatUsers:
 				groupchatPresence(chat, self.getUserData(owner)["name"], vk2xmpp(self.UserID), "unavailable")
 				del self.chatUsers[chat]
 			return None # Maybe true?
 
-		if not chat in self.chatUsers:
+		if chat not in self.chatUsers:
+			logger.debug("groupchats: creating %s. Users: %s; owner: %s" % (chat, msg["chat_active"], owner))
 			self.chatUsers[chat] = []
 			for usr in (owner, self.UserID):
 				groupchatPresence(chat, self.getUserData(usr)["name"], vk2xmpp(usr))
@@ -88,6 +89,7 @@ def handleChatMessages(self, msg):
 	
 		for user in users: ## BURN IT!
 			if not user in self.chatUsers[chat]:
+				logger.debug("groupchats: user %s has joined the chat %s" % (user, chat))
 				self.chatUsers[chat].append(user)
 				uName = self.getUserData(user)["name"]
 				user = vk2xmpp(user)
@@ -96,13 +98,15 @@ def handleChatMessages(self, msg):
 		
 		for user in self.chatUsers[chat]: ## BURN IT MORE!
 			if not user in users:
+				logger.debug("groupchats: user %s has left the chat %s" % (user, chat))
 				self.chatUsers[chat].remove(user)
 				uName = self.getUserData(user)["name"]
 				groupchatPresence(chat, uName, vk2xmpp(user), "unavailable")
 
 		# This code will not work because function can be called only at message in chat
-		if not self.chatUsers[chat]:
-			groupchatSetConfig(chat, _owner, exterminate = True) # EXTERMINATE!!!
+		if not self.chatUsers[chat]: # Impossible
+			logger.debug("groupchats: %s would be exterminated right now!" % chat)
+			groupchatSetConfig(chat, _owner, exterminate=True) # EXTERMINATE!!!
 
 		body = escape("", uHTML(msg["body"]))
 		body += parseAttachments(self, msg)
@@ -117,6 +121,10 @@ def incomingGroupchatMessageHandler(msg):
 		body = msg.getBody()
 		jidToStr = msg.getTo().getStripped()
 		jidFromStr = msg.getFrom().getStripped()
+		xTag = msg.getTag("x", {"xmlns": "http://jabber.org/protocol/muc#user"})
+		if xTag and xTag.getTagAttr("status", "code") == "100":
+			raise xmpp.NodeProcessed()
+
 		if not msg.getTimestamp() and body:
 			Node, Domain = jidFromStr.split("@")
 			if Domain == ConferenceServer:

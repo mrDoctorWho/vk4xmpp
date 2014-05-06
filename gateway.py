@@ -116,7 +116,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 0.155, 0 # 0. means testing.
+	revNumber, rev = 163, 0 # 0. means testing.
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -153,7 +153,7 @@ def startThr(thr, number = 0):
 		startThr(thr, (number + 1))
 
 def threadRun(func, args = (), name = None):
-	thr = threading.Thread(target = executeFunction, args = (func, args), name = name)
+	thr = threading.Thread(target = executeFunction, args = (func, args), name = name or func.func_name)
 	try:
 		thr.start()
 	except threading.ThreadError:
@@ -169,7 +169,7 @@ require = lambda name: os.path.exists("extensions/%s.py" % name)
 
 def deleteUser(user, roster = False):
 	logger.debug("User: deleting user %s from db." % user.source)
-	with Database(DatabaseFile) as db:
+	with Database(DatabaseFile, Semaphore) as db: ## WARNING: this may cause main thread lock
 		db("delete from users where jid=?", (user.source,))
 		db.commit()
 	user.existsInDB = False
@@ -190,6 +190,7 @@ def deleteUser(user, roster = False):
 		vk.Online = False
 		del Transport[user.source]
 	Poll.remove(user)
+
 
 class VKLogin(object):
 
@@ -223,6 +224,7 @@ class VKLogin(object):
 			logger.error("VKLogin.checkData: no token and password for jid:%s" % self.source)
 			raise api.TokenError("%s, Where are your token?" % self.source)
 
+	## TODO: this function must been rewritten. We have dict from self.method, so it's bad way trying make int from dict.
 	def checkToken(self):
 		try:
 			int(self.method("isAppUser", force = True))
@@ -238,8 +240,6 @@ class VKLogin(object):
 		except api.AuthError as e:
 			logger.error("VKLogin.auth failed with error %s" % e.message)
 			return False
-		except api.CaptchaNeeded:
-			raise
 		except Exception:
 			crashLog("VKLogin.auth")
 			return False
@@ -278,18 +278,22 @@ class VKLogin(object):
 			except api.CaptchaNeeded:
 				logger.error("VKLogin: running captcha challenge for %s" % self.source)
 				self.captchaChallenge()
+				result = 0
 			except api.NotAllowed:
 				if self.engine.lastMethod[0] == "messages.send":
 					msgSend(Component, self.source, _("You're not allowed to perform this action."), vk2xmpp(args.get("user_id", TransportID)))
 			except api.VkApiError as e:
+				db = False
 				if e.message == "User authorization failed: user revoke access for this token.":
 					logger.critical("VKLogin: %s" % e.message)
-					try:
-						deleteUser(self, True)
-					except KeyError:
-						pass
+					db = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					msgSend(Component, self.source, _(e.message + " Please, register again"), TransportID)
+				try:
+					deleteUser(Transport.get(self.source, self), db)
+				except KeyError:
+					pass
+
 				self.Online = False
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.source))
 			except api.NetworkNotFound:
@@ -402,7 +406,7 @@ class User(object):
 					self.source, self.username, self.token, self.lastMsgID, self.rosterSet = desc
 				elif self.password or self.token: ## Warning: this may work wrong. If user exists in db we shouldn't delete him, we just should replace his token
 					logger.debug("User: %s exists in db. Will be deleted." % self.source)
-					threadRun(deleteUser(self))
+					threadRun(deleteUser, (self,))
 
 	def __eq__(self, user):
 		if isinstance(user, User):
@@ -422,6 +426,7 @@ class User(object):
 	def connect(self):
 		logger.debug("User: connecting %s" % self.source)
 		self.auth = False
+		## TODO: Check code below
 		try:
 			self.auth = self.vk.auth(self.token)
 		except api.CaptchaNeeded:
@@ -503,14 +508,15 @@ class User(object):
 			if uid in self.friends:
 				return self.friends[uid]
 			fields = ["screen_name"]
-		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid})
-		if data:
-			data = data.pop()
-			data["name"] = escape("", u"%s %s" % (data.pop("first_name"), data.pop("last_name")))
-		else:
-			data = {}
+		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid}) or {}
+		if not data:
+			data = {"name": "None"}
 			for key in fields:
 				data[key] = "None"
+		else:
+			data = data.pop()
+			data["name"] = escape("", u"%s %s" % (data.pop("first_name"), data.pop("last_name")))
+
 		return data
 
 	def sendMessages(self, init = False):
@@ -521,7 +527,7 @@ class User(object):
 				return None
 			messages = sorted(messages[1:], msgSort)
 			for message in messages:
-				if message["out"] == 1:
+				if message["out"]:
 					continue
 				fromjid = vk2xmpp(message["uid"])
 				body = uHTML(message["body"])
@@ -788,7 +794,7 @@ class Poll:
 				if user not in cls.__buff:
 					return None
 				cls.__buff.remove(user)
-			logger.error("longpoll: failed to add %s to poll in 8 retries" % user.source)
+			logger.error("longpoll: failed to add %s to poll in 10 retries" % user.source)
 
 	@classmethod
 	def process(cls):
@@ -897,9 +903,7 @@ if __name__ == "__main__":
 	while True:
 		try:
 			Component.iter(6)
-		except xmpp.StreamError:
-			crashLog("Component.iter")
 		except Exception:
 			logger.critical("DISCONNECTED")
 			crashLog("Component.iter")
-			disconnectHandler(False)
+			disconnectHandler(True)
