@@ -323,7 +323,7 @@ class VKLogin(object):
 				form.setField("from", TransportID, "hidden")
 				field = form.setField("ocr")
 				field.setLabel(_("Enter shown text"))
-				field.delAttr("type")
+##				field.delAttr("type")
 				field.setPayload([xmpp.Node("required"),
 					xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},
 						[xmpp.Node("uri", {"type": "image/jpg"},
