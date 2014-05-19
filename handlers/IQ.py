@@ -73,11 +73,11 @@ def iqRegisterHandler(cl, iq):
 		form = xmpp.DataForm()
 		logger.debug("Sending register form to %s" % source)
 		form.addChild(node=xmpp.Node("instructions")).setData(_("Type data in fields")) ## TODO: Complete this by forms
-		link = form.setField("link", URL_ACCEPT_APP)
+		link = form.setField("link", URL_ACCEPT_APP, "text-single")
 		link.setLabel(_("Autorization page"))
 		link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
 					   "and then paste url to password field."))
-		phone = form.setField("phone", "+")
+		phone = form.setField("phone", "+", "text-single")
 		phone.setLabel(_("Phone number"))
 		phone.setDesc(_("Enter phone number in format +71234567890"))
 		use_password = form.setField("use_password", "0", "boolean")
