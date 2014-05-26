@@ -17,8 +17,6 @@ import sys
 import threading
 import time
 
-from hashlib import sha1
-
 core = getattr(sys.modules["__main__"], "__file__", None)
 if core:
 	core = os.path.abspath(core)
@@ -31,6 +29,7 @@ reload(sys).setdefaultencoding("utf-8")
 
 import vkapi as api
 import xmpp
+import utils
 
 from itypes import Database
 from webtools import *
@@ -116,7 +115,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 163, 0 # 0. means testing.
+	revNumber, rev = 167, 0 # 0. means testing.
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -126,8 +125,14 @@ OS = "{0} {2:.16} [{4}]".format(*os.uname())
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 Revision = gatewayRev()
 
+## Events (not finished yet so not sorted):
+## 01 - start
+## 02 - shutdown
+## 03 - user deletion
+## 04 - captcha
 Handlers = {"msg01": [], "msg02": [],
-			"evt01": [], "evt02": []}
+			"evt01": [], "evt02": [],
+			"evt03": [], "evt04": []}
 
 Stats = {"msgin": 0, ## from vk
 		 "msgout": 0} ## to vk
@@ -139,13 +144,18 @@ def initDatabase(filename):
 			db.commit()
 	return True
 
-def executeFunction(handler, list = ()):
+def execute(handler, list = ()):
 	try:
 		handler(*list)
 	except SystemExit:
 		pass
 	except Exception:
 		crashLog(handler.func_name)
+
+## TODO: execute threaded handlers
+def executeHandlers(type, list = ()):
+	for handler in Handlers[type]:
+		execute(handler, list)
 
 def startThr(thr, number = 0):
 	if number > 2:
@@ -156,7 +166,7 @@ def startThr(thr, number = 0):
 		startThr(thr, (number + 1))
 
 def threadRun(func, args = (), name = None):
-	thr = threading.Thread(target = executeFunction, args = (func, args), name = name or func.func_name)
+	thr = threading.Thread(target = execute, args = (func, args), name = name or func.func_name)
 	try:
 		thr.start()
 	except threading.ThreadError:
@@ -167,32 +177,8 @@ def threadRun(func, args = (), name = None):
 
 badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
+msgSort = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
-
-
-def deleteUser(user, roster = False, semph = Semaphore):
-	logger.debug("User: deleting user %s from db." % user.source)
-	with Database(DatabaseFile, semph) as db: ## WARNING: this may cause main thread lock
-		db("delete from users where jid=?", (user.source,))
-		db.commit()
-	user.existsInDB = False
-	friends = getattr(user, "friends")
-	if roster and friends:
-		logger.debug("User: deleting me from %s roster" % user.source)
-		for id in friends.keys():
-			jid = vk2xmpp(id)
-			sendPresence(user.source, jid, "unsubscribe")
-			sendPresence(user.source, jid, "unsubscribed")
-		
-	elif roster:
-		sendPresence(user.source, TransportID, "unsubscribe")
-		sendPresence(user.source, TransportID, "unsubscribed")
-
-	vk = getattr(user, "vk") or user
-	if user.source in Transport:
-		vk.Online = False
-		del Transport[user.source]
-	Poll.remove(user)
 
 
 class VKLogin(object):
@@ -286,14 +272,14 @@ class VKLogin(object):
 				if self.engine.lastMethod[0] == "messages.send":
 					msgSend(Component, self.source, _("You're not allowed to perform this action."), vk2xmpp(args.get("user_id", TransportID)))
 			except api.VkApiError as e:
-				db = False
+				roster = False
 				if e.message == "User authorization failed: user revoke access for this token.":
 					logger.critical("VKLogin: %s" % e.message)
-					db = True
+					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					msgSend(Component, self.source, _(e.message + " Please, register again"), TransportID)
 				try:
-					deleteUser(Transport.get(self.source, self), db)
+					deleteUser(Transport.get(self.source, self), roster, False)
 				except KeyError:
 					pass
 
@@ -306,38 +292,7 @@ class VKLogin(object):
 
 	def captchaChallenge(self):
 		if self.engine.captcha:
-			logger.debug("VKLogin: sending message with captcha to %s" % self.source)
-			body = _("WARNING: VK sent captcha to you."
-					 " Please, go to %s and enter text from image to chat."
-					 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
-			msg = xmpp.Message(self.source, body, "chat", frm = TransportID)
-			xTag = msg.setTag("x", {}, xmpp.NS_OOB)
-			xTag.setTagData("url", self.engine.captcha["img"])
-			cTag = msg.setTag("captcha", {}, xmpp.NS_CAPTCHA)
-			imgData = vCardGetPhoto(self.engine.captcha["img"], False)
-			if imgData:
-				imgHash = sha1(imgData).hexdigest()
-				imgEncoded = imgData.encode("base64")
-				form = xmpp.DataForm("form")
-				form.setField("FORM_TYPE", xmpp.NS_CAPTCHA, "hidden")
-				form.setField("from", TransportID, "hidden")
-				field = form.setField("ocr")
-				field.setLabel(_("Enter shown text"))
-##				field.delAttr("type")
-				field.setPayload([xmpp.Node("required"),
-					xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},
-						[xmpp.Node("uri", {"type": "image/jpg"},
-							["cid:sha1+%s@bob.xmpp.org" % imgHash])])])
-				cTag.addChild(node=form)
-				obTag = msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % imgHash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
-				obTag.setData(imgEncoded)
-			else:
-				logger.critical("VKLogin: can't add captcha image to message url:%s" % self.engine.captcha["img"])
-			Sender(Component, msg)
-			Presence = xmpp.protocol.Presence(self.source, frm = TransportID)
-			Presence.setStatus(body)
-			Presence.setShow("xa")
-			Sender(Component, Presence)
+			executeHandlers("evt04", (self,))
 		else:
 			logger.error("VKLogin: captchaChallenge called without captcha for user %s" % self.source)
 
@@ -368,7 +323,6 @@ class VKLogin(object):
 			del values["count"]
 			values["last_message_id"] = lastMsgID
 		return self.method("messages.get", values)
-
 
 def sendPresence(target, source, pType = None, nick = None, reason = None, caps = None):
 	Presence = xmpp.Presence(target, pType, frm = source, status = reason)
@@ -407,7 +361,7 @@ class User(object):
 					logger.debug("User: %s exists in db. Have to use it." % self.source)
 					self.existsInDB = True
 					self.source, self.username, self.token, self.lastMsgID, self.rosterSet = desc
-				elif self.password or self.token: ## Warning: this may work wrong. If user exists in db we shouldn't delete him, we just should replace his token
+				elif self.password or self.token:
 					logger.debug("User: %s exists in db. Record would be deleted." % self.source)
 					threadRun(deleteUser, (self,))
 
@@ -520,7 +474,6 @@ class User(object):
 		else:
 			data = data.pop()
 			data["name"] = escape("", u"%s %s" % (data.pop("first_name"), data.pop("last_name")))
-
 		return data
 
 	def sendMessages(self, init=False):
@@ -616,7 +569,7 @@ class User(object):
 			if not friends:
 				logger.error("updateFriends: no friends received (user: %s)." % self.source)
 				return None
-			if friends and set(friends) != set(self.friends):
+			if friends:
 				for uid in friends:
 					if uid not in self.friends:
 						self.rosterSubscribe({uid: friends[uid]})
@@ -635,7 +588,30 @@ class User(object):
 		except Exception:
 			crashLog("tryAgain")
 
-msgSort = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
+def deleteUser(user, roster = False, semph = Semaphore):
+	logger.debug("User: deleting user %s from db." % user.source)
+	with Database(DatabaseFile, semph) as db: ## WARNING: this may cause main thread lock
+		db("delete from users where jid=?", (user.source,))
+		db.commit()
+	user.existsInDB = False
+	friends = getattr(user, "friends", {})
+	if roster and friends:
+		logger.debug("User: deleting me from %s roster" % user.source)
+		for id in friends.keys():
+			jid = vk2xmpp(id)
+			sendPresence(user.source, jid, "unsubscribe")
+			sendPresence(user.source, jid, "unsubscribed")
+		
+	elif roster:
+		sendPresence(user.source, TransportID, "unsubscribe")
+		sendPresence(user.source, TransportID, "unsubscribed")
+		executeHandlers("evt03", (user,))
+
+	vk = getattr(user, "vk", user)
+	if user.source in Transport:
+		vk.Online = False
+		del Transport[user.source]
+	Poll.remove(user)
 
 def Sender(cl, stanza):
 	try:
@@ -697,6 +673,8 @@ def userTyping(target, instance, typ = "composing"):
 	message.setTag(typ, namespace = xmpp.NS_CHATSTATES)
 	Sender(Component, message)
 
+
+## TODO: make it as extension
 def watcherMsg(text):
 	for jid in WatcherList:
 		msgSend(Component, jid, text, TransportID)
@@ -710,8 +688,7 @@ def disconnectHandler(crash = True):
 			Component.disconnect()
 	except (NameError, AttributeError):
 		pass
-	for event in Handlers["evt02"]:
-		event()
+	executeHandlers("evt02")
 	Print("Reconnecting...")
 	time.sleep(5)
 	os.execl(sys.executable, sys.executable, *sys.argv)
@@ -887,8 +864,7 @@ def exit(signal = None, frame = None):
 		user.sendOutPresence(user.source, status)
 		Print("." * len(user.friends), False)
 	Print("\n")
-	for event in Handlers["evt02"]:
-		event()
+	executeHandlers("evt02")
 	try:
 		os.remove(pidFile)
 	except OSError:

@@ -42,7 +42,6 @@ def iqHandler(cl, iq):
 			if jidTo == TransportID:
 				Sender(cl, iq.buildReply("result"))
 
-	raise xmpp.NodeProcessed()
 
 def iqBuildError(stanza, error = None, text = None):
 	if not error:
@@ -177,7 +176,6 @@ def iqUptimeHandler(cl, iq):
 		result.setTag("query", {"seconds": str(uptime)}, xmpp.NS_LAST)
 		result.setTagData("query", IDentifier["name"])
 		Sender(cl, result)
-	raise xmpp.NodeProcessed()
 
 def iqVersionHandler(cl, iq):
 	iType = iq.getType()
@@ -189,7 +187,6 @@ def iqVersionHandler(cl, iq):
 		Query.setTagData("version", Revision)
 		Query.setTagData("os", "%s / %s" % (OS, Python))
 		Sender(cl, result)
-	raise xmpp.NodeProcessed()
 
 sDict = {
 		"users/total": "users",
@@ -263,7 +260,6 @@ def iqDiscoHandler(cl, iq):
 				result.setQueryPayload(QueryPayload)
 
 			Sender(cl, result)
-	raise xmpp.NodeProcessed()
 
 def iqGatewayHandler(cl, iq):
 	jidTo = iq.getTo()

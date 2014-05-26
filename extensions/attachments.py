@@ -25,6 +25,10 @@ def parseAttachments(self, msg):
 			elif key == "video":
 				body += "\nVideo: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
 			elif key == "audio":
+				for _key in ("performer", "title"):
+					if att[key].has_key(_key):
+						att[key][_key] = uHTML(att[key][_key])
+
 				url = searchlink % urllib.quote(str("%(performer)s %(title)s" % att[key]))
 				att[key]["url"] = url
 				body += "\nAudio: %(performer)s — %(title)s — %(url)s"

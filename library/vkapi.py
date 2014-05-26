@@ -115,13 +115,13 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
+	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout, httplib.BadStatusLine)
 	def post(self, url, data="", urlencode=True):
 		resp = self.open(self.request(url, data, urlencode=urlencode))
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout)
+	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout, httplib.BadStatusLine)
 	def get(self, url, query={}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
@@ -246,7 +246,7 @@ class APIBinding:
 			if (self.last.pop() - self.last.pop(0)) < 1.1:
 				time.sleep(0.3)
 
-		response = self.RIP.post(url, values)    # Next func should handle NetworkNotFound
+		response = self.RIP.post(url, values)
 		if response and not nodecode:
 			body, response = response
 			if body:
@@ -281,14 +281,14 @@ class APIBinding:
 					raise VkApiError("Logged out")
 				elif eCode == 7:     # not allowed
 					raise NotAllowed()
-				elif eCode == 9:     # ????
-					return {}
 				elif eCode == 10:    # internal server error
 					raise InternalServerError()
-				if eCode == 14:     # captcha
+				elif eCode == 14:     # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 						raise CaptchaNeeded()
+				elif eCode in (1, 9, 100): ## 1 is an unknown error / 100 is wrong method or parameters loss 
+					return {"error": eCode}
 				raise VkApiError(body["error"])
 
 	def retry(self):

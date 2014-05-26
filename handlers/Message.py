@@ -14,8 +14,17 @@ def msgRecieved(msg, jidFrom, jidTo):
 		answer.setID(msg.getID())
 		return answer
 
-def sendPhoto(user, data, type, address):
+def sendPhoto(user, data, type, address, mType):
 	mask = user.vk.method("account.getAppPermissions")
+
+	if mType == "chat_id":
+		address = address.split("@")[0].split("#")[1]
+		send = False
+	else:
+		destination = address
+		address = vk2xmpp(address)
+		send = True
+
 	if address == TransportID:
 		answer = _("Are you kidding me?")
 	elif mask:
@@ -30,7 +39,8 @@ def sendPhoto(user, data, type, address):
 			
 			photo = user.vk.method("photos.saveMessagesPhoto", response)[0]
 			id = photo["id"]
-			user.msg("", vk2xmpp(address), more = {"attachment": id})
+
+			user.msg("", address, mType, {"attachment": id})
 			logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
 			answer = _("Your image was successfully sent.")
 		else:
@@ -38,12 +48,13 @@ def sendPhoto(user, data, type, address):
 				 	" Seems you haven't enough permissions. Your token should be updated, register again.")
 	else:
 		answer = _("Something went wrong. We are so sorry.")
-	msgSend(Component, user.source, answer, address, timestamp = 1)
+	if send:
+		msgSend(Component, user.source, answer, destination, timestamp = 1)
 
-def xhtmlParse(user, html, source, destination):
+def xhtmlParse(user, html, source, destination, mType = "user_id"):
 	body = html.getTag("body")
 	if body:
-		## TODO: Maybe would be better if use regular expressions?
+		## TODO: Maybe would be better use regular expressions?
 		src = body.getTagAttr("img", "src")
 		raw_data = src.split("data:")[1]
 		mime_type = raw_data.split(";")[0]
@@ -52,9 +63,9 @@ def xhtmlParse(user, html, source, destination):
 			try:
 				data = urllib.unquote(data).decode("base64")
 			except Exception:
-				logger.error("msgHandler: fetched wrong xhtml image from %s" % source)
+				logger.error("xhmtlParse: fetched wrong xhtml image from %s" % source)
 				return False
-			threadRun(sendPhoto, (user, data, mime_type, destination))
+			threadRun(sendPhoto, (user, data, mime_type, destination, mType))
 	return True
 
 def msgHandler(cl, msg):
@@ -136,7 +147,6 @@ def captchaAccept(cl, args, jidTo, source):
 				answer = _("Captcha valid.")
 				Poll.add(user)
 				Presence = xmpp.protocol.Presence(source, frm = TransportID)
-				#Presence.setStatus("") # is it needed?
 				Presence.setShow("available")
 				Sender(Component, Presence)
 				user.tryAgain()

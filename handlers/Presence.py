@@ -2,6 +2,7 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2013 — 2014.
 
+
 def prsHandler(cl, prs):
 	pType = prs.getType()
 	jidFrom = prs.getFrom()
@@ -60,7 +61,7 @@ def prsHandler(cl, prs):
 			db("select jid,username from users where jid=?", (source,))
 			data = db.fetchone()
 			if data:
-				logger.debug("User %s found in db" % source)
+				logger.debug("User %s has been found in db" % source)
 				jid, phone = data
 				Transport[jid] = user = User((phone, None), jid)
 				try:
