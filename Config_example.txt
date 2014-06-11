@@ -18,9 +18,6 @@ TransportID = "vk.example.com"
 ## Connection password.
 Password = "secret"
 
-## Use API feature lastMessageID (transport will save last user message id, 1 — use (recommented), 2 — not use)
-UseLastMessageID = 1
-
 ## Language (ru/en/pl)
 DefLang = "ru"
 

@@ -135,8 +135,6 @@ class RequestProcessor(object):
 		return AsyncHTTPRequest(url).open()
 
 
-
-
 class APIBinding:
 	def __init__(self, number=None, password=None, token=None, app_id=3789129,
 	scope=69638):
@@ -175,7 +173,7 @@ class APIBinding:
 
 		if "security_check" in response.url:
 			# This code should be rewritten! Users from another countries can have problems because of it!
-			hash = webtools.regexp(r"security_check.*?hash: '(.*?)'\};", body)[0]
+			hash = re.search(r"security_check.*?hash: '(.*?)'\};", body).group(0)
 			code = self.number[2:-2]
 			if len(self.number) == 12:
 				if not self.number.startswith("+"):
