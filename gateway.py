@@ -115,7 +115,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 168, 0 # 0. means testing.
+	revNumber, rev = 171, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -212,7 +212,7 @@ class VKLogin(object):
 				raise api.TokenError("Token for user %s invalid: %s" % (self.source, self.engine.token))
 		else:
 			logger.error("VKLogin.checkData: no token and password for jid:%s" % self.source)
-			raise api.TokenError("%s, Where are your token?" % self.source)
+			raise api.TokenError("%s, Where the hell are your token?" % self.source)
 
 	## TODO: this function must been rewritten. We have dict from self.method, so it's bad way trying make int from dict.
 	def checkToken(self):

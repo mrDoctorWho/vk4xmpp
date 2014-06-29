@@ -262,7 +262,6 @@ class APIBinding:
 			elif "error" in body:
 				error = body["error"]
 				eCode = error["error_code"]
-	## TODO: Check code below
 				if eCode == 5:     # invalid token
 					self.attempts += 1
 					if self.attempts < 3:
@@ -290,8 +289,13 @@ class APIBinding:
 				raise VkApiError(body["error"])
 
 	def retry(self):
+		result = None
 		if self.lastMethod:
-			return self.method(*self.lastMethod)
+			try:
+				result = self.method(*self.lastMethod)
+			except Exception:
+				pass
+		return result
 
 
 class NetworkNotFound(Exception):  ## maybe network is unreachable or vk is down (same as 10 jan 2014)
