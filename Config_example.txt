@@ -40,7 +40,7 @@ AdditionalAbout = ""
 # F.e. conference.example.com
 ConferenceServer = ""
 
-## Public transports list: http://anakee.ru/vkxmpp
+## Public transports list: http://xmppserv.ru.ru/xmpp-monitor
 allowBePublic = True
 
 # Users limit. How much users can be stored on your server?

@@ -698,7 +698,7 @@ def makeMeKnown():
 		WhiteList.append("anon.anakee.ru")
 	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
-		RIP.post("http://anakee.ru/vkxmpp/hosts.php", {"add": TransportID})
+		RIP.post("http://xmppserv.ru/xmpp-monitor/hosts.php", {"add": TransportID})
 		Print("#! Information about myself successfully published.")
 
 def garbageCollector():
