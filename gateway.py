@@ -692,10 +692,10 @@ def disconnectHandler(crash=True):
 	time.sleep(5)
 	os.execl(sys.executable, sys.executable, *sys.argv)
 
-## Public transport's list: http://anakee.ru/vkxmpp
+## Public transport's list: http://xmppserv.ru.ru/xmpp-monitor
 def makeMeKnown():
 	if WhiteList:
-		WhiteList.append("anon.anakee.ru")
+		WhiteList.append("anon.xmppserv.ru")
 	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
 		RIP.post("http://xmppserv.ru/xmpp-monitor/hosts.php", {"add": TransportID})

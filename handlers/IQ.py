@@ -30,7 +30,7 @@ def iqHandler(cl, iq):
 	elif ns == xmpp.NS_VERSION:
 		iqVersionHandler(cl, iq)
 	elif ns == xmpp.NS_LAST:
-		iqUptimeHandler(cl, iq)
+		iqLastHandler(cl, iq)
 	elif ns in (xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS):
 		iqDiscoHandler(cl, iq)
 	else:
@@ -43,7 +43,7 @@ def iqHandler(cl, iq):
 				Sender(cl, iq.buildReply("result"))
 
 
-def iqBuildError(stanza, error = None, text = None):
+def iqBuildError(stanza, error=None, text=None):
 	if not error:
 		error = xmpp.ERR_FEATURE_NOT_IMPLEMENTED
 	error = xmpp.Error(stanza, error, True)
@@ -91,8 +91,8 @@ def iqRegisterHandler(cl, iq):
 		phone, password, usePassword, token = False, False, False, False
 		Query = iq.getTag("query")
 		if Query.getTag("x"):
-			for node in iq.getTags("query", namespace = xmpp.NS_REGISTER):
-				for node in node.getTags("x", namespace = xmpp.NS_DATA):
+			for node in iq.getTags("query", namespace=xmpp.NS_REGISTER):
+				for node in node.getTags("x", namespace=xmpp.NS_DATA):
 					phone = node.getTag("field", {"var": "phone"})
 					phone = phone and phone.getTagData("value")
 					password = node.getTag("field", {"var": "password"})
@@ -118,7 +118,7 @@ def iqRegisterHandler(cl, iq):
 					result = iqBuildError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 			if source in Transport:
 				user = Transport[source]
-				deleteUser(user, semph = False)
+				deleteUser(user, semph=False)
 			else:
 				user = User((phone, password), source)
 			if not usePassword:
@@ -165,16 +165,26 @@ def calcStats():
 		countTotal = db.fetchone()[0]
 	return [countTotal, countOnline]
 
-def iqUptimeHandler(cl, iq):
+def iqLastHandler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
 	iType = iq.getType()
-	if iType == "get" and jidTo == TransportID:
-		uptime = int(time.time() - startTime)
-		result = xmpp.Iq("result", to = jidFrom)
+	source = jidFrom.getStripped()
+	destination = jidTo.getStripped() ## By following standard we should use destination with resource, If we don't client must think user is offline. So, let it be.
+	id = vk2xmpp(destination)
+	if iType == "get":
+		if id == TransportID:
+			last = int(time.time() - startTime)
+			name = IDentifier["name"]
+		elif source in Transport and id in Transport[source].friends:
+			last = int(time.time() - Transport[source].vk.method("messages.getLastActivity", {"user_id": id}).get("time", -1))
+			name = Transport[source].getUserData(id)
+		else:
+			raise xmpp.NodeProcessed()
+		result = xmpp.Iq("result", to=jidFrom, frm=destination)
 		result.setID(iq.getID())
-		result.setTag("query", {"seconds": str(uptime)}, xmpp.NS_LAST)
-		result.setTagData("query", IDentifier["name"])
+		result.setTag("query", {"seconds": str(last)}, xmpp.NS_LAST)
+		result.setTagData("query", name)
 		Sender(cl, result)
 
 def iqVersionHandler(cl, iq):
@@ -208,7 +218,7 @@ def iqStatsHandler(cl, iq):
 	if iType == "get" and destination == TransportID:
 		QueryPayload = list()
 		if not IQChildren:
-			keys = sorted(sDict.keys(), reverse = True)
+			keys = sorted(sDict.keys(), reverse=True)
 			for key in keys:
 				Node = xmpp.Node("stat", {"name": key})
 				QueryPayload.append(Node)
@@ -288,7 +298,7 @@ def iqGatewayHandler(cl, iq):
 			raise xmpp.NodeProcessed()
 		Sender(cl, result)
 
-def vCardGetPhoto(url, encode = True):
+def vCardGetPhoto(url, encode=True):
 	try:
 		opener = urllib.urlopen(url)
 		data = opener.read()
