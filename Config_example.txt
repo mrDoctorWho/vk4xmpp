@@ -15,7 +15,7 @@ Port = 5556
 ## Transport ID (Controls all)
 TransportID = "vk.example.com"
 
-## Connection password.
+## Connection password
 Password = "secret"
 
 ## Language (ru/en/pl)
@@ -24,19 +24,18 @@ DefLang = "ru"
 ## Photo size (photo_50, photo_100, photo_200_orig)
 PhotoSize = "photo_100"
 
-## White list. Put here servers which you want allow to access transport. F.e.: ['yourserver1.tld','yourserver2.tld']
-## Save it as [] if you won't block any servers.
+## White list. Put here servers which you want allow to access the transport. F.e.: ['yourserver1.tld','yourserver2.tld']
+## Leave it as is if you won't block any servers.
 WhiteList = []
 
-## Watcher list. Put here jid(s) of transport admin for notifications of registration. F.e.: ['admin@yourserver1.tld','name@yourserver2.tld']
-## Save it as [] if you won't watch any registration.
+## Watcher list. Put here jid(s) of transport's admin to receive notifications about registrations. F.e.: ['admin@yourserver1.tld','name@yourserver2.tld']
+## Leave it as is if you won't receive anything.
 WatcherList = []
 
-# Additional about text. It was shown after main about text in transports vcard.
+# Additional description. It will be shown after "about" text in transport's vcard.
 AdditionalAbout = ""
 
 # Conference server. Don't change if you won't allow your users to use groupchats (depends on jabber-server's MUC)
-# It's an alpha! Testers are welcome, but don't use it everytime!
 # F.e. conference.example.com
 ConferenceServer = ""
 
@@ -48,17 +47,14 @@ allowBePublic = True
 USER_LIMIT = 0
 
 #! Danger zone.
-#! Edit settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENTED!
-## Thread stack size (WARNING: MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
-## It's needed for optimize memory consuming.
+#! Change settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENDED!
+## Thread stack size (WARNING: THIS MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
+## You may need it to optimize memory consuming.
 ## minimum value is 32768 bytes (32kb)
 THREAD_STACK_SIZE = 0
 
 ## Maximum forwarded messages depth.
-MAXIMUM_FORWARD_DEPTH = 5
-
-## Users per thread.
-SLICE_STEP = 8
+MAXIMUM_FORWARD_DEPTH = 20
 
 ## Image that will be used if transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"

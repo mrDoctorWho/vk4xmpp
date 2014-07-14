@@ -20,7 +20,7 @@ def rFile(filename):
 
 def crashLog(name, text = 0, fixMe = True):
 	global lastErrorBody
-	logger.error("writing crashlog %s" % name)
+	logger.error("write crashlog %s" % name)
 	if fixMe:
 		fixme(name)
 	try:

@@ -55,7 +55,8 @@ TransportFeatures = [xmpp.NS_DISCO_ITEMS,
 					xmpp.NS_PING,
 					xmpp.NS_LAST]
 
-UserFeatures = [xmpp.NS_CHATSTATES]
+UserFeatures = [xmpp.NS_CHATSTATES,
+				xmpp.NS_LAST]
 
 IDentifier = {"type": "vk",
 			"category": "gateway",
@@ -231,7 +232,7 @@ class VKLogin(object):
 			logger.error("VKLogin.auth failed with error %s" % e.message)
 			return False
 		except Exception:
-			crashLog("VKLogin.auth")
+			crashLog("vklogin.auth")
 			return False
 		logger.debug("VKLogin.auth completed")
 		self.Online = True
@@ -344,7 +345,7 @@ class User(object):
 		self.friends = {}
 		self.auth = None
 		self.token = None
-		self.lastMsgID = None
+		self.lastMsgID = 0
 		self.rosterSet = None
 		self.existsInDB = None
 		self.last_udate = time.time()
@@ -360,7 +361,7 @@ class User(object):
 			desc = db.fetchone()
 			if desc:
 				if not self.token or not self.password:
-					logger.debug("User: %s exists in db. Have to use it." % self.source)
+					logger.debug("User: %s exists in db. Use it." % self.source)
 					self.existsInDB = True
 					self.source, self.username, self.token, self.lastMsgID, self.rosterSet = desc
 				elif self.password or self.token:
@@ -409,8 +410,6 @@ class User(object):
 			self.getUserID()
 			self.friends = self.vk.getFriends()
 			self.vk.Online = True
-		if not UseLastMessageID:
-			self.lastMsgID = 0
 		return self.vk.Online
 
 	def getUserID(self):
@@ -511,9 +510,8 @@ class User(object):
 			if messages:
 				lastMsg = messages[-1]
 				self.lastMsgID = lastMsg["mid"]
-				if UseLastMessageID:
-					with Database(DatabaseFile, Semaphore) as db:
-						db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
+				with Database(DatabaseFile, Semaphore) as db:
+					db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 	def processPollResult(self, opener):
 		try:
@@ -616,7 +614,7 @@ def Sender(cl, stanza):
 	try:
 		cl.send(stanza)
 	except Exception:
-		crashLog("Sender")
+		crashLog("sender")
 
 def msgSend(cl, destination, body, source, timestamp=0):
 	msg = xmpp.Message(destination, body, "chat", frm=source)
@@ -885,5 +883,5 @@ if __name__ == "__main__":
 			Component.iter(6)
 		except Exception:
 			logger.critical("DISCONNECTED")
-			crashLog("Component.iter")
+			crashLog("component.iter")
 			disconnectHandler(True)
