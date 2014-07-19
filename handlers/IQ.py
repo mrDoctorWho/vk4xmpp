@@ -178,7 +178,7 @@ def iqLastHandler(cl, iq):
 			name = IDentifier["name"]
 		elif source in Transport and id in Transport[source].friends:
 			last = int(time.time() - Transport[source].vk.method("messages.getLastActivity", {"user_id": id}).get("time", -1))
-			name = Transport[source].getUserData(id)
+			name = Transport[source].getUserData(id)["name"]
 		else:
 			raise xmpp.NodeProcessed()
 		result = xmpp.Iq("result", to=jidFrom, frm=destination)
@@ -298,24 +298,13 @@ def iqGatewayHandler(cl, iq):
 			raise xmpp.NodeProcessed()
 		Sender(cl, result)
 
-def vCardGetPhoto(url, encode=True):
-	try:
-		opener = urllib.urlopen(url)
-		data = opener.read()
-		if data and encode:
-			data = data.encode("base64")
-		return data
-	except IOError:
-		pass
-	except Exception:
-		crashLog("vcard.getPhoto")
 
 def iqVcardBuild(tags):
 	vCard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
 	for key in tags.keys():
 		if key == "PHOTO":
-			binVal = vCard.setTag("PHOTO")
-			binVal.setTagData("BINVAL", vCardGetPhoto(tags[key]))
+			photo = vCard.setTag("PHOTO")
+			photo.setTagData("BINVAL", utils.getLinkData(tags[key]))
 		else:
 			vCard.setTagData(key, tags[key])
 	return vCard

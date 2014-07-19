@@ -12,7 +12,7 @@ def captchaSend(self):
 	x = msg.setTag("x", namespace=xmpp.NS_OOB)
 	x.setTagData("url", self.engine.captcha["img"])
 	captcha = msg.setTag("captcha", namespace=xmpp.NS_CAPTCHA)
-	image = vCardGetPhoto(self.engine.captcha["img"], False)
+	image = utils.getLinkData(self.engine.captcha["img"], False)
 	if image:
 		hash = sha1(image).hexdigest()
 		encoded = image.encode("base64")

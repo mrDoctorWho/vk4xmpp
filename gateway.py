@@ -69,7 +69,8 @@ SLICE_STEP = 8
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
 THREAD_STACK_SIZE = 0
-MAXIMUM_FORWARD_DEPTH = 5
+MAXIMUM_FORWARD_DEPTH = 10
+STANZA_SEND_INTERVAL = 0.03125
 
 pidFile = "pidFile.txt"
 logFile = "vk4xmpp.log"
@@ -116,7 +117,7 @@ loggerHandler.setFormatter(Formatter)
 logger.addHandler(loggerHandler)
 
 def gatewayRev():
-	revNumber, rev = 171, 0
+	revNumber, rev = 175, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -148,11 +149,13 @@ def initDatabase(filename):
 
 def execute(handler, list=()):
 	try:
-		handler(*list)
+		result = handler(*list)
 	except SystemExit:
-		pass
+		result = 1
 	except Exception:
+		result = -1
 		crashLog(handler.func_name)
+	return result
 
 ## TODO: execute threaded handlers
 def executeHandlers(type, list=()):
@@ -281,10 +284,7 @@ class VKLogin(object):
 					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					msgSend(Component, self.source, _(e.message + " Please, register again"), TransportID)
-				try:
-					deleteUser(Transport.get(self.source, self), roster, False)
-				except KeyError:
-					pass
+				deleteUser(Transport.get(self.source, self), roster, False)
 
 				self.Online = False
 				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.source))
@@ -327,14 +327,36 @@ class VKLogin(object):
 			values["last_message_id"] = mid
 		return self.method("messages.get", values)
 
-def sendPresence(target, source, pType=None, nick=None, reason=None, caps=None):
+def sendPresence(target, source, pType=None, nick=None, reason=None, caps=None, hash=None):
 	Presence = xmpp.Presence(target, pType, frm=source, status=reason)
 	if nick:
 		Presence.setTag("nick", namespace=xmpp.NS_NICK)
 		Presence.setTagData("nick", nick)
 	if caps:
 		Presence.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
+	if hash:
+		x = Presence.setTag("x", namespace=xmpp.NS_VCARD_UPDATE)
+		x.setTagData("photo", hash)
 	Sender(Component, Presence)
+
+
+from hashlib import sha1
+
+def hasher(user, list=None):
+	if not list:
+		list = user.vk.method("friends.getOnline")
+		user.hashes = {}
+		photos = [{"uid": TransportID, "photo": URL_VCARD_NO_IMAGE}]
+	else:
+		photos = []
+
+	list = ",".join((str(x) for x in list))
+	photos = photos + user.vk.method("execute.getPhotos", {"users": list, "size": PhotoSize})
+
+	for key in photos:
+		user.hashes[key["uid"]] = sha1(utils.getLinkData(key["photo"], True)).hexdigest()
+
+
 
 class User(object):
 
@@ -348,11 +370,12 @@ class User(object):
 		self.lastMsgID = 0
 		self.rosterSet = None
 		self.existsInDB = None
-		self.last_udate = time.time()
 		self.typing = {}
 		self.source = source
 		self.resources = []
 		self.chatUsers = {}
+		self.hashes = {}#!!!
+		self.last_udate = time.time()
 		self.__sync = threading._allocate_lock()
 		self.vk = VKLogin(self.username, self.password, self.source)
 		logger.debug("initializing User for %s" % self.source)
@@ -425,6 +448,7 @@ class User(object):
 		return self.UserID
 
 	def init(self, force=False, send=True):
+		threadRun(hasher, (self,), "hasher-%s"%self.source)#!!!
 		logger.debug("User: called init for user %s" % self.source)
 		if not self.friends:
 			self.friends = self.vk.getFriends()
@@ -443,8 +467,8 @@ class User(object):
 					(self.source, "exists" if self.friends else "empty"))
 		for uid, value in self.friends.iteritems():
 			if value["online"]:
-				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
-		sendPresence(self.source, TransportID, None, IDentifier["name"], caps=True)
+				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True, hash=self.hashes.get(uid))
+		sendPresence(self.source, TransportID, None, IDentifier["name"], caps=True,hash=self.hashes.get(uid))
 
 	def sendOutPresence(self, target, reason=None):
 		logger.debug("User: sending out presence to %s" % self.source)
@@ -545,7 +569,8 @@ class User(object):
 				threadRun(self.sendMessages)
 			elif typ == 8: # user online
 				uid = abs(evt[0])
-				sendPresence(self.source, vk2xmpp(uid), nick=self.getUserData(uid)["name"], caps=True)
+				hasher(self, [uid])
+				sendPresence(self.source, vk2xmpp(uid), nick=self.getUserData(uid)["name"], caps=True, hash=self.hashes.get(uid))
 			elif typ == 9: # user leaved
 				uid = abs(evt[0])
 				sendPresence(self.source, vk2xmpp(uid), "unavailable")
@@ -802,7 +827,7 @@ class Poll:
 					user = Transport.get(user.source)
 					if not user:
 						continue
-					result = user.processPollResult(opener)
+					result = execute(user.processPollResult, (opener,))
 					if result == -1:
 						continue
 					elif result:
@@ -838,7 +863,7 @@ def main():
 			Component.RegisterHandler("presence", prsHandler)
 			Component.RegisterHandler("message", msgHandler)
 			Component.RegisterDisconnectHandler(disconnectHandler)
-			Component.set_send_interval(0.03125) # 32 messages per second
+			Component.set_send_interval(STANZA_SEND_INTERVAL) # 32 messages per second
 			Print("#-# Initializing users", False)
 			with Database(DatabaseFile) as db:
 				users = db("select jid from users").fetchall()
