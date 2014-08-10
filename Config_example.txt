@@ -1,83 +1,86 @@
 # coding: utf
 
-## Connection host.
-## For Prosody "vk.example.com"
+# Connection hostname.
+# For Prosody: "vk.example.com".
 Host = "localhost"
 
-## Connection server (usually equals host)
-## For Prosody "localhost"
+# Connection server (usually equals hostname).
+# For Prosody: "localhost".
 Server = "localhost" 
 
-## Connection port (as you set in your jabber-server config)
-## Default value for Prosody is 5347
+# Connection port (as set in Jabber server config).
+# Default value for Prosody is 5347.
 Port = 5556
 
-## Transport ID (Controls all)
+# Transport ID (for all instances of vk4xmpp).
 TransportID = "vk.example.com"
 
-## Connection password
+# Connection password.
 Password = "secret"
 
-## Language (ru/en/pl)
+# Language (ru/en/pl).
 DefLang = "ru"
 
-## Photo size (photo_50, photo_100, photo_200_orig)
+# Photo size (photo_50, photo_100, photo_200_orig).
 PhotoSize = "photo_100"
 
-## White list. Put here servers which you want allow to access the transport. F.e.: ['yourserver1.tld','yourserver2.tld']
-## Leave it as is if you won't block any servers.
+# White list. Put servers here that should be allowed access to the
+# transport, e.g., ['yourserver1.tld','yourserver2.tld'].
+# Leave it blank to disable blocking completely.
 WhiteList = []
 
-## Watcher list. Put here jid(s) of transport's admin to receive notifications about registrations. F.e.: ['admin@yourserver1.tld','name@yourserver2.tld']
-## Leave it as is if you won't receive anything.
+# Watcher list. Put transport admin JID(s) here to receive notifications
+# about new registrations, e.g., ['admin@yourserver1.tld','name@yourserver2.tld'].
+# Leave it blank to disable notifications.
 WatcherList = []
 
-# Additional description. It will be shown after "about" text in transport's vcard.
+# Additional description. It will be shown after "about" text in transport's vCard.
 AdditionalAbout = ""
 
-# Conference server. Don't change if you won't allow your users to use groupchats (depends on jabber-server's MUC)
-# F.e. conference.example.com
+# Conference server. Leave it blank to disable group chats. Depends on Jabber
+# server's MUC. E.g., conference.example.com.
 ConferenceServer = ""
 
-## Public transports list: http://xmppserv.ru.ru/xmpp-monitor
+# Publish this intstance information in public transport list at
+# http://xmppserv.ru.ru/xmpp-monitor.
 allowBePublic = True
 
-# Users limit. How much users can be stored on your server?
-# Save as 0 if you won't limit registrations.
+# User limit. How many users can be registered on your server?
+# Set to 0 for "unlimited".
 USER_LIMIT = 0
 
 #! Danger zone.
 #! Change settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENDED!
-## Thread stack size (WARNING: THIS MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR)
-## You may need it to optimize memory consuming.
-## minimum value is 32768 bytes (32kb)
+## Thread stack size (WARNING: THIS MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR).
+## You may need to tune it to optimize memory consuming.
+## Minimum value is 32768 bytes (32kb).
 THREAD_STACK_SIZE = 0
 
 ## Maximum forwarded messages depth.
 MAXIMUM_FORWARD_DEPTH = 20
 
-## Image that will be used if transport can't recieve image from VK.
+## Image that will be used if the transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
 
-## Eval jid. jid for command "!eval"
+## Eval JID (JID for "!eval" command).
 evalJID = ""
 
-## Debug xmpppy library
+## Debug xmpppy library.
 DEBUG_XMPPPY = False
 
-## Database file (as you like)
+## Database file (anything you like).
 DatabaseFile = "users.db"
 
-## File used for storage PID.
+## File to store PID in.
 pidFile = "pidFile.txt"
 
 ## Log file.
 logFile = "vk4xmpp.log"
 
-## Directory for storage crash logs.
+## Directory for crash logs storage.
 crashDir = "crash"
 
-## Log level (logging.DEBUG, logging.ERROR, logging.CRITICAL)
+## Log level (logging.DEBUG, logging.ERROR, logging.CRITICAL).
 LOG_LEVEL = logging.DEBUG
 
 
