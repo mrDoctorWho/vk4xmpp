@@ -1,5 +1,7 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
+# © simpleApps, 2014.
+## TODO: Add check if mod_iq_captcha exists.
 
 from hashlib import sha1
 
@@ -25,12 +27,11 @@ def captchaSend(self):
 		captcha.addChild(node=form)
 		oob = msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % hash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
 		oob.setData(encoded)
-	else:
-		logger.critical("VKLogin: can't add captcha image to message url:%s" % self.engine.captcha["img"])
-	Sender(Component, msg)
+	sender(Component, msg)
 	Presence = xmpp.protocol.Presence(self.source, frm=TransportID)
 	Presence.setStatus(body)
 	Presence.setShow("xa")
-	Sender(Component, Presence)
+	sender(Component, Presence)
+
 
 Handlers["evt04"].append(captchaSend)

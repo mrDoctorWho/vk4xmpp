@@ -25,9 +25,9 @@ If you won't get access-token automatically, please, follow authorization link a
 Phone number=Номер телефона
 Enter phone number in format +71234567890=Введите номер телефона в формате +71234567890
 Get access-token automatically=Получить access-token автоматически
-Try to get access-token automatically. (NOT recommented, password required!)=Попытаться получить access-token автоматически. (Не рекомендуется, требуется пароль)
+Try to get access-token automatically. (NOT recommended, password required!)=Попытаться получить access-token автоматически. (Не рекомендуется, требуется пароль)
 Password/Access-token=Пароль/Access-token
-Type password, access-token or url (recommented)=Введите пароль, access-token или ссылку из браузера (рекомендуется)
+Type password, access-token or url (recommended)=Введите пароль, access-token или ссылку из браузера (рекомендуется)
 User authorization failed: invalid access_token. Please, register again=Ошибка авторизации: неправильный access_token. Пожалуйста, пройдите регистрацию снова.
 You're not allowed to perform this action.=Вам не разрешено выполнять это действие.
 Transport's admins limited registrations, sorry.=Нам очень жаль, но администрация транспорта ограничила количество регистраций.
