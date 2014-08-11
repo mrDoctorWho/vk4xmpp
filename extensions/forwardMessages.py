@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013.
+# © simpleApps, 2013 — 2014.
 
 from datetime import datetime
 
@@ -10,19 +10,21 @@ if not require("attachments"):
 def parseForwardMessages(self, msg, depth = 0):
 	body = ""
 	if msg.has_key("fwd_messages"):
-		body += _("\nForward messages:")
+		spacer = (chr(32) + unichr(183) + chr(32)) * depth
+		body = "\n" + spacer
+		body += _("Forward messages:")
 		fwd_messages = sorted(msg["fwd_messages"], msgSort)
 		for fwd in fwd_messages:
-			idFrom = fwd["uid"]
+			source = fwd["uid"]
 			date = fwd["date"]
 			fwdBody = escape("", uHTML(fwd["body"]))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
-			name = self.getUserData(idFrom)["name"]
-			body += "\n[%s] <%s> %s" % (date, name, fwdBody)
+			name = self.getUserData(source)["name"]
+			body += "\n%s[%s] <%s> %s" % (spacer, date, name, fwdBody)
 			body += parseAttachments(self, fwd)
 			if depth < MAXIMUM_FORWARD_DEPTH: 
-				depth += 1
-				body += parseForwardMessages(self, fwd, depth)
+				body += parseForwardMessages(self, fwd, (depth + 1))
 	return body
+
 
 Handlers["msg01"].append(parseForwardMessages)

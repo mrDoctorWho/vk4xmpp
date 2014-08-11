@@ -7,14 +7,19 @@
 if not require("attachments") or not require("forwardMessages"):
 	raise
 
+try:
+	import mod_xhtml
+except ImportError:
+	mod_xhtml = None
+
 def IQSender(chat, attr, data, afrls, role, jidFrom):
 	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
 	query = xmpp.Node("query", {"xmlns": xmpp.NS_MUC_ADMIN})
 	arole = query.addChild("item", {attr: data, afrls: role})
 	stanza.addChild(node = query)
-	Sender(Component, stanza)
+	sender(Component, stanza)
 
-def member(chat, jid, jidFrom):
+def makeMember(chat, jid, jidFrom):
 	IQSender(chat, "jid", jid, "affiliation", "member", jidFrom)
 
 def inviteUser(chat, jidTo, jidFrom, name):
@@ -23,7 +28,7 @@ def inviteUser(chat, jidTo, jidFrom, name):
 	inv = x.addChild("invite", {"to": jidTo})
 	inv.setTagData("reason", _("You're invited by user «%s»") % name)
 	invite.addChild(node=x)
-	Sender(Component, invite)
+	sender(Component, invite)
 
 
 ## TODO: Set chatroom's name
@@ -38,12 +43,12 @@ def chatSetConfig(chat, jidFrom, exterminate=False):
 										 {"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
 										 {"var": "muc#roomconfig_whois", "value": "anyone"}])
 		query.addChild(node=form)
-	Sender(Component, iq)
+	sender(Component, iq)
 
 def chatPresence(chat, name, jidFrom, type=None):
 	prs = xmpp.Presence("%s/%s" % (chat, name), type, frm=jidFrom)
 	prs.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
-	Sender(Component, prs)
+	sender(Component, prs)
 
 def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 	message = xmpp.Message(chat, typ="groupchat")
@@ -55,32 +60,33 @@ def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 	else:
 		message.setSubject(text)
 	message.setFrom(jidFrom)
-	Sender(Component, message)
+	sender(Component, message)
 
 def outgoungChatMessageHandler(self, msg):
 	if msg.has_key("chat_id"):
 		idFrom = msg["uid"]
 		owner = msg["admin_id"]
 		_owner = vk2xmpp(owner)
-		chatID = "%s_chat#%s" % (self.UserID, msg["chat_id"])
+		chatID = "%s_chat#%s" % (self.userID, msg["chat_id"])
 		chat = "%s@%s" % (chatID, ConferenceServer)
 		users = msg["chat_active"].split(",")
-		users.append(self.UserID)
+		users.append(self.userID)
 		if not users: ## is it possible?
-			logger.debug("groupchats: all users exterminated in chat: %s" % chat)
+			logger.debug("groupchats: all users exterminated in the chat: %s" % chat)
 			if chat in self.chatUsers:
-				chatPresence(chat, self.getUserData(owner)["name"], vk2xmpp(self.UserID), "unavailable")
+				chatPresence(chat, self.getUserData(owner)["name"], vk2xmpp(self.userID), "unavailable")
 				del self.chatUsers[chat]
 			return None
 
 		if chat not in self.chatUsers:
 			logger.debug("groupchats: creating %s. Users: %s; owner: %s" % (chat, msg["chat_active"], owner))
 			self.chatUsers[chat] = []
-			for usr in (owner, self.UserID):
+			for usr in (owner, self.userID):
 				chatPresence(chat, self.getUserData(usr)["name"], vk2xmpp(usr))
 			chatSetConfig(chat, _owner)
-			member(chat, self.source, _owner)
+			makeMember(chat, self.source, _owner)
 			inviteUser(chat, self.source, _owner, self.getUserData(owner)["name"])
+			logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, self.source))
 			chatMessage(chat, msg["title"], _owner, True, msg["date"])
 	
 		for user in users:
@@ -89,7 +95,7 @@ def outgoungChatMessageHandler(self, msg):
 				self.chatUsers[chat].append(user)
 				uName = self.getUserData(user)["name"]
 				user = vk2xmpp(user)
-				member(chat, user, _owner)
+				makeMember(chat, user, _owner)
 				chatPresence(chat, uName, user)
 		
 		for user in self.chatUsers[chat]:
@@ -112,9 +118,12 @@ def incomingChatMessageHandler(msg):
 		body = msg.getBody()
 		destination = msg.getTo().getStripped()
 		source = msg.getFrom().getStripped()
-		html = msg.getTag("html")
-		x = msg.getTag("x", {"xmlns": "http://jabber.org/protocol/muc#user"})
+		if mod_xhtml:
+			html = msg.getTag("html")
+		else:
+			html = None
 
+		x = msg.getTag("x", {"xmlns": "http://jabber.org/protocol/muc#user"})
 		if x and x.getTagAttr("status", "code") == "100":
 			raise xmpp.NodeProcessed()
 
@@ -129,7 +138,7 @@ def incomingChatMessageHandler(msg):
 						if html and html.getTag("body"): ## XHTML-IM!
 							logger.debug("groupchats: fetched xhtml image from %s" % source)
 							try:
-								xhtml = xhtmlParse(user, html, source, source, "chat_id")
+								xhtml = mod_xhtml.parseXHTML(user, html, source, source, "chat_id")
 							except Exception:
 								xhtml = False
 							if xhtml:
@@ -140,9 +149,10 @@ def incomingChatMessageHandler(msg):
 def chatDestroy(user):
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
-		chatSetConfig("%s_chat#%s@%s" % (user.UserID, chat["chat_id"], ConferenceServer), vk2xmpp(chat["admin_id"]), True)
+		chatSetConfig("%s_chat#%s@%s" % (user.userID, chat["chat_id"], ConferenceServer), vk2xmpp(chat["admin_id"]), True)
 
 if ConferenceServer:
+	logger.debug("extension groupchats is loaded")
 	TransportFeatures.append(xmpp.NS_GROUPCHAT)
 	Handlers["msg01"].append(outgoungChatMessageHandler)
 	Handlers["msg02"].append(incomingChatMessageHandler)

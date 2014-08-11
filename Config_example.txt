@@ -82,3 +82,7 @@ crashDir = "crash"
 
 ## Log level (logging.DEBUG, logging.ERROR, logging.CRITICAL).
 LOG_LEVEL = logging.DEBUG
+
+
+## Stanza send interval (in seconds)
+STANZA_SEND_INTERVAL = 0.03125

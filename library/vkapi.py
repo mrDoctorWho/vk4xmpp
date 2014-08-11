@@ -9,12 +9,16 @@ import mimetools
 import socket
 import ssl
 import time
+import re
 import urllib
 import urllib2
 import webtools
 
+socket.setdefaulttimeout(5)
 
 logger = logging.getLogger("vk4xmpp")
+
+token_exp = re.compile("(([\da-f]+){11,})", re.IGNORECASE)
 
 def attemptTo(maxRetries, resultType, *errors):
 	"""
@@ -53,7 +57,7 @@ def attemptTo(maxRetries, resultType, *errors):
 
 class AsyncHTTPRequest(httplib.HTTPConnection):
 
-	def __init__(self, url, data=None, headers=(), timeout=30):
+	def __init__(self, url, data=None, headers=(), timeout=5):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
 		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
 		self.url = url
@@ -89,7 +93,7 @@ class RequestProcessor(object):
 		self.cookieJar = cookielib.CookieJar()
 		cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.open = urllib2.build_opener(cookieProcessor).open
-		self.open.__func__.___defaults__ = (None, 30)
+		self.open.__func__.___defaults__ = (None, 5)
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
@@ -115,13 +119,13 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout, httplib.BadStatusLine)
+	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
 	def post(self, url, data="", urlencode=True):
 		resp = self.open(self.request(url, data, urlencode=urlencode))
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, socket.timeout, httplib.BadStatusLine)
+	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
 	def get(self, url, query={}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
@@ -217,12 +221,12 @@ class APIBinding:
 		body, response = self.RIP.get(url, values)
 		if response:
 			if "access_token" in response.url:
-				token = response.url.split("=")[1].split("&")[0]
+				token = token_exp.search(response.url).group(0)
 			else:
 				postTarget = webtools.getTagArg("form method=\"post\"", "action", body, "form")
 				if postTarget:
 					body, response = self.RIP.post(postTarget)
-					token = response.url.split("=")[1].split("&")[0]
+					token = token_exp.search(response.url).group(0)
 				else:
 					raise AuthError("Couldn't execute confirmThisApp()!")
 		self.token = token
@@ -252,10 +256,10 @@ class APIBinding:
 					body = json.loads(body)
 				except ValueError:
 					return {}
-##	 Debug:
-##			if method in ("users.get", "messages.get", "messages.send"):
-##				print "method %s with values %s" % (method, str(values))
-##				print "response for method %s: %s" % (method, str(body))
+#	 Debug:
+			if method in ("users.get", "messages.get", "messages.send"):
+				print "method %s with values %s" % (method, str(values))
+				print "response for method %s: %s" % (method, str(body))
 			if "response" in body:
 				return body["response"]
 
