@@ -3,7 +3,6 @@
 
 import cookielib
 import httplib
-import json
 import logging
 import mimetools
 import socket
@@ -14,11 +13,21 @@ import urllib
 import urllib2
 import webtools
 
-socket.setdefaulttimeout(5)
+SOCKET_TIMEOUT = 30
+REQUEST_RETRIES = 6
+
+socket.setdefaulttimeout(SOCKET_TIMEOUT)
 
 logger = logging.getLogger("vk4xmpp")
 
 token_exp = re.compile("(([\da-f]+){11,})", re.IGNORECASE)
+
+try:
+	import ujson as json
+	logger.debug("vkapi: using ujson instead of simplejson")
+except ImportError:
+	import json
+	logger.error("vkapi: ujson couldn't be loaded, using simplejson instead")
 
 def attemptTo(maxRetries, resultType, *errors):
 	"""
@@ -46,7 +55,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				if hasattr(exc, "errno") and exc.errno == 101:
 					raise NetworkNotFound()
 				data = resultType()
-				logger.debug("Error %s occurred on executing %s" % (exc, func))
+				logger.debug("vkapi: Error %s occurred on executing %s" % (exc, func))
 			return data
 
 		wrapper.__name__ = func.__name__
@@ -57,7 +66,7 @@ def attemptTo(maxRetries, resultType, *errors):
 
 class AsyncHTTPRequest(httplib.HTTPConnection):
 
-	def __init__(self, url, data=None, headers=(), timeout=5):
+	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
 		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
 		self.url = url
@@ -93,7 +102,7 @@ class RequestProcessor(object):
 		self.cookieJar = cookielib.CookieJar()
 		cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.open = urllib2.build_opener(cookieProcessor).open
-		self.open.__func__.___defaults__ = (None, 5)
+		self.open.__func__.___defaults__ = (None, SOCKET_TIMEOUT)
 
 	def getCookie(self, name):
 		for cookie in self.cookieJar:
@@ -104,8 +113,8 @@ class RequestProcessor(object):
 		start = ["--" + self.boundary, "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"" % (key, name), \
 									"Content-Type: %s" % ctype, "", ""] ## We already have content type so maybe we shouldn't detect it
 		end = ["", "--" + self.boundary + "--", ""]
-		start = "\n".join(start) #\r\n
-		end = "\n".join(end) # \r\n
+		start = "\n".join(start)
+		end = "\n".join(end)
 		data = start + data + end
 		return data
 
@@ -119,13 +128,13 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
+	@attemptTo(REQUEST_RETRIES, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
 	def post(self, url, data="", urlencode=True):
 		resp = self.open(self.request(url, data, urlencode=urlencode))
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(5, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
+	@attemptTo(REQUEST_RETRIES, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
 	def get(self, url, query={}):
 		if query:
 			url += "?%s" % urllib.urlencode(query)
@@ -144,15 +153,14 @@ class APIBinding:
 	scope=69638):
 		self.password = password
 		self.number = number
-
-		self.sid = None
 		self.token = token
-		self.captcha = {}
-		self.last = []
-		self.lastMethod = None
-
 		self.app_id = app_id
 		self.scope = scope
+
+		self.sid = None
+		self.captcha = {}
+		self.last = []
+		self.lastMethod = ()
 
 		self.RIP = RequestProcessor()
 		self.attempts = 0
@@ -176,7 +184,7 @@ class APIBinding:
 			raise AuthError("Invalid password")
 
 		if "security_check" in response.url:
-			# This code should be rewritten! Users from another countries can have problems because of it!
+			# This code should be rewritten! Users from another countries may have problems because of it!
 			hash = re.search(r"security_check.*?hash: '(.*?)'\};", body).group(0)
 			code = self.number[2:-2]
 			if len(self.number) == 12:
@@ -257,21 +265,24 @@ class APIBinding:
 				except ValueError:
 					return {}
 #	 Debug:
-			if method in ("users.get", "messages.get", "messages.send"):
-				print "method %s with values %s" % (method, str(values))
-				print "response for method %s: %s" % (method, str(body))
+#			if method in ("users.get", "messages.get", "messages.send"):
+#				print "method %s with values %s" % (method, str(values))
+#				print "response for method %s: %s" % (method, str(body))
+
 			if "response" in body:
 				return body["response"]
 
 			elif "error" in body:
 				error = body["error"]
 				eCode = error["error_code"]
+				logger.error("vkapi: error occured on executing method (%(method)s, code: %(eCode)s)" % vars())
 				if eCode == 5:     # invalid token
 					self.attempts += 1
 					if self.attempts < 3:
 						retry = self.retry()
 						if retry:
 							self.attempts = 0
+							logger.info("vkapi: attempt to retry last method (%(method)s) was successful" % vars())
 							return retry
 					else:
 						raise TokenError(error["error_msg"])
@@ -288,7 +299,7 @@ class APIBinding:
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 						raise CaptchaNeeded()
-				elif eCode in (1, 9, 100): ## 1 is an unknown error / 100 is wrong method or parameters loss 
+				elif eCode in (1, 9, 100): ## 1 is an unknown error / 9 is flood control / 100 is wrong method or parameters loss 
 					return {"error": eCode}
 				raise VkApiError(body["error"])
 

@@ -13,7 +13,7 @@ def parseForwardMessages(self, msg, depth = 0):
 		spacer = (chr(32) + unichr(183) + chr(32)) * depth
 		body = "\n" + spacer
 		body += _("Forward messages:")
-		fwd_messages = sorted(msg["fwd_messages"], msgSort)
+		fwd_messages = sorted(msg["fwd_messages"], sortMsg)
 		for fwd in fwd_messages:
 			source = fwd["uid"]
 			date = fwd["date"]

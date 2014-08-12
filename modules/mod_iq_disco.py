@@ -18,17 +18,22 @@ def disco_handler(cl, iq):
 
 		result = iq.buildReply("result")
 		queryPayload.append(xmpp.Node("identity", IDENTIFIER))
+#		queryPayload.append(xmpp.Node("item", {"node": xmpp.NS_COMMANDS, "name": "Online users", "jid": TransportID}))
 		if ns == xmpp.NS_DISCO_INFO:
 			for key in features:
 				xNode = xmpp.Node("feature", {"var": key})
 				queryPayload.append(xNode)
+			
 			result.setQueryPayload(queryPayload)
 		
 		elif ns == xmpp.NS_DISCO_ITEMS:
 			result.setQueryPayload(queryPayload)
+#	elif node:
+#		if node == xmpp.NS_COMMANDS:
+
 
 		sender(cl, result) 
 
 def load():
-	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
-	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
+	Component.RegisterHandler("iq", disco_handler)
+#	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)

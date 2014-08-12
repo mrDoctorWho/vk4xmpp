@@ -14,7 +14,7 @@ def captcha_handler(cl, iq):
 				xTag = capTag.getTag("x", {}, xmpp.NS_DATA)
 				ocrTag = xTag.getTag("field", {"var": "ocr"})
 				value = ocrTag.getTagData("value")
-				mod_msg_main.captchaAccept(cl, value, jidTo, source)
+				mod_msg_main.acceptCaptcha(cl, value, jidTo, source)
 
 def load():
 	Component.RegisterHandler("iq", captcha_handler, "set")

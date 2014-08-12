@@ -14,7 +14,7 @@ def reportReceived(msg, jidFrom, jidTo):
 		answer.setID(msg.getID())
 		return answer
 
-def captchaAccept(cl, args, jidTo, source):
+def accpeptCaptcha(cl, args, jidTo, source):
 	if args:
 		answer = None
 		user = Transport[source]

@@ -27,7 +27,6 @@ if core:
 sys.path.insert(0, "library")
 reload(sys).setdefaultencoding("utf-8")
 
-import vkapi as api
 import xmpp
 import utils
 
@@ -102,12 +101,6 @@ except Exception:
 	wException()
 	exit()
 
-setVars(DefLang, root)
-
-
-if THREAD_STACK_SIZE:
-	threading.stack_size(THREAD_STACK_SIZE)
-
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
@@ -115,6 +108,13 @@ formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s",
 				"[%d.%m.%Y %H:%M:%S]")
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
+
+import vkapi as api
+
+setVars(DefLang, root)
+
+if THREAD_STACK_SIZE:
+	threading.stack_size(THREAD_STACK_SIZE)
 del formatter, loggerHandler
 
 OS = "{0} {2:.16} [{4}]".format(*os.uname())

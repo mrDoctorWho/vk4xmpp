@@ -46,7 +46,7 @@ def stats_handler(cl, iq):
 					 "percent": [percent], 
 					 "seconds": [time], 
 					 "threads": [threading.activeCount()],
-					 "messages": [STATS["msgout"], STATS["msgin"]]}
+					 "messages": [Stats["msgout"], Stats["msgin"]]}
 			for child in iqChildren:
 				if child.getName() == "stat":
 					name = child.getAttr("name")
