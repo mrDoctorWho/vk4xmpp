@@ -171,7 +171,7 @@ def runThread(func, args=(), name=None):
 		crashlog("runThread.%s" % name)
 
 def getGatewayRev():
-	revNumber, rev = 175, 0
+	revNumber, rev = 178, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -200,11 +200,11 @@ class VKLogin(object):
 	def __init__(self, number, password=None, source=None):
 		self.number = number
 		self.password = password
-		self.online = False
 		self.source = source
 		self.pollConfig = {"mode": 66, "wait": 30, "act": "a_check"}
 		self.pollServer = ""
 		self.pollInitialzed = False
+		self.online = False
 		logger.debug("VKLogin.__init__ with number:%s from jid:%s" % (number, source))
 
 	getToken = lambda self: self.engine.token
@@ -280,7 +280,7 @@ class VKLogin(object):
 			try:
 				result = self.engine.method(method, args, nodecode)
 			except api.CaptchaNeeded:
-				logger.error("VKLogin: running captcha challenge for %s" % self.source)
+				logger.error("VKLogin: running captcha challenge (jid: %s)" % self.source)
 				self.captchaChallenge()
 				result = 0
 			except api.NotAllowed:
@@ -411,7 +411,7 @@ class User(object):
 			self.vk.online = True
 		return self.vk.online
 
-	def getuserID(self):
+	def getUserID(self):
 		try:
 			json = self.vk.method("users.get")
 			self.userID = json[0]["uid"]
@@ -478,7 +478,7 @@ class User(object):
 	def sendMessages(self, init=False):
 		with self.__sync:
 			date = 0
-			messages = self.vk.getMessages(200, self.lastMsgID)
+			messages = self.vk.getMessages(20, self.lastMsgID)
 			if not messages or not messages[0]:
 				return None
 			messages = sorted(messages[1:], sortMsg)
@@ -510,7 +510,7 @@ class User(object):
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 		if not self.userID:
-			self.getuserID()
+			self.getUserID()
 
 	def processPollResult(self, opener):
 		try:
@@ -554,7 +554,7 @@ class User(object):
 
 	def updateTypingUsers(self, cTime):
 		for user, last in self.typing.items():
-			if cTime - last > 7:
+			if cTime - last > 10:
 				del self.typing[user]
 				sendMessage(Component, self.source, vk2xmpp(user), typ="paused")
 
@@ -595,7 +595,7 @@ class Poll:
 		try:
 			opener = user.vk.makePoll()
 		except Exception as e:
-			logger.error("longpoll: failed make poll for user %s" % user.source)
+			logger.error("longpoll: failed to make poll (jid: %s)" % user.source)
 			cls.__addToBuff(user)
 		else:
 			cls.__poll[opener.sock] = (user, opener)
@@ -603,7 +603,7 @@ class Poll:
 	@classmethod
 	def __addToBuff(cls, user):
 		cls.__buff.add(user)
-		logger.debug("longpoll: adding user %s to watcher" % user.source)
+		logger.debug("longpoll: adding user to watcher (jid: %s)" % user.source)
 		runThread(cls.__initPoll, (user,), cls.__initPoll.__name__)
 
 	@classmethod
@@ -634,14 +634,14 @@ class Poll:
 	def __initPoll(cls, user):
 		for x in xrange(10):
 			if user.source not in Transport:
-				logger.debug("longpoll: while we wasted our time user %s has left" % user.source)
+				logger.debug("longpoll: while we wasted our time, user has left (jid: %s)" % user.source)
 				with cls.__lock:
 					if user in cls.__buff:
 						cls.__buff.remove(user)
 				return None
 			if Transport[user.source].vk.initLongPoll():
 				with cls.__lock:
-					logger.debug("longpoll: %s successfully initialized longpoll" % user.source)
+					logger.debug("longpoll: successfully initialized longpoll (jid: %s)" % user.source)
 					if user not in cls.__buff:
 						return None
 					cls.__buff.remove(user)
@@ -653,7 +653,7 @@ class Poll:
 				if user not in cls.__buff:
 					return None
 				cls.__buff.remove(user)
-			logger.error("longpoll: failed to add %s to poll in 10 retries" % user.source)
+			logger.error("longpoll: failed to add user to poll in 10 retries (jid: %s)" % user.source)
 
 	@classmethod
 	def process(cls):
@@ -721,7 +721,7 @@ def sendPresence(target, source, pType=None, nick=None, reason=None, caps=None, 
 
 def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the functions in format verbSentence?
 	logger.debug("User: removing user from db (jid: %s)" % user.source)
-	with Database(DatabaseFile, semph) as db: ## WARNING: this may cause main thread lock
+	with Database(DatabaseFile, semph) as db:
 		db("delete from users where jid=?", (user.source,))
 		db.commit()
 	user.exists = False
