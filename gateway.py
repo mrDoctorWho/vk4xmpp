@@ -309,7 +309,7 @@ class VKLogin(object):
 
 	def disconnect(self):
 		logger.debug("VKLogin: user %s has left" % self.source)
-		Poll.remove(user)
+		Poll.remove(Transport[self.source])
 		self.online = False
 		self.method("account.setOffline", nodecode=True) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
 
