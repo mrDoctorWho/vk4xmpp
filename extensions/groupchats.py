@@ -4,8 +4,8 @@
 # File contains parts of code from 
 # BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
 
-if not require("attachments") or not require("forwardMessages"):
-	raise
+if not require("attachments") or not require("forwarded_messages"):
+	raise AssertionError("'groupchats' requires 'forwarded_messages'")
 
 try:
 	import mod_xhtml
@@ -50,7 +50,6 @@ def joinChat(chat, name, jidFrom):
 	sender(Component, prs)
 
 def leaveChat(chat, jidFrom):
-	print "LEAVE"
 	prs = xmpp.Presence(chat, "unavailable", frm=jidFrom)
 	sender(Component, prs)
 
@@ -76,7 +75,6 @@ def outgoungChatMessageHandler(self, msg):
 		users = msg["chat_active"].split(",")
 		if not self.vk.userID:
 			self.vk.getUserID()
-#		users.append(self.vk.userID)
 		if not users: ## is it possible?
 			logger.debug("groupchats: all users has been exterminated in the chat: %s" % chat)
 			if chat in self.chatUsers:
