@@ -171,7 +171,7 @@ def runThread(func, args=(), name=None):
 		crashlog("runThread.%s" % name)
 
 def getGatewayRev():
-	revNumber, rev = 178, 0
+	revNumber, rev = 181, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -195,7 +195,7 @@ require = lambda name: os.path.exists("extensions/%s.py" % name)
 isNumber = lambda obj: (not apply(int, (obj,)) is None)
 
 
-class VKLogin(object):
+class VK(object):
 
 	def __init__(self, number, password=None, source=None):
 		self.number = number
@@ -205,26 +205,27 @@ class VKLogin(object):
 		self.pollServer = ""
 		self.pollInitialzed = False
 		self.online = False
-		logger.debug("VKLogin.__init__ with number:%s from jid:%s" % (number, source))
+		self.userID = 0
+		logger.debug("VK.__init__ with number:%s from jid:%s" % (number, source))
 
 	getToken = lambda self: self.engine.token
 
 	def checkData(self):
-		logger.debug("VKLogin: checking data (jid: %s)" % self.source)
+		logger.debug("VK: checking data (jid: %s)" % self.source)
 		if not self.engine.token and self.password:
-			logger.debug("VKLogin.checkData: trying to login via password")
+			logger.debug("VK.checkData: trying to login via password")
 			self.engine.loginByPassword()
 			self.engine.confirmThisApp()
 			if not self.checkToken():
 				raise api.VkApiError("Incorrect phone or password")
 
 		elif self.engine.token:
-			logger.debug("VKLogin.checkData: trying to use token")
+			logger.debug("VK.checkData: trying to use token")
 			if not self.checkToken():
-				logger.error("VKLogin.checkData: token invalid: %s" % self.engine.token)
+				logger.error("VK.checkData: token invalid: %s" % self.engine.token)
 				raise api.TokenError("Token is invalid: %s (jid: %s)" % (self.source, self.engine.token))
 		else:
-			logger.error("VKLogin.checkData: no token and no password (jid: %s)" % self.source)
+			logger.error("VK.checkData: no token and no password (jid: %s)" % self.source)
 			raise api.TokenError("%s, Where the hell is your token?" % self.source)
 
 	## TODO: this function must be rewritten. We have dict from self.method, so trying make int using dict is bad idea.
@@ -236,17 +237,17 @@ class VKLogin(object):
 		return True
 
 	def auth(self, token=None):
-		logger.debug("VKLogin.auth %s token" % ("with" if token else "without"))
+		logger.debug("VK.auth %s token" % ("with" if token else "without"))
 		self.engine = api.APIBinding(self.number, self.password, token=token)
 		try:
 			self.checkData()
 		except api.AuthError as e:
-			logger.error("VKLogin.auth failed with error %s" % e.message)
+			logger.error("VK.auth failed with error %s" % e.message)
 			return False
 		except Exception:
-			crashLog("vklogin.auth")
+			crashLog("VK.auth")
 			return False
-		logger.debug("VKLogin.auth completed")
+		logger.debug("VK.auth completed")
 		self.online = True
 		runThread(self.initLongPoll, ())
 		return True
@@ -280,7 +281,7 @@ class VKLogin(object):
 			try:
 				result = self.engine.method(method, args, nodecode)
 			except api.CaptchaNeeded:
-				logger.error("VKLogin: running captcha challenge (jid: %s)" % self.source)
+				logger.error("VK: running captcha challenge (jid: %s)" % self.source)
 				self.captchaChallenge()
 				result = 0
 			except api.NotAllowed:
@@ -289,16 +290,16 @@ class VKLogin(object):
 			except api.VkApiError as e:
 				roster = False
 				if e.message == "User authorization failed: user revoke access for this token.":
-					logger.critical("VKLogin: %s" % e.message)
+					logger.critical("VK: %s" % e.message)
 					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
 				removeUser(Transport.get(self.source, self), roster, False)
 
 				self.online = False
-				logger.error("VKLogin: apiError %s for user %s" % (e.message, self.source))
+				logger.error("VK: apiError %s for user %s" % (e.message, self.source))
 			except api.NetworkNotFound:
-				logger.critical("VKLogin: network is unavailable. Is vk down?")
+				logger.critical("VK: network is unavailable. Is vk down?")
 				self.online = False
 		return result
 
@@ -308,7 +309,7 @@ class VKLogin(object):
 			Poll.remove(Transport[self.source]) ## Do not foget to add user into poll again after the captcha challenge is done 
 
 	def disconnect(self):
-		logger.debug("VKLogin: user %s has left" % self.source)
+		logger.debug("VK: user %s has left" % self.source)
 		Poll.remove(Transport[self.source])
 		self.online = False
 		self.method("account.setOffline", nodecode=True) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
@@ -334,6 +335,39 @@ class VKLogin(object):
 			values["last_message_id"] = mid
 		return self.method("messages.get", values)
 
+	def getUserID(self):
+		self.userID = self.method("execute.getUserID")
+		if self.userID:
+			jidToID[self.userID] = self.source
+		return self.userID
+
+	def getUserData(self, uid, fields=None):
+		user = Transport[self.source]
+		if not fields:
+			if uid in user.friends:
+				return user.friends[uid]
+			fields = ["screen_name"]
+		data = self.method("users.get", {"fields": ",".join(fields), "user_ids": uid}) or {}
+		if not data:
+			data = {"name": "None"}
+			for key in fields:
+				data[key] = "None"
+		else:
+			data = data.pop()
+			data["name"] = escape("", str.join(chr(32), (data.pop("first_name"), data.pop("last_name"))))
+		return data
+
+	def sendMessage(self, body, id, mType="user_id", more={}):
+		try:
+			Stats["msgout"] += 1
+			values = {mType: id, "message": body, "type": 0}
+			values.update(more)
+			Message = self.method("messages.send", values)
+		except Exception:
+			crashLog("messages.send")
+			Message = None
+		return Message
+
 
 class User(object):
 
@@ -347,7 +381,6 @@ class User(object):
 		self.exists = None
 		self.rosterSet = None
 		self.lastMsgID = 0
-		self.userID = 0
 		self.typing = {}
 		self.friends = {}
 		self.chatUsers = {}
@@ -355,7 +388,7 @@ class User(object):
 		self.resources = []
 		self.last_udate = time.time()
 		self.__sync = threading._allocate_lock()
-		self.vk = VKLogin(self.username, self.password, self.source)
+		self.vk = VK(self.username, self.password, self.source)
 		logger.debug("initializing User (jid: %s)" % self.source)
 		with Database(DatabaseFile, Semaphore) as db:
 			db("select * from users where jid=?", (self.source,))
@@ -374,17 +407,6 @@ class User(object):
 			return user.source == self.source
 		return self.source == user
 
-	def msg(self, body, id, mType="user_id", more={}):
-		try:
-			Stats["msgout"] += 1
-			values = {mType: id, "message": body, "type": 0}
-			values.update(more)
-			Message = self.vk.method("messages.send", values)
-		except Exception:
-			crashLog("messages.send")
-			Message = None
-		return Message
-
 	def connect(self):
 		logger.debug("User: connecting (jid: %s)" % self.source)
 		self.auth = False
@@ -399,7 +421,7 @@ class User(object):
 			logger.debug("User: auth=%s (jid: %s)" % (self.auth, self.source))
 
 		if self.auth and self.vk.getToken():
-			logger.debug("User: updating db because auth done (jid: %s)" % self.source)
+			logger.debug("User: updating database because auth done (jid: %s)" % self.source)
 			if not self.exists:
 				with Database(DatabaseFile, Semaphore) as db:
 					db("insert into users values (?,?,?,?,?)", (self.source, "",
@@ -411,16 +433,6 @@ class User(object):
 			self.vk.online = True
 		return self.vk.online
 
-	def getUserID(self):
-		try:
-			json = self.vk.method("users.get")
-			self.userID = json[0]["uid"]
-		except (KeyError, TypeError):
-			logger.error("User: could not receive user id. JSON: %s" % str(json))
-
-		if self.userID:
-			jidToID[self.userID] = self.source
-		return self.userID
 
 	def initialize(self, force=False, send=True, resource=None):
 		runThread(makePhotoHash, (self,), "hasher-%s" % self.source)
@@ -432,6 +444,7 @@ class User(object):
 			self.sendSubPresence(self.friends)
 		if send: self.sendInitPresence()
 		if resource: self.resources.append(resource)
+		runThread(self.vk.getUserID)
 		Poll.add(self)
 		self.sendMessages(True)
 
@@ -459,21 +472,6 @@ class User(object):
 			with Database(DatabaseFile, Semaphore) as db:
 				db("update users set rosterSet=? where jid=?",
 					(self.rosterSet, self.source))
-
-	def getUserData(self, uid, fields=None):
-		if not fields:
-			if uid in self.friends:
-				return self.friends[uid]
-			fields = ["screen_name"]
-		data = self.vk.method("users.get", {"fields": ",".join(fields), "user_ids": uid}) or {}
-		if not data:
-			data = {"name": "None"}
-			for key in fields:
-				data[key] = "None"
-		else:
-			data = data.pop()
-			data["name"] = escape("", str.join(chr(32), (data.pop("first_name"), data.pop("last_name"))))
-		return data
 
 	def sendMessages(self, init=False):
 		with self.__sync:
@@ -509,8 +507,8 @@ class User(object):
 				self.lastMsgID = messages[-1]["mid"]
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
-		if not self.userID:
-			self.getUserID()
+		if not self.vk.userID:
+			self.vk.getUserID()
 
 	def processPollResult(self, opener):
 		try:
@@ -542,7 +540,7 @@ class User(object):
 			elif typ == 8: # user has joined
 				uid = abs(evt[0])
 				makePhotoHash(self, [uid])
-				sendPresence(self.source, vk2xmpp(uid), nick=self.getUserData(uid)["name"], caps=True, hash=self.hashes.get(uid))
+				sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True, hash=self.hashes.get(uid))
 			elif typ == 9: # user has left
 				uid = abs(evt[0])
 				sendPresence(self.source, vk2xmpp(uid), "unavailable")

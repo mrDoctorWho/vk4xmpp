@@ -84,7 +84,7 @@ def message_handler(cl, msg):
 						msgSend(cl, source, jidTo, result)
 			else:
 				uID = jidTo.getNode()
-				vkMessage = user.msg(body, uID)
+				vkMessage = user.vk.sendMessage(body, uID)
 				if vkMessage:
 					answer = reportReceived(msg, jidFrom, jidTo)
 			if answer:

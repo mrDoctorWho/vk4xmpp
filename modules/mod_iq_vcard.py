@@ -35,7 +35,7 @@ def vcard_handler(cl, iq):
 		user = Transport[source]
 		if user.friends:
 			id = vk2xmpp(destination)
-			json = user.getUserData(id, ["screen_name", PhotoSize])
+			json = user.vk.getUserData(id, ["screen_name", PhotoSize])
 			values = {"NICKNAME": json.get("name", str(json)),
 					"URL": "http://vk.com/id%s" % id,
 					"DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC

@@ -35,5 +35,5 @@ def disco_handler(cl, iq):
 		sender(cl, result) 
 
 def load():
-	Component.RegisterHandler("iq", disco_handler)
-#	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
+	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
+	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)

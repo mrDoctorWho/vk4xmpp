@@ -17,7 +17,7 @@ def last_handler(cl, iq):
 	elif source in Transport and id in Transport[source].friends:
 		last = Transport[source].vk.method("execute.getLastTime", {"uid": id}) or 0
 		last = int(time.time() - last)
-		name = Transport[source].getUserData(id).get("name", "Unknown")
+		name = Transport[source].vk.getUserData(id).get("name", "Unknown")
 	else:
 		raise xmpp.NodeProcessed()
 	result = xmpp.Iq("result", to=jidFrom, frm=destination)
