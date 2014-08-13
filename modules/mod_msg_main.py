@@ -14,7 +14,7 @@ def reportReceived(msg, jidFrom, jidTo):
 		answer.setID(msg.getID())
 		return answer
 
-def accpeptCaptcha(cl, args, jidTo, source):
+def acceptCaptcha(cl, args, jidTo, source):
 	if args:
 		answer = None
 		user = Transport[source]
@@ -66,7 +66,7 @@ def message_handler(cl, msg):
 					text, args = raw
 					args = args.strip()
 					if text == "!captcha" and args:
-						captchaAccept(cl, args, jidTo, source)
+						acceptCaptcha(cl, args, jidTo, source)
 						answer = reportReceived(msg, jidFrom, jidTo)
 					elif text == "!eval" and args and source == evalJID:
 						try:
