@@ -69,30 +69,22 @@ def outgoungChatMessageHandler(self, msg):
 	if msg.has_key("chat_id"):
 		idFrom = msg["uid"]
 		owner = msg["admin_id"]
-		_owner = vk2xmpp(owner)
 		chatID = "%s_chat#%s" % (self.vk.userID, msg["chat_id"])
 		chat = "%s@%s" % (chatID, ConferenceServer)
 		users = msg["chat_active"].split(",")
 		if not self.vk.userID:
 			self.vk.getUserID()
-		if not users: ## is it possible?
-			logger.debug("groupchats: all users has been exterminated in the chat: %s" % chat)
-			if chat in self.chatUsers:
-				joinChat(chat, self.vk.getUserData(owner)["name"], vk2xmpp(self.vk.userID), "unavailable")
-				del self.chatUsers[chat]
-			return None
 
 		if chat not in self.chatUsers:
 			logger.debug("groupchats: creating %s. Users: %s; owner: %s" % (chat, msg["chat_active"], owner))
 			self.chatUsers[chat] = []
-			joinChat(chat, self.vk.getUserData(owner)["name"], _owner)
-			setChatConfig(chat, _owner)
-			makeMember(chat, self.source, _owner)
-			inviteUser(chat, self.source, _owner, self.vk.getUserData(owner)["name"])
+			joinChat(chat, self.vk.getUserData(owner)["name"], TransportID)
+			setChatConfig(chat, TransportID)
+			makeMember(chat, self.source, TransportID)
+			inviteUser(chat, self.source, TransportID, self.vk.getUserData(owner)["name"])
 			logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, self.source))
-			chatMessage(chat, msg["title"], _owner, True, msg["date"])
-			if owner == self.vk.userID:
-				leaveChat(chat, _owner)
+			chatMessage(chat, msg["title"], TransportID, True, msg["date"])
+			joinChat(chat, IDENTIFIER["name"], TransportID)
 	
 		for user in users:
 			if not user in self.chatUsers[chat]:
@@ -100,7 +92,7 @@ def outgoungChatMessageHandler(self, msg):
 				self.chatUsers[chat].append(user)
 				uName = self.vk.getUserData(user)["name"]
 				user = vk2xmpp(user)
-				makeMember(chat, user, _owner)
+				makeMember(chat, user, TransportID)
 				joinChat(chat, uName, user)
 		
 		for user in self.chatUsers[chat]:
@@ -112,7 +104,7 @@ def outgoungChatMessageHandler(self, msg):
 
 		body = escape("", uHTML(msg["body"]))
 		body += parseAttachments(self, msg)
-		body += parseForwardMessages(self, msg)
+		body += parseForwardedMessages(self, msg)
 		if body:
 			chatMessage(chat, body, vk2xmpp(idFrom), None, msg["date"])
 		return None
@@ -135,9 +127,9 @@ def incomingChatMessageHandler(msg):
 		if not msg.getTimestamp() and body:
 			Node, Domain = source.split("@")
 			if Domain == ConferenceServer:
-				destination = vk2xmpp(destination)
-				if destination in jidToID:
-					jid = jidToID[destination]
+				id = int(Node.split("_")[0])
+				if destination == TransportID:
+					jid = jidToID[id]
 					if jid in Transport:
 						user = Transport[jid]
 						if html and html.getTag("body"): ## XHTML-IM!
@@ -148,20 +140,20 @@ def incomingChatMessageHandler(msg):
 								xhtml = False
 							if xhtml:
 								raise xmpp.NodeProcessed()
-						user.msg(body, Node.split("#")[1], "chat_id")
+						user.vk.sendMessage(body, Node.split("#")[1], "chat_id")
 
 
 def exterminateChat(user):
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
-		setChatConfig("%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer), vk2xmpp(chat["admin_id"]), True)
+		setChatConfig("%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer), TransportID, True)
 
 if ConferenceServer:
 	logger.debug("extension groupchats is loaded")
 	TransportFeatures.append(xmpp.NS_GROUPCHAT)
-	Handlers["msg01"].append(outgoungChatMessageHandler)
-	Handlers["msg02"].append(incomingChatMessageHandler)
-	Handlers["evt03"].append(exterminateChat)
+	registerHandler("msg01", outgoungChatMessageHandler)
+	registerHandler("msg02", incomingChatMessageHandler)
+	registerHandler("evt03", exterminateChat)
 
 else:
 	del incomingChatMessageHandler, outgoungChatMessageHandler, inviteUser, joinChat, chatMessage

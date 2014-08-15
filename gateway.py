@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2a1
+# vk4xmpp gateway, v2.25
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
@@ -25,6 +25,7 @@ if core:
 		os.chdir(root)
 
 sys.path.insert(0, "library")
+sys.path.insert(1, "modules")
 reload(sys).setdefaultencoding("utf-8")
 
 import xmpp
@@ -134,6 +135,11 @@ Stats = {"msgin": 0, ## from vk
 		 "msgout": 0, ## to vk
 		 "method": 0}
 
+DESC = _("© simpleApps, 2013 — 2014."
+	"\nYou can support developing of this project"
+	" via donation by:\nYandex.Money: 410012169830956"
+	"\nWebMoney: Z405564701378 | R330257574689.")
+
 def initDatabase(filename):
 	if not os.path.exists(filename):
 		with Database(filename) as db:
@@ -159,6 +165,13 @@ def apply(instance, args=()):
 	return code
 
 ## TODO: execute threaded handlers
+def registerHandler(type, func):
+	logger.info("main: adding \"%s\" handling type %s" % (func.func_name, type))
+	for handler in Handlers[type]:
+		if handler.func_name == func.func_name:
+			Handlers[type].remove(handler)
+	Handlers[type].append(func)
+
 def executeHandlers(type, list=()):
 	for handler in Handlers[type]:
 		execute(handler, list)
@@ -689,6 +702,50 @@ class Poll:
 						cls.__addToBuff(user)
 
 
+def sendPresence(target, source, pType=None, nick=None, reason=None, caps=None, hash=None):
+	presence = xmpp.Presence(target, pType, frm=source, status=reason)
+	if nick:
+		presence.setTag("nick", namespace=xmpp.NS_NICK)
+		presence.setTagData("nick", nick)
+	if caps:
+		presence.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
+	if hash:
+		x = presence.setTag("x", namespace=xmpp.NS_VCARD_UPDATE)
+		x.setTagData("photo", hash)
+	sender(Component, presence)
+
+
+def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
+	msg = xmpp.Message(destination, body, "chat", frm=source)
+	msg.setTag(typ, namespace=xmpp.NS_CHATSTATES)
+	if timestamp:
+		timestamp = time.gmtime(timestamp)
+		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
+	sender(cl, msg)
+
+
+def sender(cl, stanza):
+	try:
+		cl.send(stanza)
+	except Exception:
+		crashLog("sender")
+
+
+## TODO: make it as extension
+def watcherMsg(text):
+	for jid in WatcherList:
+		sendMessage(Component, jid, TransportID, text)
+
+
+def updateCron():
+	while True:
+		for user in Transport.values():
+			cTime = time.time()
+			user.updateTypingUsers(cTime)
+			user.updateFriends(cTime)
+		time.sleep(2)
+
+
 def makePhotoHash(user, list=None):
 	if not list:
 		list = user.vk.method("friends.getOnline")
@@ -702,20 +759,8 @@ def makePhotoHash(user, list=None):
 	photos = photos + data
 
 	for key in photos:
-		user.hashes[key["uid"]] = sha1(utils.getLinkData(key["photo"], True)).hexdigest()
+		user.hashes[key["uid"]] = sha1(utils.getLinkData(key["photo"], False)).hexdigest()
 
-
-def sendPresence(target, source, pType=None, nick=None, reason=None, caps=None, hash=None):
-	presence = xmpp.Presence(target, pType, frm=source, status=reason)
-	if nick:
-		presence.setTag("nick", namespace=xmpp.NS_NICK)
-		presence.setTagData("nick", nick)
-	if caps:
-		presence.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
-	if hash:
-		x = presence.setTag("x", namespace=xmpp.NS_VCARD_UPDATE)
-		x.setTagData("photo", hash)
-	sender(Component, presence)
 
 def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the functions in format verbSentence?
 	logger.debug("User: removing user from db (jid: %s)" % user.source)
@@ -743,31 +788,6 @@ def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the
 	Poll.remove(user)
 
 
-## TODO: make it as extension
-def watcherMsg(text):
-	for jid in WatcherList:
-		sendMessage(Component, jid, TransportID, text)
-
-def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
-	msg = xmpp.Message(destination, body, "chat", frm=source)
-	msg.setTag(typ, namespace=xmpp.NS_CHATSTATES)
-	if timestamp:
-		timestamp = time.gmtime(timestamp)
-		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
-	sender(cl, msg)
-
-
-def sender(cl, stanza):
-	try:
-		cl.send(stanza)
-	except Exception:
-		crashLog("sender")
-
-DESC = _("© simpleApps, 2013 — 2014."
-	"\nYou can support developing of this project"
-	" via donation by:\nYandex.Money: 410012169830956"
-	"\nWebMoney: Z405564701378 | R330257574689.")
-
 def getPid():
 	nowPid = os.getpid()
 	if os.path.exists(pidFile):
@@ -785,69 +805,106 @@ def getPid():
 				Print("%d killed.\n" % oldPid, False)
 	wFile(pidFile, str(nowPid))
 
+
+def loadExtensions(dir):
+	for file in os.listdir(dir):
+		execfile("%s/%s" % (dir, file), globals())
+
+
+def getModulesList():
+	modules = []
+	for file in os.listdir("modules"):
+		modules.append(file[:-3])
+	return modules
+
+
+def loadModules(reload_=False):
+	modules = getModulesList()
+	for name in modules:
+		try:
+			module = __import__(name, globals(), locals())
+			if reload_:
+				reload(module)
+			if hasattr(module, "load"):
+				module.load()
+		except Exception:
+			crashLog("loadmodules")
+
+
+def connect():
+	global Component
+	Component = xmpp.Component(Host, debug=DEBUG_XMPPPY)
+	Print("\n#-# Connecting: ", False)
+	if not Component.connect((Server, Port)):
+		Print("fail.\n", False)
+		return False
+	else:
+		Print("ok.\n", False)
+		Print("#-# Auth: ", False)
+		if not Component.auth(TransportID, Password):
+			Print("failed (%s/%s)!\n" % (Component.lastErr, Component.lastErrCode), True)
+			return False
+		else:
+			Print("ok.\n", False)
+			Component.RegisterDisconnectHandler(disconnectHandler)
+			Component.set_send_interval(STANZA_SEND_INTERVAL)
+	return True
+
+
+def initializeUsers():
+	Print("#-# Initializing users", False)
+	with Database(DatabaseFile) as db:
+		users = db("select jid from users").fetchall()
+		for user in users:
+			Print(".", False)
+			sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
+	Print("\n#-# Finished.")
+
+
+def runMainActions():
+	if allowBePublic:
+		makeMeKnown()
+	for num, event in enumerate(Handlers["evt01"]):
+		runThread(event, (), "extension-%d" % num)
+	runThread(Poll.process, (), "longPoll")
+	runThread(updateCron, (), "updateCron")
+	loadModules()
+
+
+def main():
+	getPid()
+	initDatabase(DatabaseFile)
+	if connect():
+		initializeUsers()
+		runMainActions()
+	else:
+		disconnectHandler(False)
+
+
 def disconnectHandler(crash=True):
 	if crash:
 		crashLog("main.disconnect")
-	Poll.clear()
 	try:
-		if Component.isConnected():
-			Component.disconnect()
-	except (NameError, AttributeError):
+		Component.disconnect()
+	except AttributeError:
 		pass
 	executeHandlers("evt02")
 	Print("Reconnecting...")
-	time.sleep(5)
-	os.execl(sys.executable, sys.executable, *sys.argv)
+	while not connect():
+		time.sleep(1)
+		disconnectHandler(crash)
+	else:
+		loadModules(True)
 
-## Public transport's list: http://xmppserv.ru.ru/xmpp-monitor
+
 def makeMeKnown():
 	if WhiteList:
 		WhiteList.append("anon.xmppserv.ru")
 	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
 		RIP.post("http://xmppserv.ru/xmpp-monitor/hosts.php", {"add": TransportID})
-		Print("#! Information about myself successfully published.")
+		Print("#! Information about this transport has been successfully published.")
 
-def updateCron():
-	while True:
-		for user in Transport.values():
-			cTime = time.time()
-			user.updateTypingUsers(cTime)
-			user.updateFriends(cTime)
-		time.sleep(2)
-
-def main():
-	global Component
-	getPid()
-	initDatabase(DatabaseFile)
-	Component = xmpp.Component(Host, debug=DEBUG_XMPPPY)
-	Print("\n#-# Connecting: ", False)
-	if not Component.connect((Server, Port)):
-		Print("fail.\n", False)
-	else:
-		Print("ok.\n", False)
-		Print("#-# Auth: ", False)
-		if not Component.auth(TransportID, Password):
-			Print("fail (%s/%s)!\n" % (Component.lastErr, Component.lastErrCode), True)
-			disconnectHandler(False)
-		else:
-			Print("ok.\n", False)
-			Component.RegisterDisconnectHandler(disconnectHandler)
-			Component.set_send_interval(STANZA_SEND_INTERVAL)
-			Print("#-# Initializing users", False)
-			with Database(DatabaseFile) as db:
-				users = db("select jid from users").fetchall()
-				for user in users:
-					Print(".", False)
-					sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
-			Print("\n#-# Finished.")
-			if allowBePublic:
-				makeMeKnown()
-			for num, event in enumerate(Handlers["evt01"]):
-				runThread(event, (), "extension-%d" % num)
-			runThread(Poll.process, (), "longPoll")
-			runThread(updateCron, (), "updateCron")
-			loadModules()
 
 def exit(signal=None, frame=None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
@@ -863,21 +920,6 @@ def exit(signal=None, frame=None):
 		pass
 	os._exit(1)
 
-def loadExtensions(dir):
-	for file in os.listdir(dir):
-		execfile("%s/%s" % (dir, file), globals())
-
-def loadModules():
-	sys.path.append("modules")
-	for file in os.listdir("modules"):
-		name = file[:-3]
-		try:
-			module = __import__(name, globals(), locals())
-			if hasattr(module, "load"):
-				module.load()
-		except Exception:
-			crashLog("loadmodules")
-
 
 if __name__ == "__main__":
 	signal.signal(signal.SIGTERM, exit)
@@ -887,7 +929,9 @@ if __name__ == "__main__":
 	while True:
 		try:
 			Component.iter(6)
+		except xmpp.StreamError:
+			pass
 		except Exception:
-			logger.critical("DISCONNECTED")
+			logger.critical("disconnected")
 			crashLog("component.iter")
 			disconnectHandler(True)

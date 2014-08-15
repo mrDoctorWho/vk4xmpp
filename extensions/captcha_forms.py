@@ -34,4 +34,4 @@ def captchaSend(self):
 	sender(Component, Presence)
 
 
-Handlers["evt04"].append(captchaSend)
+registerHandler("evt04", captchaSend)

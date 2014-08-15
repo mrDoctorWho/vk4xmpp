@@ -45,4 +45,4 @@ def parseAttachments(self, msg):
 			result += body % att.get(key, {})
 	return result
 
-Handlers["msg01"].append(parseAttachments)
+registerHandler("msg01", parseAttachments)

@@ -40,7 +40,7 @@ def acceptCaptcha(cl, args, jidTo, source):
 		else:
 			answer = _("Not now. Ok?")
 		if answer:
-			msgSend(cl, source, jidTo, answer)
+			sendMessage(cl, source, jidTo, answer)
 
 
 def message_handler(cl, msg):
@@ -51,7 +51,7 @@ def message_handler(cl, msg):
 	jidFrom = msg.getFrom()
 	source = jidFrom.getStripped()
 	
-	if source in Transport:
+	if msg.getType() == "chat" and source in Transport:
 		user = Transport[source]
 		if msg.getTag("composing"):
 			target = vk2xmpp(destination)
@@ -81,7 +81,7 @@ def message_handler(cl, msg):
 							result = returnExc()
 						else:
 							result = "Done."
-						msgSend(cl, source, jidTo, result)
+						sendMessage(cl, source, jidTo, result)
 			else:
 				uID = jidTo.getNode()
 				vkMessage = user.vk.sendMessage(body, uID)
@@ -94,4 +94,4 @@ def message_handler(cl, msg):
 		
 
 def load():
-	Component.RegisterHandler("message", message_handler, "chat")
+	Component.RegisterHandler("message", message_handler)

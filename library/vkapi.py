@@ -48,6 +48,7 @@ def attemptTo(maxRetries, resultType, *errors):
 					data = func(*args, **kwargs)
 				except errors as exc:
 					retries += 1
+					logger.info("vkapi: trying to execute \"%s\" in #%d time" % (func.func_name, retries))
 					time.sleep(0.2)
 				else:
 					break
@@ -253,8 +254,8 @@ class APIBinding:
 		self.lastMethod = (method, values)
 		self.last.append(time.time())
 		if len(self.last) > 2:
-			if (self.last.pop() - self.last.pop(0)) < 1.1:
-				time.sleep(0.3)
+			if (self.last.pop() - self.last.pop(0)) < 1.25:
+				time.sleep(0.34)
 
 		response = self.RIP.post(url, values)
 		if response and not nodecode:
@@ -287,7 +288,7 @@ class APIBinding:
 					else:
 						raise TokenError(error["error_msg"])
 				if eCode == 6:     # too fast
-					time.sleep(3)
+					time.sleep(1.25)
 					return self.method(method, values)
 				elif eCode == 5:     # auth failed
 					raise VkApiError("Logged out")

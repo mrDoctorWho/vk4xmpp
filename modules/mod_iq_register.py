@@ -34,7 +34,7 @@ def register_handler(cl, iq):
 	source = jidFrom.getStripped()
 	destination = jidTo.getStripped()
 	iType = iq.getType()
-	queryChildren = iq.getqueryChildren()
+	queryChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
 	if USER_LIMIT:
 		count = calcStats()[0]

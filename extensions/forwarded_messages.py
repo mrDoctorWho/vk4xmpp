@@ -27,4 +27,4 @@ def parseForwardedMessages(self, msg, depth = 0):
 	return body
 
 
-Handlers["msg01"].append(parseForwardedMessages)
+registerHandler("msg01", parseForwardedMessages)
