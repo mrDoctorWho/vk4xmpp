@@ -60,7 +60,7 @@ def register_handler(cl, iq):
 			password = form.setField("password", None, "text-private")
 			password.setLabel(_("Password/Access-token"))
 			password.setDesc(_("Type password, access-token or url (recommended)"))
-			result.setqueryPayload((form,))
+			result.setQueryPayload((form,))
 
 		elif iType == "set" and queryChildren:
 			phone, password, use_password, token = False, False, False, False

@@ -386,6 +386,7 @@ class User(object):
 
 	def __init__(self, data=(), source=""):
 		self.password = None
+		self.username = None
 		if data:
 			self.username, self.password = data
 		self.source = source
@@ -846,7 +847,7 @@ def connect():
 			return False
 		else:
 			Print("ok.\n", False)
-			Component.RegisterDisconnectHandler(disconnectHandler)
+		#	Component.RegisterDisconnectHandler(disconnectHandler)
 			Component.set_send_interval(STANZA_SEND_INTERVAL)
 	return True
 
