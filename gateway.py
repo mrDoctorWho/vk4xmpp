@@ -1055,7 +1055,9 @@ def getModulesList():
 	"""
 	modules = []
 	for file in os.listdir("modules"):
-		modules.append(file[:-3])
+		name, ext = os.path.splitext(file)
+		if ext == ".py":
+			modules.append(name)
 	return modules
 
 
