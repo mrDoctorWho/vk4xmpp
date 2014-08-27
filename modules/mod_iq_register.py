@@ -44,7 +44,7 @@ def register_handler(cl, iq):
 
 	if destination == TransportID:
 		if iType == "get" and not queryChildren:
-			logger.debug("Sending register form to user (jid: %s)" % source)
+			logger.debug("Sending registration form to user (jid: %s)" % source)
 			form = xmpp.DataForm()
 			form.addChild(node=xmpp.Node("instructions")).setData(_("Type data in fields")) ## TODO: Complete this by forms
 			link = form.setField("link", URL_ACCEPT_APP, "text-single")
@@ -91,11 +91,11 @@ def register_handler(cl, iq):
 
 	## If user won't use password so we need token
 				if not use_password:
-					logger.debug("user %s won't use password" % source)
+					logger.debug("user won't use a password (jid: %s)" % source)
 					token = password
 					password = False
 				else:
-					logger.debug("user %s wants use password" % source)
+					logger.debug("user want to use a password (jid: %s)" % source)
 					if not phone:
 						result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
 					user.password = password
@@ -128,7 +128,7 @@ def register_handler(cl, iq):
 				result.setPayload([], add = 0)
 				watcherMsg(_("User has removed registration: %s") % source)
 			else:
-				logger.debug("... but he don't know that he is removed already!")
+				logger.debug("... but he don't know that he was removed already!")
 
 		else:
 			result = utils.buildIQError(iq, 0, _("Feature not implemented."))

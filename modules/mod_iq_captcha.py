@@ -7,6 +7,7 @@ import mod_msg_main
 
 def captcha_handler(cl, iq):
 	if iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
+		source = iq.getFrom().getStripped()
 		if source in Transport:
 			jidTo = iq.getTo()
 			if jidTo == TransportID:

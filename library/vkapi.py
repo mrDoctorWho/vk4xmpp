@@ -92,7 +92,7 @@ class AsyncHTTPRequest(httplib.HTTPConnection):
 
 class RequestProcessor(object):
 	"""
-	Processing base requests: POST (application/x-www-form-urlencoded and multipart/form-data) and GET.
+	Processes base requests: POST (application/x-www-form-urlencoded and multipart/form-data) and GET.
 	"""
 	headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
 					" Gecko/20130309 Firefox/21.0",
@@ -169,7 +169,7 @@ class APIBinding:
 	def loginByPassword(self):
 		url = "https://login.vk.com/"
 		values = {"act": "login",
-				"utf8": "1", # check if it needed
+				"utf8": "1",
 				"email": self.number,
 				"pass": self.password}
 

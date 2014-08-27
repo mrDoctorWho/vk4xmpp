@@ -5,14 +5,19 @@
 import xmpp, urllib
 from hashlib import sha1
 
-def buildDataForm(form=None, type="submit", fields=[]):
-	form = form or xmpp.DataForm(type)
+##needed: requred fields
+## needed: form title
+
+def buildDataForm(form=None, type="submit", fields=[], title=None):
+	form = form or xmpp.DataForm(type, title=title)
 	for key in fields:
 		field = form.setField(key["var"], key.get("value"), key.get("type"))
 		if key.get("payload"):
 			field.setPayload(key["payload"])
 		if key.get("label"):
 			field.setLabel(key["label"])
+		if key.get("requred"):
+			field.setRequired()
 	return form
 
 def buildIQError(stanza, error=None, text=None):
