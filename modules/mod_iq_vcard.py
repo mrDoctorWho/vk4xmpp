@@ -16,7 +16,6 @@ def buildVcard(tags):
 	return vCard
 
 def vcard_handler(cl, iq):
-	print "vcard"
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
 	source = jidFrom.getStripped()

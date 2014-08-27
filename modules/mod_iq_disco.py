@@ -38,21 +38,20 @@ def disco_handler(cl, iq):
 			result.setQueryPayload(queryPayload)
 
 	elif node:
+		result = iq.buildReply("result")
 		if node == "Online users":
 			payload = []
 			users = getUsersList()
 			for user in users:
 				user = user[0]
-				payload.append(xmpp.Node("item", { "name": user, "jid": user   }))
+				payload.append(xmpp.Node("item", { "name": user, "jid": user }))
 			result.setQueryPayload(payload)
 
 		elif node == xmpp.NS_COMMANDS:
-			result = iq.buildReply("result")
-			queryPayload=[]
-			queryPayload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
-			queryPayload.append(xmpp.Node("item", {"node": "Delete users", "name": "Delete users", "jid": TransportID }))
-
-			result.setQueryPayload(queryPayload)
+			payload = []
+			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
+			payload.append(xmpp.Node("item", {"node": "Delete users", "name": "Delete users", "jid": TransportID }))
+			result.setQueryPayload(payload)
 
 		else:
 			raise xmpp.NodeProcessed()
@@ -82,7 +81,7 @@ def commands_handler(cl, iq):
 			form = xmpp.DataForm(node=form).asDict()
 			if form.has_key("jids") and form["jids"]:
 				runThread(delete_jids, (form['jids'],))
-		else:
+		elif cmd.getAttr("action") != "cancel" :
 			result_ = result.setTag("command", {"status": "executing", "node": "Delete users", "sessionid": iq.getID()}, xmpp.NS_COMMANDS)
 			form = utils.buildDataForm(None, None, 
 				[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN}, {"var": "jids", "type": "jid-multi", "label": "Jabber ID's", "required": True}], "Type JabberID in lines to remove it from db")
@@ -93,5 +92,6 @@ def commands_handler(cl, iq):
 
 
 def load():
-	Component.RegisterHandler("iq", disco_handler, "get")#), xmpp.NS_DISCO_INFO)
+	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
+	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
 	Component.RegisterHandler("iq", commands_handler, "set")

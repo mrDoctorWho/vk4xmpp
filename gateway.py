@@ -1201,8 +1201,6 @@ if __name__ == "__main__":
 	while True:
 		try:
 			Component.iter(6)
-		except xmpp.StreamError:
-			pass
 		except Exception:
 			logger.critical("disconnected")
 			crashLog("component.iter")
