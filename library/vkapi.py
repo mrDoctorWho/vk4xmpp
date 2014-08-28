@@ -185,16 +185,20 @@ class APIBinding:
 			raise AuthError("Invalid password")
 
 		if "security_check" in response.url:
-			# This code should be rewritten! Users from another countries may have problems because of it!
-			hash = re.search(r"security_check.*?hash: '(.*?)'\};", body).group(0)
-			code = self.number[2:-2]
-			if len(self.number) == 12:
-				if not self.number.startswith("+"):
-					code = self.number[3:-2]		# may be +375123456789
+			# This code should be rewritten
+			hash = re.search("security_check.*?hash: '(.*?)'\};", body).group(0)
+			if not self.number[0] == "+":
+				self.number = "+" + self.number
 
-			elif len(self.number) == 13:			# so we need 1234567
-				if self.number.startswith("+"):
-					code = self.number[4:-2]
+			code = self.number[2:-2]
+
+##			if len(self.number) == 12:
+##				if not self.number.startswith("+"):
+##					code = self.number[3:-2]		# may be +375123456789
+
+##			elif len(self.number) == 13:			# so we need 1234567
+##				if self.number.startswith("+"):
+##					code = self.number[4:-2]
 
 			values = {"act": "security_check",
 					"al": "1",
@@ -254,7 +258,7 @@ class APIBinding:
 		self.lastMethod = (method, values)
 		self.last.append(time.time())
 		if len(self.last) > 2:
-			if (self.last.pop() - self.last.pop(0)) < 1.25:
+			if (self.last.pop() - self.last.pop(0)) <= 1.25:
 				time.sleep(0.34)
 
 		response = self.RIP.post(url, values)

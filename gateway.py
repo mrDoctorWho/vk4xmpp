@@ -231,6 +231,8 @@ def vk2xmpp(id):
 
 
 Revision = getGatewayRev()
+
+## Escaping xmpp not-allowed chars
 badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 sortMsg = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
@@ -497,6 +499,7 @@ class User(object):
 		self.chatUsers = {}
 		self.hashes = {}
 		self.resources = []
+		self.settings = {"groupchats": 1, "status-to-vk": 0}
 		self.last_udate = time.time()
 		self.__sync = threading._allocate_lock()
 		self.vk = VK(self.username, self.password, self.source)
@@ -661,10 +664,10 @@ class User(object):
 	def processPollResult(self, opener):
 		"""
 		Processes poll result
-		Returs codes:
-			0 means need to reinit poll (add user to poll buffer)
-			1 means all is fine (request again)
-			-1 means do nothing
+		Retur codes:
+			0 mean need to reinit poll (add user to poll buffer)
+			1 mean all is fine (request again)
+			-1 mean do nothing
 		"""
 		try:
 			data = opener.read()
@@ -694,7 +697,13 @@ class User(object):
 				runThread(self.sendMessages)
 			elif typ == 8: # user has joined
 				uid = abs(evt[0])
-				makePhotoHash(self, [uid])
+				runThread(makePhotoHash, (self, [uid])) # To prevent blocking here (if VK will not answer, he can, trust me)
+				slept = 0
+				while not self.hashes.get(uid):  # Wait until VK will answer. If don't, just leave it
+					slept += 0.2
+					time.sleep(0.2)
+					if slept > 2:
+						break
 				sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True, hash=self.hashes.get(uid))
 			elif typ == 9: # user has left
 				uid = abs(evt[0])

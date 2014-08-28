@@ -66,6 +66,8 @@ def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 	sender(Component, message)
 
 def outgoungChatMessageHandler(self, msg):
+	if not self.settings["groupchats"]:
+		return None
 	if msg.has_key("chat_id"):
 		idFrom = msg["uid"]
 		owner = msg["admin_id"]
