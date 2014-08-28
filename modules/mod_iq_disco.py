@@ -28,6 +28,7 @@ def disco_handler(cl, iq):
 		## collect all disco Nodes by handlers
 		if source == evalJID: 
 			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
+			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID }))
 		if ns == xmpp.NS_DISCO_INFO:
 			for key in features:
 				xNode = xmpp.Node("feature", {"var": key})
@@ -43,6 +44,12 @@ def disco_handler(cl, iq):
 		payload = []
 		if node == "Online users":
 			users = Transport.keys()
+			for user in users:
+				payload.append(xmpp.Node("item", { "name": user, "jid": user }))
+			result.setQueryPayload(payload)
+
+		elif node == "All users":
+			users = getUsersList()
 			for user in users:
 				user = user[0]
 				payload.append(xmpp.Node("item", { "name": user, "jid": user }))

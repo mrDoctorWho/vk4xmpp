@@ -209,7 +209,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 181, 0
+	revNumber, rev = 191, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
