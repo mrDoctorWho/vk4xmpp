@@ -69,7 +69,7 @@ def outgoungChatMessageHandler(self, msg):
 	if not self.settings.groupchats:
 		return None
 	if msg.has_key("chat_id"):
-		idFrom = msg["uid"]
+		fromID = msg["uid"]
 		owner = msg["admin_id"]
 		chatID = "%s_chat#%s" % (self.vk.userID, msg["chat_id"])
 		chat = "%s@%s" % (chatID, ConferenceServer)
@@ -102,13 +102,15 @@ def outgoungChatMessageHandler(self, msg):
 				logger.debug("groupchats: user %s has left the chat %s" % (user, chat))
 				self.chatUsers[chat].remove(user)
 				uName = self.vk.getUserData(user)["name"]
-				joinChat(chat, uName, vk2xmpp(user), "unavailable")
+				leaveChat(chat, vk2xmpp(user))
+				if user == self.vk.userID:
+					setChatConfig(chat, TransportID, exterminate=True)
 
 		body = escape("", uHTML(msg["body"]))
 		body += parseAttachments(self, msg)
 		body += parseForwardedMessages(self, msg)
 		if body:
-			chatMessage(chat, body, vk2xmpp(idFrom), None, msg["date"])
+			chatMessage(chat, body, vk2xmpp(fromID), None, msg["date"])
 		return None
 	return ""
 
@@ -145,7 +147,7 @@ def incomingChatMessageHandler(msg):
 						user.vk.sendMessage(body, Node.split("#")[1], "chat_id")
 
 
-def exterminateChat(user):
+def exterminateChat(user, chats):
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
 		setChatConfig("%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer), TransportID, True)

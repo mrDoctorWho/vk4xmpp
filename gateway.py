@@ -625,7 +625,7 @@ class User(object):
 		runThread(self.vk.getUserID)
 		Poll.add(self)
 		self.sendMessages(True)
-		runThread(executeHandlers, ("evt05",))
+		runThread(executeHandlers, ("evt05", (self,)))
 
 	def sendInitPresence(self):
 		"""

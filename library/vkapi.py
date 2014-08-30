@@ -292,6 +292,8 @@ class APIBinding:
 					raise NotAllowed()
 				elif eCode == 10:    # internal server error
 					raise InternalServerError()
+				elif eCode == 13:    # runtime error
+					raise RuntimeError(error["error_msg"])
 				elif eCode == 14:     # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
