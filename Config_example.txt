@@ -62,11 +62,7 @@ MAXIMUM_FORWARD_DEPTH = 20
 ## Image that will be used if the transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
 
-<<<<<<< HEAD
-## Eval JID (JID for "!eval" command).
-=======
 ## Eval JID (JID for "!eval" command and admin-features in adhoc).
->>>>>>> testing
 evalJID = ""
 
 ## Debug xmpppy library.
@@ -84,11 +80,7 @@ logFile = "vk4xmpp.log"
 ## Directory for crash logs storage.
 crashDir = "crash"
 
-<<<<<<< HEAD
-## Log level (logging.DEBUG, logging.ERROR, logging.CRITICAL).
-=======
 ## Log level (logging.INFO, logging.DEBUG, logging.ERROR, logging.CRITICAL).
->>>>>>> testing
 LOG_LEVEL = logging.DEBUG
 
 ## Directory for users settings.
