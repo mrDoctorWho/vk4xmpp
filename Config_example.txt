@@ -62,7 +62,11 @@ MAXIMUM_FORWARD_DEPTH = 20
 ## Image that will be used if the transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
 
+<<<<<<< HEAD
 ## Eval JID (JID for "!eval" command).
+=======
+## Eval JID (JID for "!eval" command and admin-features in adhoc).
+>>>>>>> testing
 evalJID = ""
 
 ## Debug xmpppy library.
@@ -80,5 +84,20 @@ logFile = "vk4xmpp.log"
 ## Directory for crash logs storage.
 crashDir = "crash"
 
+<<<<<<< HEAD
 ## Log level (logging.DEBUG, logging.ERROR, logging.CRITICAL).
+=======
+## Log level (logging.INFO, logging.DEBUG, logging.ERROR, logging.CRITICAL).
+>>>>>>> testing
 LOG_LEVEL = logging.DEBUG
+
+## Directory for users settings.
+settingsDir = "settings"
+
+## Stanza send interval (in seconds).
+STANZA_SEND_INTERVAL = 0.03125
+
+## Enable photo hashes? This setting is probably can cause weird errors such as captcha, random disconnects (IOError: Disconnected) and others.
+## But users like to see avatars in their roster. If it will cause disconnects, but you still want to use it, then just increase the STANZA_SEND_INTERVAL value
+## But be careful, this value is global so transport will became slower.
+ENABLE_PHOTO_HASHES = False

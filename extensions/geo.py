@@ -21,4 +21,4 @@ def TimeAndRelativeDimensionInSpace(self, machine):
 		body += "\n%s — Google Maps" % GoogleMapLink % urllib.quote(WhereAreYou["coordinates"])
 	return body
 
-Handlers["msg01"].append(TimeAndRelativeDimensionInSpace)
+registerHandler("msg01", TimeAndRelativeDimensionInSpace)

@@ -3,14 +3,12 @@
 # License: GPLv3.
 
 import os
+from writer import rFile
 
 def setVars(lang, path):
 	globals()["locale"] = lang
 	globals()["path"] = path
 
-def rFile(name):
-	with open(name, "r") as file:
-		return file.read()
 
 def _(what):
 	name = "%s/locales/locale.%s" % (path, locale)

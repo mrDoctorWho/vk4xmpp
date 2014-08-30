@@ -4,7 +4,7 @@
 # this makefile is currently only used to make snapshots
 
 
-VERSION=2.152
+VERSION=2.`git log --pretty=format:''|wc -l`
 PACKAGE_VERSION=2
 PROG=dpkg-deb
 SOURCE=/tmp/vk4xmpp_build
@@ -28,4 +28,4 @@ debian_package:
 	fakeroot $(PROG) $(FLAGS) $(SOURCE) $(DEBTARGET)
 
 clean:
-	rm -Rf tmp/*
+	rm -Rf $(SOURCE)
