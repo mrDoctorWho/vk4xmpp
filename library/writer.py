@@ -27,7 +27,7 @@ def rFile(filename):
 	Reads file and returns data
 	"""
 	if not os.path.exists(filename):
-		return ""
+		return "{}"
 	with open(filename, "r") as file:
 		return file.read()
 
