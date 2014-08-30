@@ -6,26 +6,32 @@
 from __main__ import *
 from __main__ import _
 
-URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html"
+URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html#%d" % VK_ACCESS
 
 
 def initializeUser(user, cl, iq):
 	source = user.source
 	result = iq.buildReply("result")
-	if not user.connect():
-		logger.error("user connection failed (jid: %s)" % source)
-		result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
+	connect = False
+	try:
+		connect = user.connect(True)
+	except api.AuthError, e:
+		result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _(str(e) + " Try to logging in by token."))
 	else:
-		try:
-			user.initialize()
-		except api.CaptchaNeeded:
-			user.vk.captchaChallenge()
-		except Exception:
-			crashLog("user.init")
-			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
+		if connect:
+			try:
+				user.initialize()
+			except api.CaptchaNeeded:
+				user.vk.captchaChallenge()
+			except Exception:
+				crashLog("user.init")
+				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
+			else:
+				Transport[source] = user
+				watcherMsg(_("New user registered: %s") % source)
 		else:
-			Transport[source] = user
-			watcherMsg(_("New user registered: %s") % source)
+			logger.error("user connection failed (jid: %s)" % source)
+			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 	sender(cl, result)
 
 def register_handler(cl, iq):
@@ -116,19 +122,19 @@ def register_handler(cl, iq):
 						user.password = token
 						user.username = phone
 					
-	## Check if all data is correct.
-			runThread(initializeUser, (user, cl, iq))
-			result = None
+		## Check if all data is correct.
+				runThread(initializeUser, (user, cl, iq))
+				result = None
 
-		elif query.getTag("remove"):
-			logger.debug("user %s want to remove me..." % source)
-			if source in Transport:
-				user = Transport[source]
-				removeUser(user, True, False)
-				result.setPayload([], add = 0)
-				watcherMsg(_("User has removed registration: %s") % source)
-			else:
-				logger.debug("... but he don't know that he was removed already!")
+			elif query.getTag("remove"):
+				logger.debug("user %s want to remove me..." % source)
+				if source in Transport:
+					user = Transport[source]
+					removeUser(user, True, False)
+					result.setPayload([], add = 0)
+					watcherMsg(_("User has removed registration: %s") % source)
+				else:
+					logger.debug("... but he don't know that he was removed already!")
 
 		else:
 			result = utils.buildIQError(iq, 0, _("Feature not implemented."))

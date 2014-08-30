@@ -7,12 +7,12 @@ from __main__ import _
 
 def reportReceived(msg, jidFrom, jidTo):
 	if msg.getTag("request"):
-		answer = xmpp.Message(jidFrom)
-		tag = answer.setTag("received", namespace = "urn:xmpp:receipts")
+		answer = xmpp.Message(jidFrom, frm=jidTo)
+		tag = answer.setTag("received", namespace = xmpp.NS_RECEIPTS)
 		tag.setAttr("id", msg.getID())
-		answer.setFrom(jidTo)
 		answer.setID(msg.getID())
 		return answer
+
 
 def acceptCaptcha(cl, args, jidTo, source):
 	if args:

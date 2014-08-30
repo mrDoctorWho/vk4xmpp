@@ -6,7 +6,6 @@ from __main__ import *
 
 
 def gateway_handler(cl, iq):
-	print xmpp.NS_GATEWAY
 	jidTo = iq.getTo()
 	itype = iq.getType()
 	destination = jidTo.getStripped()
@@ -19,7 +18,7 @@ def gateway_handler(cl, iq):
 			query.setTag("prompt")
 			result.setPayload([query])
 
-		elif IQChildren and itype == "set":
+		elif iqChildren and itype == "set":
 			token = ""
 			for node in iqChildren:
 				if node.getName() == "prompt":

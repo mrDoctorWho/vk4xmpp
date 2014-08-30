@@ -8,7 +8,7 @@ import random
 import urllib
 
 def sendPhoto(user, data, type, address, mType):
-	mask = user.vk.method("account.getAppPermissions")
+	mask = user.vk.method("account.getAppPermissions") or 0
 
 	if mType == "chat_id":
 		address = address.split("@")[0].split("#")[1]

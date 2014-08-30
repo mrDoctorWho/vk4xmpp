@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.26
+# vk4xmpp gateway, v2.27
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
@@ -67,16 +67,20 @@ IDENTIFIER = {"type": "vk",
 Semaphore = threading.Semaphore()
 
 LOG_LEVEL = logging.DEBUG
-SLICE_STEP = 8
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
 THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 10
 STANZA_SEND_INTERVAL = 0.03125
+VK_ACCESS = 69638
+GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}}
+
 
 pidFile = "pidFile.txt"
 logFile = "vk4xmpp.log"
 crashDir = "crash"
+settingsDir = "settings"
+
 
 from optparse import OptionParser
 oParser = OptionParser(usage = "%prog [options]")
@@ -125,13 +129,19 @@ Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 
 
 ## Events (not finished yet so not sorted):
-## 01 - start
-## 02 - shutdown
-## 03 - user deletion
-## 04 - captcha
+# 01 - start (threaded)
+# 02 - shutdown (linear)
+# 03 - user deletion (linear)
+# 04 - captcha (linear)
+# 05 - user became online (threaded)
+# 06 - user became offline (linear)
+## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp)
+## Presences: 01 status change, 02 - is used to modify presence (xmpp)
 Handlers = {"msg01": [], "msg02": [],
 			"evt01": [], "evt02": [],
-			"evt03": [], "evt04": []}
+			"evt03": [], "evt04": [],
+			"evt05": [], "evt06": [],
+			"prs01": [], "prs02": []}
 
 Stats = {"msgin": 0, ## from vk
 		 "msgout": 0, ## to vk
@@ -209,7 +219,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 191, 0
+	revNumber, rev = 192, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -238,6 +248,37 @@ escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UN
 sortMsg = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isNumber = lambda obj: (not apply(int, (obj,)) is None)
+
+
+class Settings(object):
+	"""
+	This class is needed to store users settings
+	"""
+	def __init__(self, source):
+		self.filename = "%s/%s/settings.txt" % (settingsDir, source)
+		self.settings = eval(rFile(self.filename)) or GLOBAL_USER_SETTINGS
+		self.keys = self.settings.keys
+		self.items = self.settings.items
+		self.source = source
+
+	save = lambda self: wFile(self.filename, str(self.settings))
+	__getitem__ = lambda self, key: self.settings[key]
+
+	def __setitem__(self, key, value):
+		self.settings[key]["value"] = value
+		self.save()
+
+	def __getattr__(self, attr):
+		if attr in self.settings:
+			return self.settings[attr]["value"]
+		if not hasattr(self, attr):
+			raise AttributeError()
+		return object.__getattribute__(self, attr)
+
+	def exterminate(self):
+		import shutil
+		shutil.rmtree(os.path.dirname(self.filename))
+		del shutil
 
 
 class VK(object):
@@ -291,7 +332,7 @@ class VK(object):
 			return False
 		return True
 
-	def auth(self, token=None):
+	def auth(self, token=None, raise_exc=False):
 		"""
 		Initializes self.engine object
 		Calls self.checkData() and initializes longPoll if all is ok
@@ -302,6 +343,8 @@ class VK(object):
 			self.checkData()
 		except api.AuthError as e:
 			logger.error("VK.auth failed with error %s" % e.message)
+			if raise_exc:
+				raise
 			return False
 		except Exception:
 			crashLog("VK.auth")
@@ -396,6 +439,7 @@ class VK(object):
 		logger.debug("VK: user %s has left" % self.source)
 		Poll.remove(Transport[self.source])
 		self.online = False
+		executeHandlers("evt06")
 		runThread(self.method, ("account.setOffline", None, True)) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
 
 	def getFriends(self, fields=None):
@@ -499,7 +543,7 @@ class User(object):
 		self.chatUsers = {}
 		self.hashes = {}
 		self.resources = []
-		self.settings = {"groupchats": 1, "status-to-vk": 0}
+		self.settings = Settings(source)
 		self.last_udate = time.time()
 		self.__sync = threading._allocate_lock()
 		self.vk = VK(self.username, self.password, self.source)
@@ -521,10 +565,11 @@ class User(object):
 			return user.source == self.source
 		return self.source == user
 
-	def connect(self):
+	def connect(self, raise_exc=False):
 		"""
 		Calls VK.auth() and calls captchaChallenge on captcha
 		Updates db if auth() is done
+		Raises exception if needed -1 if an exception if raise_exc == True
 		"""
 		logger.debug("User: connecting (jid: %s)" % self.source)
 		self.auth = False
@@ -533,11 +578,13 @@ class User(object):
 			self.vk.username = self.username
 			self.vk.password = self.password
 		try:
-			self.auth = self.vk.auth(self.token)
+			self.auth = self.vk.auth(self.token, raise_exc=raise_exc)
 		except api.CaptchaNeeded:
 			self.sendSubPresence()
 			self.vk.captchaChallenge()
 			return True
+		except api.AuthError:
+			raise
 		else:
 			logger.debug("User: auth=%s (jid: %s)" % (self.auth, self.source))
 
@@ -555,7 +602,7 @@ class User(object):
 		return self.vk.online
 
 
-	def initialize(self, force=False, send=True, resource=None):
+	def initialize(self, force=False, send=True, resource=None, raise_exc=False):
 		"""
 		Initializes user after self.connect() is done:
 			1. Receives friends list and set 'em to self.friends
@@ -567,7 +614,6 @@ class User(object):
 			send is needed to know if need to send init presence or not
 			resource is needed to add resource in self.resources to prevent unneeded stanza sending
 		"""
-		runThread(makePhotoHash, (self,), "hasher-%s" % self.source)
 		logger.debug("User: called init for user %s" % self.source)
 		if not self.friends:
 			self.friends = self.vk.getFriends()
@@ -579,6 +625,7 @@ class User(object):
 		runThread(self.vk.getUserID)
 		Poll.add(self)
 		self.sendMessages(True)
+		runThread(executeHandlers, ("evt05",))
 
 	def sendInitPresence(self):
 		"""
@@ -589,8 +636,8 @@ class User(object):
 		logger.debug("User: sending init presence (friends %s) (jid %s)" % (("exists" if self.friends else "empty"), self.source))
 		for uid, value in self.friends.iteritems():
 			if value["online"]:
-				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True, hash=self.hashes.get(uid))
-		sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True, hash=self.hashes.get(TransportID))
+				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
+		sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
 	def sendOutPresence(self, destination, reason=None):
 		"""
@@ -624,6 +671,9 @@ class User(object):
 		Sends messages from vk to xmpp and call message01 handlers
 		Paramteres:
 			init is needed to know if function called at init (add time or not)
+		Plugins notice (msg01):
+			If plugin returs None then message will not be sent by transport's core, it shall be sent by plugin itself
+			Otherwise, if plugin returns string, it will be send by transport's core
 		"""
 		with self.__sync:
 			date = 0
@@ -697,14 +747,8 @@ class User(object):
 				runThread(self.sendMessages)
 			elif typ == 8: # user has joined
 				uid = abs(evt[0])
-				runThread(makePhotoHash, (self, [uid])) # To prevent blocking here (if VK will not answer, he can, trust me)
-				slept = 0
-				while not self.hashes.get(uid):  # Wait until VK will answer. If don't, just leave it
-					slept += 0.2
-					time.sleep(0.2)
-					if slept > 2:
-						break
-				sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True, hash=self.hashes.get(uid))
+
+				sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True)
 			elif typ == 9: # user has left
 				uid = abs(evt[0])
 				sendPresence(self.source, vk2xmpp(uid), "unavailable")
@@ -761,7 +805,7 @@ class User(object):
 
 class Poll:
 	"""
-	Class used to work with VK longpoll RequestProcessor
+	Class used to handle longpoll
 	"""
 	__poll = {}
 	__buff = set()
@@ -892,7 +936,7 @@ class Poll:
 						cls.__addToBuff(user)
 
 
-def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None, hash=None):
+def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None):
 	"""
 	Sends presence to destination from source
 	Parameters:
@@ -902,7 +946,6 @@ def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=N
 		nick is needed to add <nick> tag to stanza
 		reason is needed to set status message
 		caps is needed to know if need to add caps into stanza
-		hash is needed to know if need to add hash into stanza
 	"""
 	presence = xmpp.Presence(destination, pType, frm=source, status=reason)
 	if nick:
@@ -910,9 +953,7 @@ def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=N
 		presence.setTagData("nick", nick)
 	if caps:
 		presence.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
-	if hash:
-		x = presence.setTag("x", namespace=xmpp.NS_VCARD_UPDATE)
-		x.setTagData("photo", hash)
+	executeHandlers("prs02", (presence, destination, source))
 	sender(Component, presence)
 
 
@@ -966,29 +1007,6 @@ def updateCron():
 		time.sleep(2)
 
 
-def makePhotoHash(user, list=None):
-	"""
-	Makes sha1 photo hash
-	Parameters:
-		list is a list of user ids to make hash from
-	"""
-	if list and len(list) < 2 and list[0] in user.hashes:
-		return None
-
-	if not list:
-		list = user.vk.method("friends.getOnline")
-		user.hashes = {}
-		photos = [{"uid": TransportID, "photo": URL_VCARD_NO_IMAGE}]
-	else:
-		photos = []
-
-	list = ",".join((str(x) for x in list))
-	data = user.vk.method("execute.getPhotos", {"users": list, "size": PhotoSize}) or []
-	photos = photos + data
-
-	for key in photos:
-		user.hashes[key["uid"]] = sha1(utils.getLinkData(key["photo"], False)).hexdigest()
-
 
 def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the functions in format verbSentence?
 	"""
@@ -1020,6 +1038,7 @@ def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the
 		elif roster:
 			sendPresence(source, TransportID, "unsubscribe")
 			sendPresence(source, TransportID, "unsubscribed")
+			user.settings.exterminate()
 			executeHandlers("evt03", (user,))
 		Poll.remove(user)
 		vk = getattr(user, "vk", user)

@@ -66,7 +66,8 @@ def attemptTo(maxRetries, resultType, *errors):
 
 
 class AsyncHTTPRequest(httplib.HTTPConnection):
-
+	"""
+	"""
 	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
 		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
@@ -191,15 +192,6 @@ class APIBinding:
 				self.number = "+" + self.number
 
 			code = self.number[2:-2]
-
-##			if len(self.number) == 12:
-##				if not self.number.startswith("+"):
-##					code = self.number[3:-2]		# may be +375123456789
-
-##			elif len(self.number) == 13:			# so we need 1234567
-##				if self.number.startswith("+"):
-##					code = self.number[4:-2]
-
 			values = {"act": "security_check",
 					"al": "1",
 					"al_page": "3",

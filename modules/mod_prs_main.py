@@ -6,7 +6,7 @@ from __main__ import *
 from __main__ import _
 
 
-def initializeUser(source, resource):
+def initializeUser(source, resource, prs):
 	logger.debug("User not in the transport, but presence received. Searching in database (jid: %s)" % source)
 	with Database(DatabaseFile) as db:
 		db("select jid,username from users where jid=?", (source,))
@@ -18,6 +18,7 @@ def initializeUser(source, resource):
 		try:
 			if user.connect():
 				user.initialize(False, True, resource)
+				runThread(executeHandlers, ("prs01", (source, prs)))
 			else:
 				crashLog("user.connect", 0, False)
 				sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
@@ -35,10 +36,12 @@ def presence_handler(cl, prs):
 	if source in Transport:
 		user = Transport[source]
 		if pType in ("available", "probe", None):
-			if jidTo == TransportID and resource not in user.resources:
-				logger.debug("Received presence %s from user. Will send sendInitPresence (jid: %s)" % (pType, source))
-				user.resources.append(resource)
-				runThread(user.sendInitPresence, ())
+			if jidTo == TransportID:
+				if resource not in user.resources:
+					logger.debug("Received presence %s from user. Will send sendInitPresence (jid: %s)" % (pType, source))
+					user.resources.append(resource)
+					runThread(user.sendInitPresence, ())
+				runThread(executeHandlers, ("prs01", (source, prs)))
 
 		elif pType == "unavailable":
 			if jidTo == TransportID and resource in user.resources:
@@ -77,7 +80,8 @@ def presence_handler(cl, prs):
 
 
 	elif pType in ("available", None) and destination == TransportID:
-		runThread(initializeUser, args=(source, resource))
+		runThread(initializeUser, args=(source, resource, prs))
+		
 
 
 def load():
