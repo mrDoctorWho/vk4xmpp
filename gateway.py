@@ -270,7 +270,7 @@ class Settings(object):
 
 	def __getattr__(self, attr):
 		if attr in self.settings:
-			return self.settings[attr]["value"]
+			return self.settings[attr].get("value", False)
 		if not hasattr(self, attr):
 			raise AttributeError()
 		return object.__getattribute__(self, attr)

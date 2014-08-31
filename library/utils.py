@@ -31,7 +31,10 @@ def buildIQError(stanza, error=None, text=None):
 	return error
 
 def getLinkData(url, encode=True):
-	opener = urllib.urlopen(url)
+	try:
+		opener = urllib.urlopen(url)
+	except Exception:
+		return ""
 	data = opener.read()
 	if data and encode:
 		data = data.encode("base64")
