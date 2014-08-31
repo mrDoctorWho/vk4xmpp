@@ -22,12 +22,16 @@ logger = logging.getLogger("vk4xmpp")
 
 token_exp = re.compile("(([\da-f]+){11,})", re.IGNORECASE)
 
+
+## Trying to use faster library usjon instead of simplejson
 try:
 	import ujson as json
 	logger.debug("vkapi: using ujson instead of simplejson")
 except ImportError:
 	import json
 	logger.error("vkapi: ujson couldn't be loaded, using simplejson instead")
+
+
 
 def attemptTo(maxRetries, resultType, *errors):
 	"""
@@ -67,6 +71,7 @@ def attemptTo(maxRetries, resultType, *errors):
 
 class AsyncHTTPRequest(httplib.HTTPConnection):
 	"""
+	Provides easy method to make asynchronous http requests and getting socket object from it
 	"""
 	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
@@ -107,11 +112,22 @@ class RequestProcessor(object):
 		self.open.__func__.___defaults__ = (None, SOCKET_TIMEOUT)
 
 	def getCookie(self, name):
+		"""
+		Gets cookie from cookieJar
+		"""
 		for cookie in self.cookieJar:
 			if cookie.name == name:
 				return cookie.value
 
 	def multipart(self, key, name, ctype, data):
+		"""
+		Makes multipart/form-data encoding
+		Parameters:
+			key: a form key (is there a form?)
+			name: file name
+			ctype: Content-Type
+			data: just data you want to send
+		"""
 		start = ["--" + self.boundary, "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"" % (key, name), \
 									"Content-Type: %s" % ctype, "", ""] ## We already have content type so maybe we shouldn't detect it
 		end = ["", "--" + self.boundary + "--", ""]
@@ -121,6 +137,14 @@ class RequestProcessor(object):
 		return data
 
 	def request(self, url, data=None, headers=None, urlencode=True):
+		"""
+		Makes a http(s) request
+		Parameters:
+			url: a request url 
+			data: a request data
+			headers: a request headers (if not set, self.headers will be used)
+			urlencode: urlencode flag
+		"""
 		headers = headers or self.headers
 		if data and urlencode:
 			headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
@@ -132,12 +156,18 @@ class RequestProcessor(object):
 
 	@attemptTo(REQUEST_RETRIES, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
 	def post(self, url, data="", urlencode=True):
+		"""
+		POST request
+		"""
 		resp = self.open(self.request(url, data, urlencode=urlencode))
 		body = resp.read()
 		return (body, resp)
 
 	@attemptTo(REQUEST_RETRIES, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
 	def get(self, url, query={}):
+		"""
+		GET request
+		"""
 		if query:
 			url += "?%s" % urllib.urlencode(query)
 		resp = self.open(self.request(url))
@@ -151,6 +181,11 @@ class RequestProcessor(object):
 
 
 class APIBinding:
+	"""
+	Provides simple VK API binding
+	Translates VK errors to python exceptions
+	Allows to make a password authorization
+	"""
 	def __init__(self, number=None, password=None, token=None, app_id=3789129,
 	scope=69638):
 		self.password = password
@@ -168,6 +203,9 @@ class APIBinding:
 		self.attempts = 0
 
 	def loginByPassword(self):
+		"""
+		Logging in using password
+		"""
 		url = "https://login.vk.com/"
 		values = {"act": "login",
 				"utf8": "1",
@@ -204,6 +242,9 @@ class APIBinding:
 				raise AuthError("Incorrect number")
 
 	def checkSid(self):
+		"""
+		Checks sid to set the logged-in flag
+		"""
 		if self.sid:
 			url = "https://vk.com/feed2.php"
 			get = self.RIP.get(url)
@@ -215,6 +256,9 @@ class APIBinding:
 						return data
 
 	def confirmThisApp(self):
+		"""
+		Confirms your application and receives the token
+		"""
 		url = "https://oauth.vk.com/authorize/"
 		values = {"display": "mobile",
 				"scope": self.scope,
@@ -238,6 +282,13 @@ class APIBinding:
 
 
 	def method(self, method, values=None, nodecode=False):
+		"""
+		Issues the VK method
+		Parameters:
+			method: vk method
+			values: method parameters (no captcha_{sid,key}, access_token, v needed)
+			nodecode: decode flag
+		"""
 		values = values or {}
 		url = "https://api.vk.com/method/%s" % method
 		values["access_token"] = self.token
@@ -303,6 +354,10 @@ class APIBinding:
 				raise VkApiError(body["error"])
 
 	def retry(self):
+		"""
+		Tries to execute last method again
+		Needed after captcha is entered
+		"""
 		result = None
 		if self.lastMethod:
 			try:
@@ -312,31 +367,59 @@ class APIBinding:
 		return result
 
 
-class NetworkNotFound(Exception):  ## maybe network is unreachable or vk is down (same as 10 jan 2014)
+class NetworkNotFound(Exception):
+	"""
+	This happens in a very weird situations
+	Happened just once at 10.01.2014 (vk.com was down)
+	"""
 	pass
 
 class LongPollError(Exception):
+	"""
+	Should be raised when longpoll exception occurred
+	"""
 	pass
 
 class VkApiError(Exception):
+	"""
+	Base VK API Error
+	"""
 	pass
 
 
 class AuthError(VkApiError):
+	"""
+	Happens when user is trying to login using password
+	And there's one of possible errors: captcha, invalid password and wrong phone
+	"""
 	pass
 
 
 class InternalServerError(VkApiError):
+	"""
+	Well, that error should be probably ignored
+	"""
 	pass
 
 
 class CaptchaNeeded(VkApiError):
+	"""
+	Will be raised when happens error with code 14
+	To prevent captchas, you should probably send less of queries
+	"""
 	pass
 
 
 class TokenError(VkApiError):
+	"""
+	Will be raised when happens error with code 5 and 3 retries to make request are failed
+	"""
 	pass
 
 
 class NotAllowed(VkApiError):
+	"""
+	Will be raised when happens error with code 7
+	Happens usually when someone's added our user in the black-list
+	"""
 	pass

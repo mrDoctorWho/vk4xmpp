@@ -58,6 +58,11 @@ def crashLog(name, fixme_ = True):
 		wException()
 
 def Print(text, line = True):
+	"""
+	This function is needed to prevent errors
+	like IOError: device is not ready 
+	which is probably happens when script running under screen
+	"""
 	if line:
 		text += "\n"
 	try:

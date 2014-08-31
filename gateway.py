@@ -17,6 +17,7 @@ import signal
 import sys
 import threading
 import time
+from copy import deepcopy
 
 core = getattr(sys.modules["__main__"], "__file__", None)
 root = "."
@@ -70,10 +71,11 @@ LOG_LEVEL = logging.DEBUG
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
 THREAD_STACK_SIZE = 0
-MAXIMUM_FORWARD_DEPTH = 10
+MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
 STANZA_SEND_INTERVAL = 0.03125
 VK_ACCESS = 69638
-GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}}
+GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}, 
+						"keep_onlne": {"label": "Keep my status online", "value": 1}}
 
 
 pidFile = "pidFile.txt"
@@ -255,8 +257,13 @@ class Settings(object):
 	This class is needed to store users settings
 	"""
 	def __init__(self, source):
+		"""
+		Uses GLOBAL_USER_SETTINGS variable as default user's settings
+		and updates it using settings read from the file
+		"""
 		self.filename = "%s/%s/settings.txt" % (settingsDir, source)
-		self.settings = eval(rFile(self.filename)) or GLOBAL_USER_SETTINGS
+		self.settings = deepcopy(GLOBAL_USER_SETTINGS)
+		self.settings.update(eval(rFile(self.filename)))
 		self.keys = self.settings.keys
 		self.items = self.settings.items
 		self.source = source
@@ -270,14 +277,20 @@ class Settings(object):
 
 	def __getattr__(self, attr):
 		if attr in self.settings:
-			return self.settings[attr].get("value", False)
+			return self.settings[attr]["value"]
 		if not hasattr(self, attr):
 			raise AttributeError()
 		return object.__getattribute__(self, attr)
 
 	def exterminate(self):
+		"""
+		Deletes user configuration file
+		"""
 		import shutil
-		shutil.rmtree(os.path.dirname(self.filename))
+		try:
+			shutil.rmtree(os.path.dirname(self.filename))
+		except (IOError, OSError):
+			pass
 		del shutil
 
 
@@ -388,10 +401,10 @@ class VK(object):
 		This is a duplicate function of self.engine.method
 		Needed to handle errors properly exactly in __main__
 		Parameters:
-			method is obviously VK API method
-			args is method aruments
-			nodecode is needed to do not make json.loads(data)
-			force says that method will be executed even captcha and not online
+			method: obviously VK API method
+			args: method aruments
+			nodecode: decode flag (make json.loads or not)
+			force: says that method will be executed even the captcha and not online
 		Returns method result
 		"""
 		args = args or {}
@@ -506,10 +519,10 @@ class VK(object):
 		"""
 		Sends message to VK id
 		Parameters:
-			body is obviously message's body
-			id is user id
-			mType is message type (user_id is for dialogs, chat_id is for chats)
-			more is for advanced features such as photos (attachments)
+			body: obviously message's body
+			id: user id
+			mType: message type (user_id is for dialogs, chat_id is for chats)
+			more: for advanced features such as photos (attachments)
 		"""
 		try:
 			Stats["msgout"] += 1
@@ -610,9 +623,9 @@ class User(object):
 			3. Calls sendInitPresnece() if parameter send is True
 			4. Adds resource if resource parameter exists
 		Parameters:
-			force is needed to force sending subscribe presence
-			send is needed to know if need to send init presence or not
-			resource is needed to add resource in self.resources to prevent unneeded stanza sending
+			force: force sending subscribe presence
+			send: needed to know if need to send init presence or not
+			resource: add resource in self.resources to prevent unneeded stanza sending
 		"""
 		logger.debug("User: called init for user %s" % self.source)
 		if not self.friends:
@@ -643,8 +656,8 @@ class User(object):
 		"""
 		Sends out presence (unavailable) to destination and set reason if exists
 		Parameters:
-			destination is to whom send the stanzas
-			reason is offline status message
+			destination: to whom send the stanzas
+			reason: offline status message
 		"""
 		logger.debug("User: sending out presence to %s" % self.source)
 		for uid in self.friends.keys() + [TransportID]:
@@ -654,7 +667,7 @@ class User(object):
 		"""
 		Sends subsribe presence to self.source
 		Parameteres:
-			dist is friends list
+			dist: friends list
 		"""
 		dist = dist or {}
 		for uid, value in dist.iteritems():
@@ -670,7 +683,7 @@ class User(object):
 		"""
 		Sends messages from vk to xmpp and call message01 handlers
 		Paramteres:
-			init is needed to know if function called at init (add time or not)
+			init: needed to know if function called at init (add time or not)
 		Plugins notice (msg01):
 			If plugin returs None then message will not be sent by transport's core, it shall be sent by plugin itself
 			Otherwise, if plugin returns string, it will be send by transport's core
@@ -775,7 +788,8 @@ class User(object):
 		Sends unsubscribe presences if some friends disappeared
 		"""
 		if cTime - self.last_udate > 360:
-			self.vk.method("account.setOnline")
+			if self.settings.keep_onlne:
+				self.vk.method("account.setOnline")
 			self.last_udate = cTime
 			friends = self.vk.getFriends()
 			if not friends:
@@ -940,12 +954,12 @@ def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=N
 	"""
 	Sends presence to destination from source
 	Parameters:
-		destination is to whom send the presence
-		source is from who send the presence
-		pType is a presence type
-		nick is needed to add <nick> tag to stanza
-		reason is needed to set status message
-		caps is needed to know if need to add caps into stanza
+		destination: to whom send the presence
+		source: from who send the presence
+		pType: a presence type
+		nick: needed to add <nick> tag to stanza
+		reason: needed to set status message
+		caps: needed to know if need to add caps into stanza
 	"""
 	presence = xmpp.Presence(destination, pType, frm=source, status=reason)
 	if nick:
@@ -961,12 +975,12 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 	"""
 	Sends message to destination from source
 	Parameters:
-		cl is a xmpp.Client object
-		destination is to whom send the message
-		source is from who send the message
-		body is obviously message body
-		timestamp is message timestamp (XEP-0091)
-		typ is xmpp chatstates (XEP-0085)
+		cl: xmpp.Client object
+		destination: to whom send the message
+		source: from who send the message
+		body: obviously message body
+		timestamp: message timestamp (XEP-0091)
+		typ: xmpp chatstates (XEP-0085)
 	"""
 	msg = xmpp.Message(destination, body, "chat", frm=source)
 	msg.setTag(typ, namespace=xmpp.NS_CHATSTATES)
