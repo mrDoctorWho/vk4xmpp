@@ -18,14 +18,6 @@ STAT_FIELDS = {
 			}
 
 
-def calcStats():
-	countTotal = 0
-	countOnline = len(Transport)
-	with Database(DatabaseFile, Semaphore) as db:
-		db("select count(*) from users")
-		countTotal = db.fetchone()[0]
-	return [countTotal, countOnline]
-
 def stats_handler(cl, iq):
 	destination = iq.getTo()
 	iqChildren = iq.getQueryChildren()

@@ -1021,6 +1021,17 @@ def updateCron():
 		time.sleep(2)
 
 
+def calcStats():
+	"""
+	Returns count(*) from users database
+	"""
+	countTotal = 0
+	countOnline = len(Transport)
+	with Database(DatabaseFile, Semaphore) as db:
+		db("select count(*) from users")
+		countTotal = db.fetchone()[0]
+	return [countTotal, countOnline]
+
 
 def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the functions in format verbSentence?
 	"""
