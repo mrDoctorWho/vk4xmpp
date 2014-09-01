@@ -912,6 +912,8 @@ class Iq(Protocol):
 		iq = Iq(typ, to=self.getFrom(), frm=self.getTo(), attrs={"id": self.getID()})
 		if self.getTag("query"):
 			iq.setQueryNS(self.getQueryNS())
+		if self.getTagAttr("query", "node"):
+			iq.setQuerynode(self.getQuerynode())
 		return iq
 
 class ErrorNode(Node):

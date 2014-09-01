@@ -22,7 +22,6 @@ def disco_handler(cl, iq):
 
 		result = iq.buildReply("result")
 		payload.append(xmpp.Node("identity", IDENTIFIER))
-		## todo: collect all disco Nodes by handlers (?)
 		if source == evalJID: 
 			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
 			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID }))
@@ -102,9 +101,10 @@ def commands_handler(cl, iq):
 	if cmd:
 		result = iq.buildReply("result")
 		node = iq.getTagAttr("command", "node")
+		sessionid = iq.getTagAttr("command", "sessionid")
 		form = cmd.getTag("x", namespace=xmpp.NS_DATA)
 		action = cmd.getAttr("action")
-
+		completed = False
 		if node and action != "cancel":
 			if not form:
 				commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": iq.getID()}, xmpp.NS_COMMANDS)
@@ -119,7 +119,8 @@ def commands_handler(cl, iq):
 					else:
 						form = xmpp.DataForm(node=form).asDict()
 						if form.has_key("jids") and form["jids"]:
-							runThread(delete_jids, (form["jids"],))
+							runThread(deleteUsers, (form["jids"],))
+						completed = True
 
 				elif node == "Global message":
 					if not form:
@@ -132,6 +133,7 @@ def commands_handler(cl, iq):
 						if form.has_key("text"):
 							text = "\n".join(form["text"])
 							runThread(sendGlobalMessage, (text,))
+						completed = True
 
 				elif node == "Show crashlogs":
 					if not form:
@@ -146,12 +148,13 @@ def commands_handler(cl, iq):
 							body = None
 							if os.path.exists(filename):
 								body = rFile(filename)
-							commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": iq.getID()}, xmpp.NS_COMMANDS)
+							commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
 							form = utils.buildDataForm(None, None,
 								[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
 									{"var": "body", "type": "text-multi", "label": "Error body", "value": body}]
 								)
 							commandTag.addChild(node=form)
+							completed = True
 
 
 			if node == "Edit settings" and source in Transport:
@@ -170,7 +173,10 @@ def commands_handler(cl, iq):
 					for key in form.keys():
 						if key in config.keys():
 							Transport[source].settings[key] = normalizeValue(form[key])
-					 
+					completed = True
+			
+			if completed:
+				result.setTag("command", {"status": "completed", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
 
 		sender(cl, result)
 
