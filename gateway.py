@@ -443,14 +443,16 @@ class VK(object):
 		"""
 		if self.engine.captcha:
 			executeHandlers("evt04", (self,))
-			Poll.remove(Transport[self.source]) ## Do not foget to add user into poll again after the captcha challenge is done 
+			if self.source in Transport:
+				Poll.remove(Transport[self.source]) ## Do not foget to add user into poll again after the captcha challenge is done 
 
 	def disconnect(self):
 		"""
 		Stops all user handlers and removes himself from Poll
 		"""
 		logger.debug("VK: user %s has left" % self.source)
-		Poll.remove(Transport[self.source])
+		if self.source in Transport:
+			Poll.remove(Transport[self.source])
 		self.online = False
 		executeHandlers("evt06")
 		runThread(self.method, ("account.setOffline", None, True)) ## Maybe this one should be started in separate thread to do not let VK freeze main thread

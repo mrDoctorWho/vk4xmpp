@@ -9,7 +9,7 @@ def main_handler(cl, iq):
 	source = jidFrom.getStripped()
 	if WhiteList:
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
-			Sender(cl, utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
+			sender(cl, utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
 			raise xmpp.NodeProcessed()
 
 	ping = iq.getTag("ping")
