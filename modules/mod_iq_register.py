@@ -23,11 +23,11 @@ def initializeUser(user, cl, iq):
 				user.initialize()
 			except api.CaptchaNeeded:
 				user.vk.captchaChallenge()
-			except Exception:
+			except Exception: ## is there could be any other exception?
 				crashLog("user.init")
 				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 			else:
-				Transport[source] = user
+##				Transport[source] = user
 				watcherMsg(_("New user registered: %s") % source)
 		else:
 			logger.error("user connection failed (jid: %s)" % source)
@@ -50,47 +50,33 @@ def register_handler(cl, iq):
 
 	if destination == TransportID:
 		if iType == "get" and not queryChildren:
-			logger.debug("Sending registration form to user (jid: %s)" % source)
-			form = xmpp.DataForm()
-			form.addChild(node=xmpp.Node("instructions")).setData(_("Type data in fields")) ## TODO: Complete this by forms
-			link = form.setField("link", URL_ACCEPT_APP, "text-single")
-			link.setLabel(_("Autorization page"))
-			link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
-						   "and then paste url to password field."))
-			phone = form.setField("phone", "+", "text-single")
-			phone.setLabel(_("Phone number"))
-			phone.setDesc(_("Enter phone number in format +71234567890"))
-			use_password = form.setField("use_password", "0", "boolean")
-			use_password.setLabel(_("Get access-token automatically"))
-			use_password.setDesc(_("Try to get access-token automatically. (NOT recommended, password required!)"))
-			password = form.setField("password", None, "text-private")
-			password.setLabel(_("Password/Access-token"))
-			password.setDesc(_("Type password, access-token or url (recommended)"))
-			result.setQueryPayload((form,))
+			logger.debug("Send registration form to user (jid: %s)" % source)
+			form = utils.buildDataForm(fields = [
+				{"var": "link", "type": "text-single", "label": _("Autorization page"), 
+					"desc": ("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
+						   "and then paste url to password field."), "value": URL_ACCEPT_APP},
+				{"var": "phone", "type": "text-single", "desc": _("Enter phone number in format +71234567890"), "value": "+"},
+				{"var": "use_password", "type": "boolean", "label": _("Get access-token automatically"), "desc": _("Try to get access-token automatically. (NOT recommended, password required!)")}, #"value": "0"},#, "0"}
+				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}
+
+				], data = [_("Type data in fields")])
+			result.setQueryPayload([form])
 
 		elif iType == "set" and queryChildren:
-			phone, password, use_password, token = False, False, False, False
+			phone, password, use_password, token = False, False, False, False #?
 			query = iq.getTag("query")
-			if query.getTag("x"):
-				for node in iq.getTags("query", namespace=xmpp.NS_REGISTER):
-					for node in node.getTags("x", namespace=xmpp.NS_DATA):
-						phone = node.getTag("field", {"var": "phone"})
-						phone = phone and phone.getTagData("value")
-						password = node.getTag("field", {"var": "password"})
-						password = password and password.getTagData("value")
-						use_password = node.getTag("field", {"var": "use_password"})
-						use_password = use_password and use_password.getTagData("value")
+			data = query.getTag("x", namespace=xmpp.NS_DATA)
+			if data:
+				form = xmpp.DataForm(node=data).asDict()
+				print form
+				phone = form.get("phone")
+				password = form.get("password")
+				use_password = utils.normalizeValue(form.get("use_password"))
 
 				if not password:
-					result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Empty password"))
+					result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Empty password/token field"))
 
 	## Some clients send "true" or "false" instead of 1/0
-				if not isNumber(use_password):
-					if use_password and use_password.lower() == "true":
-						use_password = 1
-					else:
-						usd_password = 0
-
 				user = User(source=source)
 				use_password = int(use_password)
 

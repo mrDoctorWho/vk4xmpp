@@ -28,9 +28,7 @@ def captchaSend(self):
 		oob = msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % hash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
 		oob.setData(encoded)
 	sender(Component, msg)
-	Presence = xmpp.protocol.Presence(self.source, frm=TransportID)
-	Presence.setStatus(body)
-	Presence.setShow("xa")
+	Presence = xmpp.protocol.Presence(self.source, show="xa", status=body, frm=TransportID)
 	sender(Component, Presence)
 
 

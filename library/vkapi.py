@@ -356,12 +356,14 @@ class APIBinding:
 	def retry(self):
 		"""
 		Tries to execute last method again
-		Needed after captcha is entered
+		Usually called after captcha is entered
 		"""
 		result = None
 		if self.lastMethod:
 			try:
 				result = self.method(*self.lastMethod)
+			except CaptchaNeeded:
+				raise
 			except Exception:
 				pass
 		return result

@@ -21,7 +21,7 @@ def parseForwardedMessages(self, msg, depth = 0):
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
 			name = self.vk.getUserData(source)["name"]
 			body += "\n%s[%s] <%s> %s" % (spacer, date, name, fwdBody)
-			body += parseAttachments(self, fwd)
+			body += parseAttachments(self, fwd, spacer)
 			if depth < MAXIMUM_FORWARD_DEPTH: 
 				body += parseForwardedMessages(self, fwd, (depth + 1))
 	return body

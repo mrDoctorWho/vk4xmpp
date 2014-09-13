@@ -31,7 +31,7 @@ def sendPhoto(user, data, type, address, mType):
 					urlencode = False)[0])
 			
 			id = user.vk.method("photos.saveMessagesPhoto", response)[0].get("id", 0)
-			user.msg("", address, mType, {"attachment": id})
+			user.sendMessage("", address, mType, {"attachment": id})
 			logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
 			answer = _("Your image was successfully sent.")
 		else:

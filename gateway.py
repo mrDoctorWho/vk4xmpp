@@ -6,7 +6,6 @@
 # Program published under MIT license.
 
 import gc
-import json
 import httplib
 import logging
 import os
@@ -110,6 +109,12 @@ except Exception:
 	wException()
 	exit()
 
+## Trying to use faster library usjon instead of simplejson
+try:
+	import ujson as json
+except ImportError:
+	import json
+
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
@@ -178,15 +183,6 @@ def execute(handler, list=()):
 		crashLog(handler.func_name)
 	return result
 
-def apply(instance, args=()):
-	"""
-	Same as execute(), but just return none on error
-	"""
-	try:
-		code = instance(*args)
-	except Exception:
-		code = None
-	return code
 
 ## TODO: execute threaded handlers
 def registerHandler(type, func):
@@ -206,22 +202,29 @@ def executeHandlers(type, list=()):
 	for handler in Handlers[type]:
 		execute(handler, list)
 
-def runThread(func, args=(), name=None):
+def runThread(func, args=(), name=None, att=3):
 	"""
 	Runs a thread with custom args and name
 	Needed to reduce code
+	Parameters:
+		func: function needed to be run in thread
+		args: function arguments
+		name: thread namespace
+		att: number of attemptfs
 	"""
 	thr = threading.Thread(target=execute, args=(func, args), name=name or func.func_name)
 	try:
 		thr.start()
 	except threading.ThreadError:
-		crashlog("runThread.%s" % name)
+		if retry:
+			return runThread(func, args, name, (att - 1))
+		crashLog("runThread.%s" % name)
 
 def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 192, 0
+	revNumber, rev = 205, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -233,9 +236,9 @@ def vk2xmpp(id):
 	Returns id if parameter "id" is id@TransportID
 	Returns TransportID if "id" is TransportID
 	"""
-	if not isNumber(id) and "@" in id:
+	if not utils.isNumber(id) and "@" in id:
 		id = id.split("@")[0]
-		if isNumber(id):
+		if utils.isNumber(id):
 			id = int(id)
 	elif id != TransportID:
 		id = u"%s@%s" % (id, TransportID)
@@ -249,7 +252,6 @@ badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 sortMsg = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
-isNumber = lambda obj: (not apply(int, (obj,)) is None)
 
 
 class Settings(object):
@@ -455,7 +457,7 @@ class VK(object):
 			Poll.remove(Transport[self.source])
 		self.online = False
 		executeHandlers("evt06")
-		runThread(self.method, ("account.setOffline", None, True)) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
+		runThread(self.method, ("account.setOffline", None, True, True)) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
 
 	def getFriends(self, fields=None):
 		"""
@@ -502,6 +504,8 @@ class VK(object):
 		Otherwise will request method users.get
 		Default fields is ["screen_name"]
 		"""
+#		if not self.source in Transport: ## That looks impossible, but it happened at least once. Thanks, bedbmak@!
+#			return None
 		user = Transport[self.source]
 		if not fields:
 			if uid in user.friends:
@@ -557,24 +561,13 @@ class User(object):
 		self.friends = {}
 		self.chatUsers = {}
 		self.hashes = {}
-		self.resources = []
+		self.resources = set([])
 		self.settings = Settings(source)
 		self.last_udate = time.time()
 		self.__sync = threading._allocate_lock()
 		self.vk = VK(self.username, self.password, self.source)
 		logger.debug("initializing User (jid: %s)" % self.source)
-		with Database(DatabaseFile, Semaphore) as db:
-			db("select * from users where jid=?", (self.source,))
-			data = db.fetchone()
-		if data:
-			if not self.token or not self.password:
-				logger.debug("User exists in database. Using his information (jid: %s)" % self.source)
-				self.exists = True
-				self.source, self.username, self.token, self.lastMsgID, self.rosterSet = data
-			elif self.password or self.token:
-				logger.debug("User: %s exists in database. Record would be deleted." % self.source)
-				runThread(removeUser, (self,))
-
+		
 	def __eq__(self, user):
 		if isinstance(user, User):
 			return user.source == self.source
@@ -584,8 +577,20 @@ class User(object):
 		"""
 		Calls VK.auth() and calls captchaChallenge on captcha
 		Updates db if auth() is done
-		Raises exception if needed -1 if an exception if raise_exc == True
+		Raises exception if raise_exc == True
 		"""
+		with Database(DatabaseFile, Semaphore) as db:
+			db("select * from users where jid=?", (self.source,))
+			data = db.fetchone()
+		if data:
+			if not self.token and not self.password:
+				logger.debug("User exists in database. Using his information (jid: %s)" % self.source)
+				self.exists = True
+				self.source, self.username, self.token, self.lastMsgID, self.rosterSet = data
+			elif self.password or self.token:
+				logger.debug("User: %s exists in database. Record would be deleted." % self.source)
+				runThread(removeUser, (self,))
+
 		logger.debug("User: connecting (jid: %s)" % self.source)
 		self.auth = False
 		## TODO: Check the code below
@@ -630,13 +635,14 @@ class User(object):
 			resource: add resource in self.resources to prevent unneeded stanza sending
 		"""
 		logger.debug("User: called init for user %s" % self.source)
+		Transport[self.source] = self
 		if not self.friends:
 			self.friends = self.vk.getFriends()
 		if self.friends and not self.rosterSet or force:
 			logger.debug("User: sending subscribe presence with force:%s (jid: %s)" % (force, self.source))
 			self.sendSubPresence(self.friends)
 		if send: self.sendInitPresence()
-		if resource: self.resources.append(resource)
+		if resource: self.resources.add(resource)
 		runThread(self.vk.getUserID)
 		Poll.add(self)
 		self.sendMessages(True)
@@ -711,7 +717,7 @@ class User(object):
 						crashLog("handle.%s" % func.__name__)
 					if result is None:
 						for func in iter:
-							apply(func, (self, message))
+							utils.apply(func, (self, message))
 						break
 					else:
 						body += result

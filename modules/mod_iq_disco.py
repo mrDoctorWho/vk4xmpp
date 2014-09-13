@@ -65,15 +65,6 @@ def disco_handler(cl, iq):
 	sender(cl, result) 
 
 
-def normalizeValue(value):
-	if isNumber(value):
-		value = int(value)
-	elif value and value.lower() == "true":
-		value = 1
-	else:
-		value = 0
-	return value
-
 def getUsersList():
 	with Database(DatabaseFile) as db:
 		db("select jid from users")
@@ -172,7 +163,7 @@ def commands_handler(cl, iq):
 					form = xmpp.DataForm(node=form).asDict()
 					for key in form.keys():
 						if key in config.keys():
-							Transport[source].settings[key] = normalizeValue(form[key])
+							Transport[source].settings[key] = utils.normalizeValue(form[key])
 					completed = True
 			
 			if completed:

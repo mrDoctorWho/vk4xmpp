@@ -39,7 +39,7 @@ def presence_handler(cl, prs):
 			if jidTo == TransportID:
 				if resource not in user.resources:
 					logger.debug("Received presence %s from user. Will send sendInitPresence (jid: %s)" % (pType, source))
-					user.resources.append(resource)
+					user.resources.add(resource)
 					runThread(user.sendInitPresence, ())
 				runThread(executeHandlers, ("prs01", (source, prs)))
 

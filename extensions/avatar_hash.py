@@ -32,10 +32,9 @@ def makePhotoHash(user, list=None):
 	
 	for key in photos:
 		user.hashes[key["uid"]] = sha1(utils.getLinkData(key["photo"], False)).hexdigest()
- 
 
 def addPresenceHash(prs, destination, source):
-	if not prs.getType():
+	if destination in Transport and not prs.getType():
 	 	uid = vk2xmpp(source)
 	 	user = Transport[destination]
 	 	if not uid in user.hashes:

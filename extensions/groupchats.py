@@ -78,7 +78,7 @@ def outgoungChatMessageHandler(self, msg):
 			self.vk.getUserID()
 
 		if chat not in self.chatUsers:
-			logger.debug("groupchats: creating %s. Users: %s; owner: %s" % (chat, msg["chat_active"], owner))
+			logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" % (chat, msg["chat_active"], owner, self.source))
 			self.chatUsers[chat] = []
 			joinChat(chat, self.vk.getUserData(owner)["name"], TransportID)
 			setChatConfig(chat, TransportID)
@@ -90,7 +90,7 @@ def outgoungChatMessageHandler(self, msg):
 	
 		for user in users:
 			if not user in self.chatUsers[chat]:
-				logger.debug("groupchats: user %s has joined the chat %s" % (user, chat))
+				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)" % (user, chat, self.source))
 				self.chatUsers[chat].append(user)
 				uName = self.vk.getUserData(user)["name"]
 				user = vk2xmpp(user)
@@ -99,7 +99,7 @@ def outgoungChatMessageHandler(self, msg):
 		
 		for user in self.chatUsers[chat]:
 			if not user in users:
-				logger.debug("groupchats: user %s has left the chat %s" % (user, chat))
+				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" % (user, chat, self.source))
 				self.chatUsers[chat].remove(user)
 				uName = self.vk.getUserData(user)["name"]
 				leaveChat(chat, vk2xmpp(user))
@@ -132,12 +132,12 @@ def incomingChatMessageHandler(msg):
 			Node, Domain = source.split("@")
 			if Domain == ConferenceServer:
 				id = int(Node.split("_")[0])
-				if destination == TransportID:
+				if destination == TransportID and id:
 					jid = jidToID[id]
 					if jid in Transport:
 						user = Transport[jid]
 						if html and html.getTag("body"): ## XHTML-IM!
-							logger.debug("groupchats: fetched xhtml image from %s" % source)
+							logger.debug("groupchats: fetched xhtml image (jid: %s)" % source)
 							try:
 								xhtml = mod_xhtml.parseXHTML(user, html, source, source, "chat_id")
 							except Exception:
