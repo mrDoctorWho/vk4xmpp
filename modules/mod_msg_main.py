@@ -88,8 +88,7 @@ def message_handler(cl, msg):
 					answer = reportReceived(msg, jidFrom, jidTo)
 			if answer:
 				sender(cl, answer)
-	for func in Handlers["msg02"]:
-		func(msg)
+	executeHandlers("msg02", (msg,))
 		
 
 def load():

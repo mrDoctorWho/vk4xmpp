@@ -136,15 +136,16 @@ Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 
 
 ## Events (not finished yet so not sorted):
-# 01 - start (threaded)
+# 01 - start (threaded), no args
 # 02 - shutdown (linear)
 # 03 - user deletion (linear)
 # 04 - captcha (linear)
 # 05 - user became online (threaded)
 # 06 - user became offline (linear)
-## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp)
+## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
 ## Presences: 01 status change, 02 - is used to modify presence (xmpp)
 Handlers = {"msg01": [], "msg02": [],
+			"msg03": [],
 			"evt01": [], "evt02": [],
 			"evt03": [], "evt04": [],
 			"evt05": [], "evt06": [],
@@ -456,7 +457,7 @@ class VK(object):
 		if self.source in Transport:
 			Poll.remove(Transport[self.source])
 		self.online = False
-		executeHandlers("evt06")
+		runThread(executeHandlers, ("evt06", (self,)))
 		runThread(self.method, ("account.setOffline", None, True, True)) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
 
 	def getFriends(self, fields=None):
@@ -694,7 +695,7 @@ class User(object):
 			init: needed to know if function called at init (add time or not)
 		Plugins notice (msg01):
 			If plugin returs None then message will not be sent by transport's core, it shall be sent by plugin itself
-			Otherwise, if plugin returns string, it will be send by transport's core
+			Otherwise, if plugin returns string, it will be sent by transport's core
 		"""
 		with self.__sync:
 			date = 0
@@ -995,6 +996,7 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
 		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
+	executeHandlers("msg03", (msg, destination, source))
 	sender(cl, msg)
 
 
@@ -1107,7 +1109,8 @@ def loadExtensions(dir):
 	Read and exec files located in dir
 	"""
 	for file in os.listdir(dir):
-		execfile("%s/%s" % (dir, file), globals())
+		if not file.startswith("."):
+			execfile("%s/%s" % (dir, file), globals())
 
 
 def getModulesList():
