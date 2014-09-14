@@ -140,6 +140,10 @@ def prs02_handler(prs, destination, source):
 
 registerHandler("prs02", prs02_handler)
 
-
-
-
+## AdHoc. To add adhoc option (now only for user settings and only boolean values supported)
+## You need to add form field to GLOBAL_USER_SETTINGS
+## Example: GLOBAL_USER_SETTINGS["setting_name"] = {"label": "field label", "value": "default-value", "type": "field-type"}
+## For field types look http://xmpp.org/extensions/xep-0004.html section 3.3 "Field Types"
+## Ok now, look here.
+GLOBAL_USER_SETTINGS["awesome_setting"] = {"label": "My new setting", "value": 0} ## If not type added, then boolean will be used
+## Settings are being automatically saved as soon as it changed.

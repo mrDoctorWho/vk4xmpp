@@ -155,7 +155,7 @@ def commands_handler(cl, iq):
 					user = Transport[source]
 					form_fields = [{"var": "FORM_TYPE", "type": "hidden"}]
 					for key, values in config.items():
-						form_fields.append({"var": key, "label": values["label"], "type": "boolean", "value": values["value"]}) ## todo: Add support for list-multi and others?
+						form_fields.append({"var": key, "label": values["label"], "type": values.get("type", "boolean"), "value": values["value"]}) ## todo: Add support for list-multi and others?
 
 					form = utils.buildDataForm(None, None, form_fields,	"Choose wisely")
 					commandTag.addChild(node=form)
