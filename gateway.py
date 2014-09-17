@@ -13,6 +13,7 @@ import re
 import select
 import socket
 import signal
+import sqlite3
 import sys
 import threading
 import time
@@ -266,7 +267,7 @@ class Settings(object):
 		"""
 		self.filename = "%s/%s/settings.txt" % (settingsDir, source)
 		self.settings = deepcopy(GLOBAL_USER_SETTINGS)
-		self.settings.update(eval(rFile(self.filename)))
+		self.settings.update(eval(rFile(self.filename))) ## better use json.load() instead
 		self.keys = self.settings.keys
 		self.items = self.settings.items
 		self.source = source
@@ -726,12 +727,16 @@ class User(object):
 					if init:
 						date = message["date"]
 					sendMessage(Component, self.source, fromjid, escape("", body), date)
-			if messages:
-				self.lastMsgID = messages[-1]["mid"]
-				with Database(DatabaseFile, Semaphore) as db:
-					db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
+		if messages:
+			self.lastMsgID = messages[-1]["mid"]
+			try:
+				self.updateLastMsgID(Semaphore)
+			except sqlite3.OperationalError, e:
+				logger.error("User:sendmessages error %s occurred while updating last message id (jid: %s)" % (str(e), self.source))
+
 		if not self.vk.userID:
 			self.vk.getUserID()
+
 
 	def processPollResult(self, opener):
 		"""
@@ -779,6 +784,10 @@ class User(object):
 					sendMessage(Component, self.source, vk2xmpp(evt[0]), typ="composing")
 				self.typing[evt[0]] = time.time()
 		return 1
+
+	def updateLastMsgID(self, semph=Semaphore):
+		with Database(DatabaseFile, semph) as db:
+			db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 	def updateTypingUsers(self, cTime):
 		"""

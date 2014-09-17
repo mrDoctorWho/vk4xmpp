@@ -57,9 +57,8 @@ def register_handler(cl, iq):
 						   "and then paste url to password field."), "value": URL_ACCEPT_APP},
 				{"var": "phone", "type": "text-single", "desc": _("Enter phone number in format +71234567890"), "value": "+"},
 				{"var": "use_password", "type": "boolean", "label": _("Get access-token automatically"), "desc": _("Try to get access-token automatically. (NOT recommended, password required!)")}, #"value": "0"},#, "0"}
-				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}
-
-				], data = [_("Type data in fields")])
+				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}], 
+			data = [_("Type data in fields")])
 			result.setQueryPayload([form])
 
 		elif iType == "set" and queryChildren:
@@ -68,10 +67,9 @@ def register_handler(cl, iq):
 			data = query.getTag("x", namespace=xmpp.NS_DATA)
 			if data:
 				form = xmpp.DataForm(node=data).asDict()
-				print form
-				phone = form.get("phone")
-				password = form.get("password")
-				use_password = utils.normalizeValue(form.get("use_password"))
+				phone = form.get("phone", "")
+				password = form.get("password", "")
+				use_password = utils.normalizeValue(form.get("use_password", ""))
 
 				if not password:
 					result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Empty password/token field"))

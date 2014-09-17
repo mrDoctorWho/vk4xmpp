@@ -147,7 +147,7 @@ def incomingChatMessageHandler(msg):
 						user.vk.sendMessage(body, Node.split("#")[1], "chat_id")
 
 
-def exterminateChat(user, chats):
+def exterminateChat(user):
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
 		setChatConfig("%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer), TransportID, True)

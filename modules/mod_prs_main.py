@@ -8,7 +8,7 @@ from __main__ import _
 
 def initializeUser(source, resource, prs):
 	logger.debug("User not in the transport, but presence received. Searching in database (jid: %s)" % source)
-	with Database(DatabaseFile) as db:
+	with Database(DatabaseFile, Semaphore) as db:
 		db("select jid,username from users where jid=?", (source,))
 		data = db.fetchone()
 	if data:
@@ -20,7 +20,7 @@ def initializeUser(source, resource, prs):
 				user.initialize(False, True, resource)
 				runThread(executeHandlers, ("prs01", (source, prs)))
 			else:
-				crashLog("user.connect", 0, False)
+				crashLog("user.connect", False)
 				sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
 		except Exception:
 			crashLog("prs.init")

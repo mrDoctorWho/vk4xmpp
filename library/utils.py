@@ -50,8 +50,9 @@ def buildIQError(stanza, error=xmpp.ERR_FEATURE_NOT_IMPLEMENTED, text=None):
 	"""
 	error = xmpp.Error(stanza, error, True)
 	if text:
-		eTag = error.getTag("error")
-		eTag.setTagData("text", text)
+		tag = error.getTag("error")
+		if tag:
+			tag.setTagData("text", text)
 	return error
 
 def normalizeValue(value):

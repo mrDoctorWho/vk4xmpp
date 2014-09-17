@@ -1,5 +1,8 @@
 [![VK4XMPP on Ohloh](https://www.openhub.net/p/vk4xmpp/widgets/project_partner_badge.gif)](https://www.openhub.net/p/vk4xmpp)
 
+[Donate](http://simpleapps.ru/index/0-2)
+
+
 VK4XMPP Transport
 ======
 
