@@ -180,6 +180,8 @@ def execute(handler, list=()):
 		result = handler(*list)
 	except SystemExit:
 		result = 1
+	except xmpp.NodeProcessed:
+		pass
 	except Exception:
 		result = -1
 		crashLog(handler.func_name)
