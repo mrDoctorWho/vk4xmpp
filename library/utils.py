@@ -75,9 +75,9 @@ def getLinkData(url, encode=True):
 	"""
 	try:
 		opener = urllib.urlopen(url)
+		data = opener.read()
 	except (Exception, error):
 		return ""
-	data = opener.read()
 	if data and encode:
 		data = data.encode("base64")
 	return data
