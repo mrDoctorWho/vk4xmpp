@@ -175,6 +175,9 @@ class RequestProcessor(object):
 		return (body, resp)
 
 	def getOpener(self, url, query={}):
+		"""
+		Opens a connection to url and returns AsyncHTTPRequest() object
+		"""
 		if query:
 			url += "?%s" % urllib.urlencode(query)
 		return AsyncHTTPRequest(url).open()
@@ -323,7 +326,8 @@ class APIBinding:
 			elif "error" in body:
 				error = body["error"]
 				eCode = error["error_code"]
-				logger.error("vkapi: error occured on executing method (%(method)s, code: %(eCode)s)" % vars())
+				eMsg = error.get("error_msg", "")
+				logger.error("vkapi: error occured on executing method (%(method)s, code: %(eCode)s, msg: %(eMsg)s)" % vars())
 				if eCode == 5:     # invalid token
 					self.attempts += 1
 					if self.attempts < 3:
@@ -333,18 +337,18 @@ class APIBinding:
 							logger.info("vkapi: attempt to retry last method (%(method)s) was successful" % vars())
 							return retry
 					else:
-						raise TokenError(error["error_msg"])
+						raise TokenError(eMsg)
 				if eCode == 6:     # too fast
 					time.sleep(1.25)
 					return self.method(method, values)
 				elif eCode == 5:     # auth failed
 					raise VkApiError("Logged out")
 				elif eCode == 7:     # not allowed
-					raise NotAllowed()
+					raise NotAllowed(eMsg)
 				elif eCode == 10:    # internal server error
-					raise InternalServerError()
+					raise InternalServerError(eMsg)
 				elif eCode == 13:    # runtime error
-					raise RuntimeError(error["error_msg"])
+					raise RuntimeError(eMsg)
 				elif eCode == 14:     # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}

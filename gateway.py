@@ -411,6 +411,7 @@ class VK(object):
 			args: method aruments
 			nodecode: decode flag (make json.loads or not)
 			force: says that method will be executed even the captcha and not online
+		See library/vkapi.py for more information about exceptions
 		Returns method result
 		"""
 		args = args or {}
@@ -419,13 +420,22 @@ class VK(object):
 		if not self.engine.captcha and (self.online or force):
 			try:
 				result = self.engine.method(method, args, nodecode)
+			except api.InternalServerError as e:
+				logger.error("VK: internal server error occurred while executing mehtod(%s) (%s)" % (method, e.message))
+			
 			except api.CaptchaNeeded:
 				logger.error("VK: running captcha challenge (jid: %s)" % self.source)
 				self.captchaChallenge()
-				result = 0
+				result = 0 ## why?
+			
 			except api.NotAllowed:
 				if self.engine.lastMethod[0] == "messages.send":
 					sendMessage(Component, self.source, vk2xmpp(args.get("user_id", TransportID)), _("You're not allowed to perform this action."))
+			
+			except api.NetworkNotFound:
+				logger.critical("VK: network is unavailable. Is vk down or you have network problems?")
+				self.online = False
+			
 			except api.VkApiError as e:
 				roster = False
 				if e.message == "User authorization failed: user revoke access for this token.":
@@ -433,12 +443,9 @@ class VK(object):
 					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
+				## We are removing this user from database. Why? Just in case.
 				removeUser(Transport.get(self.source, self), roster, False)
-
-				self.online = False
 				logger.error("VK: apiError %s for user %s" % (e.message, self.source))
-			except api.NetworkNotFound:
-				logger.critical("VK: network is unavailable. Is vk down?")
 				self.online = False
 		return result
 
@@ -738,7 +745,6 @@ class User(object):
 
 		if not self.vk.userID:
 			self.vk.getUserID()
-
 
 	def processPollResult(self, opener):
 		"""
@@ -1091,7 +1097,6 @@ def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the
 		vk.online = False
 		del Transport[source]
 		
-
 
 def getPid():
 	"""
