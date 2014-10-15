@@ -20,7 +20,7 @@ def apply(instance, args=()):
 
 isNumber = lambda obj: (not apply(int, (obj,)) is None)
 
-def buildDataForm(form=None, type="submit", fields=[], title=None, data=[]):
+def buildDataForm(form=None, type="form", fields=[], title=None, data=[]):
 	"""
 	Provides easier method to build data forms using dict for each form object
 	Parameters:

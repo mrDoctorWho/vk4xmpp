@@ -76,6 +76,7 @@ STANZA_SEND_INTERVAL = 0.03125
 VK_ACCESS = 69638
 GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}, 
 						"keep_onlne": {"label": "Keep my status online", "value": 1}}
+GLOBAL_TRANSPORT_SETTINGS = {} # globals(), lol
 
 
 pidFile = "pidFile.txt"
@@ -220,7 +221,7 @@ def runThread(func, args=(), name=None, att=3):
 	try:
 		thr.start()
 	except threading.ThreadError:
-		if retry:
+		if att:
 			return runThread(func, args, name, (att - 1))
 		crashLog("runThread.%s" % name)
 
@@ -262,13 +263,16 @@ class Settings(object):
 	"""
 	This class is needed to store users settings
 	"""
-	def __init__(self, source):
+	def __init__(self, source, user=True):
 		"""
 		Uses GLOBAL_USER_SETTINGS variable as default user's settings
 		and updates it using settings read from the file
 		"""
 		self.filename = "%s/%s/settings.txt" % (settingsDir, source)
-		self.settings = deepcopy(GLOBAL_USER_SETTINGS)
+		if user:
+			self.settings = deepcopy(GLOBAL_USER_SETTINGS)
+		else:
+			self.settings = GLOBAL_TRANSPORT_SETTINGS
 		self.settings.update(eval(rFile(self.filename))) ## better use json.load() instead
 		self.keys = self.settings.keys
 		self.items = self.settings.items
@@ -335,7 +339,7 @@ class VK(object):
 			logger.debug("VK.checkData: trying to use token")
 			if not self.checkToken():
 				logger.error("VK.checkData: token invalid: %s" % self.engine.token)
-				raise api.TokenError("Token is invalid: %s (jid: %s)" % (self.source, self.engine.token))
+				raise api.TokenError("Token is invalid: %s (jid: %s)" % (self.engine.token, self.source))
 		else:
 			logger.error("VK.checkData: no token and no password (jid: %s)" % self.source)
 			raise api.TokenError("%s, Where the hell is your token?" % self.source)
@@ -356,12 +360,12 @@ class VK(object):
 		Initializes self.engine object
 		Calls self.checkData() and initializes longPoll if all is ok
 		"""
-		logger.debug("VK.auth %s token" % ("with" if token else "without"))
+		logger.debug("VK.auth %s token (jid: %s)" % ("with" if token else "without", self.source))
 		self.engine = api.APIBinding(self.number, self.password, token=token)
 		try:
 			self.checkData()
 		except api.AuthError as e:
-			logger.error("VK.auth failed with error %s" % e.message)
+			logger.error("VK.auth failed with error %s (jid: %s)" % (e.message, jid))
 			if raise_exc:
 				raise
 			return False
@@ -389,7 +393,7 @@ class VK(object):
 			return False
 		self.pollServer = "http://%s" % response.pop("server")
 		self.pollConfig.update(response)
-		logger.debug("longpoll: server: %s" % (self.pollServer))
+		logger.debug("longpoll: server: %s (jid: %s)" % (self.pollServer, self.source))
 		self.pollInitialzed = True
 		return True
 
@@ -421,7 +425,7 @@ class VK(object):
 			try:
 				result = self.engine.method(method, args, nodecode)
 			except api.InternalServerError as e:
-				logger.error("VK: internal server error occurred while executing mehtod(%s) (%s)" % (method, e.message))
+				logger.error("VK: internal server error occurred while executing method(%s) (%s) (jid: %s)" % (method, e.message, self.source))
 			
 			except api.CaptchaNeeded:
 				logger.error("VK: running captcha challenge (jid: %s)" % self.source)
@@ -754,6 +758,9 @@ class User(object):
 			1 mean all is fine (request again)
 			-1 mean do nothing
 		"""
+		## todo: add last poll result
+		## && rename the Poll.poll to Poll.list
+		## todo: WITH opener.read?
 		try:
 			data = opener.read()
 		except (httplib.BadStatusLine, socket.error):
@@ -780,13 +787,15 @@ class User(object):
 			typ = evt.pop(0)
 			if typ == 4:  # new message
 				runThread(self.sendMessages)
+
 			elif typ == 8: # user has joined
 				uid = abs(evt[0])
-
 				sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True)
+
 			elif typ == 9: # user has left
 				uid = abs(evt[0])
 				sendPresence(self.source, vk2xmpp(uid), "unavailable")
+
 			elif typ == 61: # user is typing
 				if evt[0] not in self.typing:
 					sendMessage(Component, self.source, vk2xmpp(evt[0]), typ="composing")
@@ -847,7 +856,7 @@ class Poll:
 	"""
 	Class used to handle longpoll
 	"""
-	__poll = {}
+	__list = {}
 	__buff = set()
 	__lock = threading._allocate_lock()
 
@@ -856,15 +865,18 @@ class Poll:
 		"""
 		Issues readable socket to use it in select()
 		Adds user in buffer on error occurred
-		Adds user in self.__poll if no errors
+		Adds user in self.__list if no errors
 		"""
 		try:
 			opener = user.vk.makePoll()
-		except Exception as e:
+		except Exception:
+			crashLog("poll.add") ## WARNING: We don't need to write crashlog when the poll is faled because the session is expired
 			logger.error("longpoll: failed to make poll (jid: %s)" % user.source)
 			cls.__addToBuff(user)
+			return False
 		else:
-			cls.__poll[opener.sock] = (user, opener)
+			cls.__list[opener.sock] = (user, opener)
+		return opener
 
 	@classmethod
 	def __addToBuff(cls, user):
@@ -884,7 +896,7 @@ class Poll:
 		with cls.__lock:
 			if some_user in cls.__buff:
 				return None
-			for sock, (user, opener) in cls.__poll.iteritems():
+			for sock, (user, opener) in cls.__list.iteritems():
 				if some_user == user:
 					break
 			else:
@@ -898,13 +910,13 @@ class Poll:
 		with cls.__lock:
 			if some_user in cls.__buff:
 				return cls.__buff.remove(some_user)
-			for sock, (user, opener) in cls.__poll.iteritems():
+			for sock, (user, opener) in cls.__list.iteritems():
 				if some_user == user:
-					del cls.__poll[sock]
+					del cls.__list[sock]
 					opener.close()
 					break
 
-	clear = staticmethod(__poll.clear)
+	clear = staticmethod(__list.clear)
 
 	@classmethod
 	def __initPoll(cls, user):
@@ -943,27 +955,29 @@ class Poll:
 		Read processPollResult.__doc__ to learn more about status codes
 		"""
 		while True:
-			socks = cls.__poll.keys()
+			socks = cls.__list.keys()
 			if not socks:
 				time.sleep(0.02)
 				continue
 			try:
 				ready, error = select.select(socks, [], socks, 2)[::2]
-			except (select.error, socket.error):
-				continue
+			except (select.error, socket.error) as e:
+				logger.info("longpoll: %s" % (e.message))
 
 			for sock in error:
 				with cls.__lock:
 					try:
-						cls.__add(cls.__poll.pop(sock)[0])
+						cls.__add(cls.__list.pop(sock)[0])
 					except KeyError:
 						continue
+
 			for sock in ready:
 				with cls.__lock:
 					try:
-						user, opener = cls.__poll.pop(sock)
+						user, opener = cls.__list.pop(sock)
 					except KeyError:
 						continue
+					## We need to check if the user haven't left yet
 					user = Transport.get(user.source)
 					if not user:
 						continue
@@ -974,6 +988,7 @@ class Poll:
 						cls.__add(user)
 					else:
 						cls.__addToBuff(user)
+					logger.info("longpoll: result=%d (jid: %s)" % (result, user.source))
 
 
 def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None):
@@ -1019,7 +1034,7 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 
 def sender(cl, stanza):
 	"""
-	Send stanza. Write crashlog on error
+	Sends stanza. Writes crashlog on error
 	"""
 	try:
 		cl.send(stanza)
@@ -1060,7 +1075,7 @@ def calcStats():
 	return [countTotal, countOnline]
 
 
-def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the functions in format verbSentence?
+def removeUser(user, roster=False, semph=Semaphore):
 	"""
 	Removes user from database
 	Parameters:
@@ -1068,48 +1083,47 @@ def removeUser(user, roster=False, semph=Semaphore): ## todo: maybe call all the
 		roster: remove vk contacts from user's roster (only if User class object was in first param)
 		semph: use semaphore if needed
 	"""
-	source = user
-	if isinstance(user, User):
+	if isinstance(user, (str, unicode)): # unicode is default, but... who knows
+		source = user
+	else:
 		source = user.source
+	user = Transport.get(source) ## here's probability it's not the User object
+	sendMessage(Component, source, TransportID, _("The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
 	logger.debug("User: removing user from db (jid: %s)" % source)
 	with Database(DatabaseFile, semph) as db:
 		db("delete from users where jid=?", (source,))
 		db.commit()
 
-	if source in Transport:
-		user = Transport[source]
-		user.exists = False
-		friends = getattr(user, "friends", {})
-		if roster and friends:
+	if roster and user:
+		friends = user.friends
+		user.exists = False ## Make the Daleks happy
+		if friends:
 			logger.debug("User: removing myself from roster (jid: %s)" % source)
 			for id in friends.keys():
 				jid = vk2xmpp(id)
 				sendPresence(source, jid, "unsubscribe")
 				sendPresence(source, jid, "unsubscribed")
-			
-		elif roster:
 			sendPresence(source, TransportID, "unsubscribe")
 			sendPresence(source, TransportID, "unsubscribed")
 			user.settings.exterminate()
 			executeHandlers("evt03", (user,))
 		Poll.remove(user)
-		vk = getattr(user, "vk", user)
-		vk.online = False
+		user.vk.online = False
 		del Transport[source]
-		
+
 
 def getPid():
 	"""
 	Getting new PID and kills previous PID
 	by signals 15 and then 9
 	"""
-	nowPid = os.getpid()
+	pid = os.getpid()
 	if os.path.exists(pidFile):
 		oldPid = rFile(pidFile)
 		if oldPid:
 			Print("#-# Killing old transport instance: ", False)
 			oldPid = int(oldPid)
-			if nowPid != oldPid:
+			if pid != oldPid:
 				try:
 					os.kill(oldPid, 15)
 					time.sleep(3)
@@ -1117,7 +1131,7 @@ def getPid():
 				except OSError:
 					pass
 				Print("%d killed.\n" % oldPid, False)
-	wFile(pidFile, str(nowPid))
+	wFile(pidFile, str(pid))
 
 
 def loadExtensions(dir):
@@ -1236,12 +1250,6 @@ def disconnectHandler(crash=True):
 	executeHandlers("evt02")
 	Print("Reconnecting...")
 	os.execl(sys.executable, sys.executable, sys.argv[0])
-## until get it fixed
-##	while not connect():
-##		time.sleep(1)
-##		disconnectHandler(crash)
-##	else:
-##		loadModules(True)
 
 
 def makeMeKnown():
@@ -1279,6 +1287,7 @@ if __name__ == "__main__":
 	signal.signal(signal.SIGTERM, exit)
 	signal.signal(signal.SIGINT, exit)
 	loadExtensions("extensions")
+	transportSettings = Settings(TransportID, user=False)
 	main()
 	while True:
 		try:

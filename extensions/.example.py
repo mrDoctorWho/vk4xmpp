@@ -10,7 +10,7 @@ def evt01_handler():
 	"""
 	Threaded handler. 
 	Called when transport's loaded and users initialized
-	But before modules load
+	But before the modules are being loaded
 	"""
 	print "WOW! That's my awesome plugin event!"
 
@@ -31,7 +31,7 @@ def evt03_handler(user):
 	Called when user has removed his registration ("unsubscribe" presence or "delete" in disco)
 	Parameters:
 		user: User class object
-	Look User class for advanced information
+	Look at the User class for advanced information
 	"""
 	print "Print user %s is going to remove us" % (user.source)
 
@@ -147,3 +147,6 @@ registerHandler("prs02", prs02_handler)
 ## Ok now, look here.
 GLOBAL_USER_SETTINGS["awesome_setting"] = {"label": "My new setting", "value": 0} ## If not type added, then boolean will be used
 ## Settings are being automatically saved as soon as it changed.
+## To check if the value is equal to something, do:
+## print user.settings.awesome_setting == 0
+## where "user" is the User class object

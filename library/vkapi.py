@@ -174,6 +174,7 @@ class RequestProcessor(object):
 		body = resp.read()
 		return (body, resp)
 
+## todo: move getOpener the hell out of here
 	def getOpener(self, url, query={}):
 		"""
 		Opens a connection to url and returns AsyncHTTPRequest() object

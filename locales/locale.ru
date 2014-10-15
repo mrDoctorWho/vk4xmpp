@@ -33,3 +33,4 @@ You're not allowed to perform this action.=Вам не разрешено вып
 Transport's admins limited registrations, sorry.=Нам очень жаль, но администрация транспорта ограничила количество регистраций.
 Sorry but we have failed to send this image. Seems you haven't enough permissions. Your token should be updated, register again.=Очень жаль, но отправить изображение не удалось. Похоже, ваш access-token должен быть обновлён для получения прав на отправку изображений.
 Your image was successfully sent.=Ваше изображение было успешно отправлено!
+The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know.=Запись в базе данных о вас была УНИЧТОЖЕНА! Если вы этого не просили, то дайте нам знать об этом возмутительном происшествии.
