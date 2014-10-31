@@ -8,7 +8,7 @@ from __main__ import _
 def reportReceived(msg, jidFrom, jidTo):
 	if msg.getTag("request"):
 		answer = xmpp.Message(jidFrom, frm=jidTo)
-		tag = answer.setTag("received", namespace = xmpp.NS_RECEIPTS)
+		tag = answer.setTag("received", namespace=xmpp.NS_RECEIPTS)
 		tag.setAttr("id", msg.getID())
 		answer.setID(msg.getID())
 		return answer
@@ -31,7 +31,7 @@ def acceptCaptcha(cl, args, jidTo, source):
 			if success:
 				logger.debug("retry for user %s successed!" % source)
 				answer = _("Captcha valid.")
-				Presence = xmpp.Presence(source, show=None, frm = TransportID)
+				Presence = xmpp.Presence(source, show=None, frm=TransportID)
 				sender(Component, Presence)
 				user.tryAgain()
 			else:
@@ -43,7 +43,6 @@ def acceptCaptcha(cl, args, jidTo, source):
 
 
 def message_handler(cl, msg):
-	mType = msg.getType()
 	body = msg.getBody()
 	jidTo = msg.getTo()
 	destination = jidTo.getStripped()
@@ -89,7 +88,6 @@ def message_handler(cl, msg):
 			if answer:
 				sender(cl, answer)
 	executeHandlers("msg02", (msg,))
-		
 
 def load():
 	Component.RegisterHandler("message", message_handler)

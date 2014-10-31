@@ -6,7 +6,6 @@ from __main__ import *
 
 def main_handler(cl, iq):
 	jidFrom = iq.getFrom()
-	source = jidFrom.getStripped()
 	if WhiteList:
 		if jidFrom and jidFrom.getDomain() not in WhiteList:
 			sender(cl, utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
@@ -21,4 +20,4 @@ def main_handler(cl, iq):
 
 def load():
 	Component.RegisterHandler("iq", main_handler, makefirst=True)
- 
+

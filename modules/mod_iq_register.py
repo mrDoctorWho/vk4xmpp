@@ -27,7 +27,6 @@ def initializeUser(user, cl, iq):
 				crashLog("user.init")
 				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 			else:
-##				Transport[source] = user
 				watcherMsg(_("New user registered: %s") % source)
 		else:
 			logger.error("user connection failed (jid: %s)" % source)
@@ -52,12 +51,12 @@ def register_handler(cl, iq):
 		if iType == "get" and not queryChildren:
 			logger.debug("Send registration form to user (jid: %s)" % source)
 			form = utils.buildDataForm(fields = [
-				{"var": "link", "type": "text-single", "label": _("Autorization page"), 
+				{"var": "link", "type": "text-single", "label": _("Autorization page"),
 					"desc": ("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
 						   "and then paste url to password field."), "value": URL_ACCEPT_APP},
 				{"var": "phone", "type": "text-single", "desc": _("Enter phone number in format +71234567890"), "value": "+"},
 				{"var": "use_password", "type": "boolean", "label": _("Get access-token automatically"), "desc": _("Try to get access-token automatically. (NOT recommended, password required!)")}, #"value": "0"},#, "0"}
-				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}], 
+				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}],
 			data = [_("Type data in fields")])
 			result.setQueryPayload([form])
 
@@ -94,7 +93,7 @@ def register_handler(cl, iq):
 	## Check if user already registered. If registered, delete him then
 				if source in Transport:
 					user = Transport[source]
-					removeUser(user, semph=False)
+					removeUser(user, semph=False, notify=False)
 
 	## If we not using a password so we need to check if there a link or token. Or maybe user's wrong and that's his password.
 				if not use_password:
@@ -122,8 +121,7 @@ def register_handler(cl, iq):
 
 		else:
 			result = utils.buildIQError(iq, 0, _("Feature not implemented."))
-	if result: sender(cl, result) 
+	if result: sender(cl, result)
 
 def load():
 	Component.RegisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)
- 

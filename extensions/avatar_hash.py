@@ -29,7 +29,7 @@ def makePhotoHash(user, list=None):
 		photos = photos + data
 
 	photos.append({"uid": TransportID, "photo": URL_VCARD_NO_IMAGE})
-	
+
 	for key in photos:
 		user.hashes[key["uid"]] = sha1(utils.getLinkData(key["photo"], False)).hexdigest()
 
@@ -38,7 +38,7 @@ def addPresenceHash(prs, destination, source):
 	 	uid = vk2xmpp(source)
 	 	user = Transport[destination]
 	 	if not uid in user.hashes:
-			runThread(makePhotoHash, (user, [uid])) # To prevent blocking here (if VK will not answer, he can, trust me)
+			runThread(makePhotoHash, (user, [uid])) # To prevent blocking here (if VK will not answer, its possible, trust me)
 		hash = user.hashes.get(uid)
 	 	if hash:
 			x = prs.setTag("x", namespace=xmpp.NS_VCARD_UPDATE)

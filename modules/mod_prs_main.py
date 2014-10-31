@@ -41,7 +41,6 @@ def presence_handler(cl, prs):
 					logger.debug("Received presence %s from user. Will send sendInitPresence (jid: %s)" % (pType, source))
 					user.resources.add(resource)
 					runThread(user.sendInitPresence, ())
-				runThread(executeHandlers, ("prs01", (source, prs)))
 
 		elif pType == "unavailable":
 			if jidTo == TransportID and resource in user.resources:
@@ -81,7 +80,7 @@ def presence_handler(cl, prs):
 
 	elif pType in ("available", None) and destination == TransportID:
 		runThread(initializeUser, args=(source, resource, prs))
-		
+	runThread(executeHandlers, ("prs01", (source, prs)))
 
 
 def load():

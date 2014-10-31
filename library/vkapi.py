@@ -191,7 +191,7 @@ class APIBinding:
 	Allows to make a password authorization
 	"""
 	def __init__(self, number=None, password=None, token=None, app_id=3789129,
-	scope=69638):
+	scope=69638, debug=[]):
 		self.password = password
 		self.number = number
 		self.token = token
@@ -205,6 +205,7 @@ class APIBinding:
 
 		self.RIP = RequestProcessor()
 		self.attempts = 0
+		self.debug = ()
 
 	def loginByPassword(self):
 		"""
@@ -317,9 +318,9 @@ class APIBinding:
 				except ValueError:
 					return {}
 #	 Debug:
-#			if method in ("users.get", "messages.get", "messages.send"):
-#				print "method %s with values %s" % (method, str(values))
-#				print "response for method %s: %s" % (method, str(body))
+			if method in self.debug:
+				print "method %s with values %s" % (method, str(values))
+				print "response for method %s: %s" % (method, str(body))
 
 			if "response" in body:
 				return body["response"]

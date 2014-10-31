@@ -19,4 +19,4 @@ def captcha_handler(cl, iq):
 
 def load():
 	Component.RegisterHandler("iq", captcha_handler, "set")
- 
+

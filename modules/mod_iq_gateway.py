@@ -30,7 +30,7 @@ def gateway_handler(cl, iq):
 				result.setQueryPayload([xNode])
 		else:
 			raise xmpp.NodeProcessed()
-		sender(cl, result) 
+		sender(cl, result)
 
 
 def load():

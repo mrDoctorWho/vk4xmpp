@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.27
+# vk4xmpp gateway, v2.30
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
@@ -74,7 +74,7 @@ THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
 STANZA_SEND_INTERVAL = 0.03125
 VK_ACCESS = 69638
-GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}, 
+GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1},
 						"keep_onlne": {"label": "Keep my status online", "value": 1}}
 GLOBAL_TRANSPORT_SETTINGS = {} # globals(), lol
 
@@ -145,7 +145,7 @@ Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 # 05 - user became online (threaded)
 # 06 - user became offline (linear)
 ## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
-## Presences: 01 status change, 02 - is used to modify presence (xmpp)
+## Presences: 01 incoming presence, 02 - is used to modify outgoing presence (xmpp)
 Handlers = {"msg01": [], "msg02": [],
 			"msg03": [],
 			"evt01": [], "evt02": [],
@@ -207,7 +207,7 @@ def executeHandlers(type, list=()):
 	for handler in Handlers[type]:
 		execute(handler, list)
 
-def runThread(func, args=(), name=None, att=3):
+def runThread(func, args=(), name=None, att=3, delay=0):
 	"""
 	Runs a thread with custom args and name
 	Needed to reduce code
@@ -215,14 +215,18 @@ def runThread(func, args=(), name=None, att=3):
 		func: function needed to be run in thread
 		args: function arguments
 		name: thread namespace
-		att: number of attemptfs
+		att: number of attempts
 	"""
-	thr = threading.Thread(target=execute, args=(func, args), name=name or func.func_name)
+	if delay:
+		thr = threading.Timer(delay, execute, (func, args))
+	else:
+		thr = threading.Thread(target=execute, args=(func, args))
+	thr.name = name or func.func_name
 	try:
 		thr.start()
 	except threading.ThreadError:
 		if att:
-			return runThread(func, args, name, (att - 1))
+			return runThread(func, args, name, (att - 1), delay)
 		crashLog("runThread.%s" % name)
 
 def getGatewayRev():
@@ -379,7 +383,7 @@ class VK(object):
 
 	def initPoll(self):
 		"""
-		Initaalizes longpoll
+		Initializes longpoll
 		Returns False if error occurred
 		"""
 		self.pollInitialzed = False
@@ -426,30 +430,29 @@ class VK(object):
 				result = self.engine.method(method, args, nodecode)
 			except api.InternalServerError as e:
 				logger.error("VK: internal server error occurred while executing method(%s) (%s) (jid: %s)" % (method, e.message, self.source))
-			
+
 			except api.CaptchaNeeded:
 				logger.error("VK: running captcha challenge (jid: %s)" % self.source)
 				self.captchaChallenge()
 				result = 0 ## why?
-			
+
 			except api.NotAllowed:
 				if self.engine.lastMethod[0] == "messages.send":
 					sendMessage(Component, self.source, vk2xmpp(args.get("user_id", TransportID)), _("You're not allowed to perform this action."))
-			
+
 			except api.NetworkNotFound:
 				logger.critical("VK: network is unavailable. Is vk down or you have network problems?")
 				self.online = False
-			
+
 			except api.VkApiError as e:
 				roster = False
 				if e.message == "User authorization failed: user revoke access for this token.":
-					logger.critical("VK: %s" % e.message)
 					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
 				## We are removing this user from database. Why? Just in case.
 				removeUser(Transport.get(self.source, self), roster, False)
-				logger.error("VK: apiError %s for user %s" % (e.message, self.source))
+				logger.error("VK: apiError %s (jid: %s)" % (e.message, self.source))
 				self.online = False
 		return result
 
@@ -461,7 +464,7 @@ class VK(object):
 		if self.engine.captcha:
 			executeHandlers("evt04", (self,))
 			if self.source in Transport:
-				Poll.remove(Transport[self.source]) ## Do not foget to add user into poll again after the captcha challenge is done 
+				Poll.remove(Transport[self.source]) ## Do not foget to add user into poll again after the captcha challenge is done
 
 	def disconnect(self):
 		"""
@@ -574,7 +577,6 @@ class User(object):
 		self.lastMsgID = 0
 		self.typing = {}
 		self.friends = {}
-		self.chatUsers = {}
 		self.hashes = {}
 		self.resources = set([])
 		self.settings = Settings(source)
@@ -582,7 +584,7 @@ class User(object):
 		self.__sync = threading._allocate_lock()
 		self.vk = VK(self.username, self.password, self.source)
 		logger.debug("initializing User (jid: %s)" % self.source)
-		
+
 	def __eq__(self, user):
 		if isinstance(user, User):
 			return user.source == self.source
@@ -869,8 +871,9 @@ class Poll:
 		"""
 		try:
 			opener = user.vk.makePoll()
-		except Exception:
-			crashLog("poll.add") ## WARNING: We don't need to write crashlog when the poll is faled because the session is expired
+		except Exception as e:
+			if not isinstance(e, api.LongPollError):
+				crashLog("poll.add") ## WARNING: We don't need to write crashlog when the poll is faled because the session is expired
 			logger.error("longpoll: failed to make poll (jid: %s)" % user.source)
 			cls.__addToBuff(user)
 			return False
@@ -939,7 +942,7 @@ class Poll:
 					cls.__buff.remove(user)
 					cls.__add(Transport[user.source])
 					break
-			time.sleep(10)
+			time.sleep(10) 
 		else:
 			with cls.__lock:
 				if user not in cls.__buff:
@@ -962,7 +965,7 @@ class Poll:
 			try:
 				ready, error = select.select(socks, [], socks, 2)[::2]
 			except (select.error, socket.error) as e:
-				logger.info("longpoll: %s" % (e.message))
+				logger.error("longpoll: %s" % (e.message)) ## debug?
 
 			for sock in error:
 				with cls.__lock:
@@ -1032,14 +1035,22 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 	sender(cl, msg)
 
 
-def sender(cl, stanza):
+def sender(cl, stanza, cb=None, args={}):
 	"""
 	Sends stanza. Writes crashlog on error
+	Parameters:
+		cl: xmpp.Client object
+		stanza: xmpp.Node object
+		cb: callback function
+		args: callback function arguments
 	"""
-	try:
-		cl.send(stanza)
-	except Exception:
-		crashLog("sender")
+	if cb:
+		cl.SendAndCallForResponse(stanza, cb, args)
+	else:
+		try:
+			cl.send(stanza)
+		except Exception:
+			crashLog("sender")
 
 
 ## TODO: make it as extension
@@ -1075,7 +1086,7 @@ def calcStats():
 	return [countTotal, countOnline]
 
 
-def removeUser(user, roster=False, semph=Semaphore):
+def removeUser(user, roster=False, semph=Semaphore, notify=True):
 	"""
 	Removes user from database
 	Parameters:
@@ -1088,7 +1099,8 @@ def removeUser(user, roster=False, semph=Semaphore):
 	else:
 		source = user.source
 	user = Transport.get(source) ## here's probability it's not the User object
-	sendMessage(Component, source, TransportID, _("The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
+	if notify:
+		sendMessage(Component, source, TransportID, _("The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
 	logger.debug("User: removing user from db (jid: %s)" % source)
 	with Database(DatabaseFile, semph) as db:
 		db("delete from users where jid=?", (source,))

@@ -13,7 +13,7 @@ def version_handler(cl, iq):
 		query.setTagData("version", Revision)
 		query.setTagData("os", "%s / %s" % (OS, Python))
 		sender(cl, result)
- 
+
 
 def load():
 	Component.RegisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)

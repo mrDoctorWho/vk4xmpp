@@ -33,12 +33,12 @@ def stats_handler(cl, iq):
 			users = calcStats()
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			virt, real, percent, time = shell[1].split()
-			stats = {"users": users, 
-					 "KB": [virt, real],
-					 "percent": [percent], 
-					 "seconds": [time], 
-					 "threads": [threading.activeCount()],
-					 "messages": [Stats["msgout"], Stats["msgin"]]}
+			stats = {"users": users,
+					"KB": [virt, real],
+					"percent": [percent],
+					"seconds": [time],
+					"threads": [threading.activeCount()],
+					"messages": [Stats["msgout"], Stats["msgin"]]}
 			for child in iqChildren:
 				if child.getName() == "stat":
 					name = child.getAttr("name")

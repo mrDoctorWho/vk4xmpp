@@ -26,17 +26,17 @@ def sendPhoto(user, data, type, address, mType):
 			name = "vk4xmpp_%s.%s" % (random.randint(1000, 9000), ext)
 			server = str(user.vk.method("photos.getMessagesUploadServer")["upload_url"])
 			response = json.loads(user.vk.engine.RIP.post(
-					server, 
+					server,
 					user.vk.engine.RIP.multipart("photo", str(name), str(type), data),
 					urlencode = False)[0])
-			
+
 			id = user.vk.method("photos.saveMessagesPhoto", response)[0].get("id", 0)
 			user.sendMessage("", address, mType, {"attachment": id})
 			logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
 			answer = _("Your image was successfully sent.")
 		else:
 			answer = _("Sorry but we have failed to send this image."
-				 	" Seems you haven't enough permissions. Your token should be updated, register again.")
+					" Seems you haven't enough permissions. Your token should be updated, register again.")
 	else:
 		answer = _("Something went wrong. We are so sorry.")
 	if send:
@@ -58,4 +58,4 @@ def parseXHTML(user, html, source, destination, mType="user_id"):
 				logger.error("xhmtlParse: fetched wrong xhtml image (jid: %s)" % source)
 				return False
 			runThread(sendPhoto, (user, data, mime_type, destination, mType))
-	return True 
+	return True

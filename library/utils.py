@@ -5,7 +5,6 @@
 import xmpp
 import urllib
 from socket import error
-from hashlib import sha1
 
 
 def apply(instance, args=()):
@@ -26,15 +25,15 @@ def buildDataForm(form=None, type="form", fields=[], title=None, data=[]):
 	Parameters:
 		form: xmpp.DataForm object
 		type: form type
-		fields: list of form objects represented as dict, e.g. 
-			[{"var": "cool", "type": "text-single", 
+		fields: list of form objects represented as dict, e.g.
+			[{"var": "cool", "type": "text-single",
 			"desc": "my cool description", "value": "cool"}]
 		title: form title
 		data: advanced data for form. e.g. instructions (if string in the list), look at xmpp/protocol.py:1326
 	"""
 	form = form or xmpp.DataForm(type, data, title)
 	for key in fields:
-		field = form.setField(key["var"], key.get("value"), 
+		field = form.setField(key["var"], key.get("value"),
 					key.get("type"), key.get("desc"), key.get("options"))
 		if key.has_key("payload"):
 			field.setPayload(key["payload"])

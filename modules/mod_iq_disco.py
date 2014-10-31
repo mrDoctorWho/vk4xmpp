@@ -12,7 +12,7 @@ def disco_handler(cl, iq):
 	destination = iq.getTo().getStripped()
 	ns = iq.getQueryNS()
 	node = iq.getTagAttr("query", "node")
-	
+
 	if not node:
 		payload = []
 		if destination == TransportID:
@@ -22,16 +22,15 @@ def disco_handler(cl, iq):
 
 		result = iq.buildReply("result")
 		payload.append(xmpp.Node("identity", IDENTIFIER))
-		if source == evalJID: 
+		if source == evalJID:
 			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
 			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID }))
 		if ns == xmpp.NS_DISCO_INFO:
 			for key in features:
 				xNode = xmpp.Node("feature", {"var": key})
 				payload.append(xNode)
-			
 			result.setQueryPayload(payload)
-		
+
 		elif ns == xmpp.NS_DISCO_ITEMS:
 			result.setQueryPayload(payload)
 
@@ -62,7 +61,7 @@ def disco_handler(cl, iq):
 		else:
 			raise xmpp.NodeProcessed()
 
-	sender(cl, result) 
+	sender(cl, result)
 
 
 def getUsersList():
@@ -86,8 +85,6 @@ def sendGlobalMessage(text):
 
 def commands_handler(cl, iq):
 	source = iq.getFrom().getStripped()
-	destination = iq.getTo().getStripped()
-	ns = iq.getQueryNS()
 	cmd = iq.getTag("command", namespace=xmpp.NS_COMMANDS)
 	if cmd:
 		result = iq.buildReply("result")
@@ -102,9 +99,9 @@ def commands_handler(cl, iq):
 			if source == evalJID:
 				if node == "Delete users":
 					if not form:
-						form = utils.buildDataForm(None, None, 
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN}, 
-								{"var": "jids", "type": "jid-multi", "label": "Jabber ID's", "required": True}], 
+						form = utils.buildDataForm(None, None,
+							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
+								{"var": "jids", "type": "jid-multi", "label": "Jabber ID's", "required": True}],
 									"Type JabberIDs in lines to remove them from db")
 						commandTag.addChild(node=form)
 					else:
@@ -115,8 +112,8 @@ def commands_handler(cl, iq):
 
 				elif node == "Global message":
 					if not form:
-						form = utils.buildDataForm(None, None, 
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN}, 
+						form = utils.buildDataForm(None, None,
+							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
 								{"var": "text", "type": "text-multi", "label": "Message", "required": True}], "Type a message text" )
 						commandTag.addChild(node=form)
 					else:
@@ -128,8 +125,8 @@ def commands_handler(cl, iq):
 
 				elif node == "Show crashlogs":
 					if not form:
-						form = utils.buildDataForm(None, None, 
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN}, 
+						form = utils.buildDataForm(None, None,
+							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
 								{"var": "filename", "type": "list-single", "label": "Filename", "options": os.listdir("crash") if os.path.exists("crash") else []}], "Choose wisely")
 						commandTag.addChild(node=form)
 					else:

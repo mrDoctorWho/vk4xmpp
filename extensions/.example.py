@@ -8,8 +8,8 @@
 
 def evt01_handler():
 	"""
-	Threaded handler. 
-	Called when transport's loaded and users initialized
+	Threaded handler.
+	Called when the transport's loaded and users initialized
 	But before the modules are being loaded
 	"""
 	print "WOW! That's my awesome plugin event!"
@@ -80,7 +80,7 @@ def msg01_handler(user, message):
 		user: User class object
 		message: single message json object
 	Return values:
-		None: function itself should send a message
+		None: the function itself should send a message
 		str type: transport's core will add returned string to existing body
 	"""
 	return "\nmsg01_handler is awesome"
@@ -122,7 +122,7 @@ def prs01_handler(source, prs):
 		source: presence source
 		prs: xmpp.Presence object
 	"""
-	print "Hey, user %s is became online in xmpp!" % source
+	print "Hey, user %s is became %s in xmpp!" % (source, prs.getType())
 
 registerHandler("prs01", prs01_handler)
 
