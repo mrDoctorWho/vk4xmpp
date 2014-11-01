@@ -6,7 +6,7 @@ VK_ACCESS += 1024
 
 GLOBAL_USER_SETTINGS["status_to_vk"] = {"label": "Publish my status in VK", "value": 0}
 
-def statusChange(source, prs):
+def statustovk_prs01(source, prs):
 	if source in Transport and prs.getType() in ("available", None):
 		user = Transport[source]
 		if user.settings.status_to_vk:
@@ -16,7 +16,7 @@ def statusChange(source, prs):
 				if mask & 1024 == 1024:
 					user.vk.method("status.set", {"text": status})
 				else:
-					logger.debug("not changing user's status in the VK 'cause we do not have enough permissions (jid: %s)" % source)
+					logger.errror("not changing user's status in the VK 'cause we do not have enough permissions (jid: %s)" % source)
 			user.last_status = status
 
-registerHandler("prs01", statusChange)
+registerHandler("prs01", statustovk_prs01)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.30
+# vk4xmpp gateway, v2.31
 # © simpleApps, 2013 — 2014.
 # Program published under MIT license.
 
@@ -136,7 +136,6 @@ del formatter, loggerHandler
 OS = "{0} {2:.16} [{4}]".format(*os.uname())
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 
-
 ## Events (not finished yet so not sorted):
 # 01 - start (threaded), no args
 # 02 - shutdown (linear)
@@ -144,13 +143,14 @@ Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 # 04 - captcha (linear)
 # 05 - user became online (threaded)
 # 06 - user became offline (linear)
+# 07 - user is logging in (linear, before the friends are received)
 ## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
 ## Presences: 01 incoming presence, 02 - is used to modify outgoing presence (xmpp)
 Handlers = {"msg01": [], "msg02": [],
-			"msg03": [],
-			"evt01": [], "evt02": [],
-			"evt03": [], "evt04": [],
-			"evt05": [], "evt06": [],
+			"msg03": [], "evt01": [], 
+			"evt02": [], "evt03": [],
+			"evt04": [], "evt05": [], 
+			"evt06": [], "evt07": [],
 			"prs01": [], "prs02": []}
 
 Stats = {"msgin": 0, ## from vk
@@ -171,6 +171,7 @@ def initDatabase(filename):
 			db("create table users (jid text, username text, token text, lastMsgID integer, rosterSet bool)")
 			db.commit()
 	return True
+
 
 def execute(handler, list=()):
 	"""
@@ -200,12 +201,14 @@ def registerHandler(type, func):
 			Handlers[type].remove(handler)
 	Handlers[type].append(func)
 
+
 def executeHandlers(type, list=()):
 	"""
 	Executes all handlers by type with list as list of args
 	"""
 	for handler in Handlers[type]:
 		execute(handler, list)
+
 
 def runThread(func, args=(), name=None, att=3, delay=0):
 	"""
@@ -229,6 +232,7 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 			return runThread(func, args, name, (att - 1), delay)
 		crashLog("runThread.%s" % name)
 
+
 def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
@@ -238,6 +242,7 @@ def getGatewayRev():
 	if shell:
 		revNumber, rev = len(shell), shell[0]
 	return "#%s-%s" % (revNumber, rev)
+
 
 def vk2xmpp(id):
 	"""
@@ -321,6 +326,7 @@ class VK(object):
 		self.pollInitialzed = False
 		self.online = False
 		self.userID = 0
+		self.friends_fields = set(["screen_name"])
 		logger.debug("VK.__init__ with number:%s from jid:%s" % (number, source))
 
 	getToken = lambda self: self.engine.token
@@ -351,7 +357,7 @@ class VK(object):
 	## TODO: this function must be rewritten. We have dict from self.method, so trying make int using dict is bad idea.
 	def checkToken(self):
 		"""
-		Checks token
+		Checks the api token
 		"""
 		try:
 			int(self.method("isAppUser", force=True))
@@ -483,7 +489,7 @@ class VK(object):
 		Example: {1: {"name": "Pavel Durov", "online": False}
 		Parameter fields is needed to receive advanced fields which will be added in result values
 		"""
-		fields = fields or ["screen_name"]
+		fields = fields or self.friends_fields
 		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)}) or ()
 		friends = {}
 		for friend in raw:
@@ -492,7 +498,7 @@ class VK(object):
 			name = escape("", str.join(chr(32), (friend["first_name"], friend["last_name"])))
 			friends[uid] = {"name": name, "online": online}
 			for key in fields:
-				if key != "screen_name":
+				if key != "screen_name": # screen_name is default
 					friends[uid][key] = friend.get(key)
 		return friends
 
@@ -611,6 +617,7 @@ class User(object):
 		logger.debug("User: connecting (jid: %s)" % self.source)
 		self.auth = False
 		## TODO: Check the code below
+		## what the hell is going on down here?
 		if self.username and self.password:
 			self.vk.username = self.username
 			self.vk.password = self.password
@@ -634,8 +641,9 @@ class User(object):
 			elif self.password:
 				with Database(DatabaseFile, Semaphore) as db:
 					db("update users set token=? where jid=?", (self.vk.getToken(), self.source))
-			self.friends = self.vk.getFriends()
+			executeHandlers("evt07", (self,))
 			self.vk.online = True
+			self.friends = self.vk.getFriends()
 		return self.vk.online
 
 
@@ -643,7 +651,7 @@ class User(object):
 		"""
 		Initializes user after self.connect() is done:
 			1. Receives friends list and set 'em to self.friends
-			2. If #1 is done and roster is not yet set (self.rosterSet) then sends subscr presence
+			2. If #1 is done and roster is not yet set (self.rosterSet) then sends subscribe presence
 			3. Calls sendInitPresnece() if parameter send is True
 			4. Adds resource if resource parameter exists
 		Parameters:
@@ -981,9 +989,12 @@ class Poll:
 					except KeyError:
 						continue
 					## We need to check if the user haven't left yet
-					user = Transport.get(user.source)
+					user = Transport.get(user.source) # WHAT?
 					if not user:
 						continue
+					if not user.vk.online:
+						logger.debug("longpoll: user became offline, so removing his ass from poll (jid: %s)" % user.source)
+						cls.remove(user)
 					result = execute(user.processPollResult, (opener,))
 					if result == -1:
 						continue

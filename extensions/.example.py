@@ -64,11 +64,11 @@ def evt06_handler(vk):
 	"""
 	Threaded handler.
 	Called when user is disconnected (vk)
-	Exactly when user.vk.disconnect() is Called
+	Exactly when user.vk.disconnect() is called
 	Parameters:
 		vk: VK class object
 	"""
-	print "We're lost this one: %s" % vk.source ## yes VK class object too have source attribute
+	print "We're lost this guy: %s" % vk.source ## yes VK class object too have source attribute
 
 registerHandler("evt06", evt06_handler)
 
@@ -116,7 +116,7 @@ registerHandler("msg03", msg03_handler)
 def prs01_handler(source, prs):
 	"""
 	Trheaded handler. I have no idea why.
-	Called when presence available received (when user in Transport)
+	Called when presence received (no matter which one, when user in Transport)
 	Also called when user is just initialized (only after "probe" presence)
 	Parameters:
 		source: presence source
@@ -129,7 +129,7 @@ registerHandler("prs01", prs01_handler)
 def prs02_handler(prs, destination, source):
 	"""
 	Linear handler.
-	Same as msg02_handler, but for presence
+	Same as msg02_handler, but this one is for presence
 	Parameters:
 		prs: xmpp.Presence object
 		destination: message destination

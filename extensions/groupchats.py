@@ -175,7 +175,7 @@ class Chat(object):
 			self.initialize(user, chat)
 			self.created = True
 		else:
-			logger.error("groupchats: couldn't set room %s config (jid: %s)", (chat, user.source))
+			logger.error("groupchats: couldn't set room %s config (jid: %s)" % (chat, user.source))
 
 	@classmethod
 	def getParts(cls, source):
