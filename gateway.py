@@ -369,7 +369,7 @@ class VK(object):
 		try:
 			self.checkData()
 		except api.AuthError as e:
-			logger.error("VK.auth failed with error %s (jid: %s)" % (e.message, jid))
+			logger.error("VK.auth failed with error %s (jid: %s)" % (e.message, self.source))
 			if raise_exc:
 				raise
 			return False
