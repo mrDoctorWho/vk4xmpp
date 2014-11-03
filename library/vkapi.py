@@ -323,7 +323,7 @@ class APIBinding:
 				print "response for method %s: %s" % (method, str(body))
 
 			if "response" in body:
-				return body["response"]
+				return body["response"] or {}
 
 			elif "error" in body:
 				error = body["error"]

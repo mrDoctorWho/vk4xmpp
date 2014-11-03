@@ -112,15 +112,17 @@ class Chat(object):
 		joinChat(self.jid, name, TransportID) ## we're joining to chat with the room owner's name to set the topic. That's why we have so many lines of code right here
 		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user}) ## executehandler?
 
+	## TODO: Return chat object from the message
 	def initialize(self, user, chat):
 		vkChat = self.getVKChat(user, self.id)
 		if vkChat:
 			vkChat = vkChat[0]
-		elif not self.created:
+		elif not self.invited:
 			logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
 			runThread(self.initialize, (user, chat), delay=10)
+			return False
 
-		self.raw_users = object.get("users")
+		self.raw_users = vkChat.get("users")
 		name = "@%s" % TransportID
 		makeMember(chat, user.source, TransportID)
 		if not self.invited:
@@ -178,7 +180,7 @@ class Chat(object):
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: stanza \"result\" received from %s, continuing initialization (jid: %s)" % (chat, user.source))
-			self.initialize(user, chat)
+			execute(self.initialize, (user, chat)) ## i don't trust VK so it's better to execute it
 			self.created = True
 		else:
 			logger.error("groupchats: couldn't set room %s config (jid: %s)" % (chat, user.source))

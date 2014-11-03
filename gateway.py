@@ -86,13 +86,15 @@ crashDir = "crash"
 settingsDir = "settings"
 
 
-from optparse import OptionParser
-oParser = OptionParser(usage = "%prog [options]")
-oParser.add_option("-c", "--config", dest = "Config",
-				help = "general config file",
-				metavar = "Config", default = "Config.txt")
-(options, args) = oParser.parse_args()
-Config = options.Config
+from argparse import ArgumentParser
+argParser = ArgumentParser()
+
+argParser.add_argument("-c", "--config", help="set the general config file destination", default="Config.txt")
+argParser.add_argument("-d", "--daemon", help="run in daemon mode (no auto-restart)", action="store_true")
+args = argParser.parse_args()
+
+Daemon = args.daemon
+Config = args.config
 
 PhotoSize = "photo_100"
 DefLang = "ru"
@@ -108,7 +110,7 @@ try:
 	execfile(Config)
 	Print("#-# Config loaded successfully.")
 except Exception:
-	Print("#! Error while loading config file:")
+	Print("#! Error loading config file:")
 	wException()
 	exit()
 
@@ -1003,7 +1005,7 @@ class Poll:
 						cls.__add(user)
 					else:
 						cls.__addToBuff(user)
-					logger.info("longpoll: result=%d (jid: %s)" % (result, user.source))
+					logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
 
 
 def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None):
@@ -1272,8 +1274,11 @@ def disconnectHandler(crash=True):
 	except AttributeError:
 		pass
 	executeHandlers("evt02")
-	Print("Reconnecting...")
-	os.execl(sys.executable, sys.executable, sys.argv[0])
+	if not Daemon:
+		Print("Reconnecting...")
+		os.execl(sys.executable, sys.executable, sys.argv[0])
+	else:
+		sys.exit(-1)
 
 
 def makeMeKnown():
