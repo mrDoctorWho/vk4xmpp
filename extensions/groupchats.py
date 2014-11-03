@@ -113,7 +113,13 @@ class Chat(object):
 		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user}) ## executehandler?
 
 	def initialize(self, user, chat):
-		object = self.getVKChat(user, self.id)[0]
+		vkChat = self.getVKChat(user, self.id)
+		if vkChat:
+			vkChat = vkChat[0]
+		elif not self.created:
+			logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
+			runThread(self.initialize, (user, chat), delay=10)
+
 		self.raw_users = object.get("users")
 		name = "@%s" % TransportID
 		makeMember(chat, user.source, TransportID)

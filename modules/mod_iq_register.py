@@ -33,6 +33,7 @@ def initializeUser(user, cl, iq):
 			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 	sender(cl, result)
 
+
 def register_handler(cl, iq):
 	jidTo = iq.getTo()
 	jidFrom = iq.getFrom()
@@ -66,8 +67,8 @@ def register_handler(cl, iq):
 			data = query.getTag("x", namespace=xmpp.NS_DATA)
 			if data:
 				form = xmpp.DataForm(node=data).asDict()
-				phone = form.get("phone", "")
-				password = form.get("password", "")
+				phone = str(form.get("phone", ""))
+				password = str(form.get("password", "")) ## we have no idea what the hell is coming here
 				use_password = utils.normalizeValue(form.get("use_password", ""))
 
 				if not password:
@@ -122,6 +123,7 @@ def register_handler(cl, iq):
 		else:
 			result = utils.buildIQError(iq, 0, _("Feature not implemented."))
 	if result: sender(cl, result)
+
 
 def load():
 	Component.RegisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)

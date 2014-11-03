@@ -22,6 +22,7 @@ def wFile(filename, data, mode = "w"):
 	with open(filename, mode, 0) as file:
 		file.write(data)
 
+
 def rFile(filename):
 	"""
 	Reads file and returns data
@@ -32,7 +33,6 @@ def rFile(filename):
 		return file.read()
 
 
-
 def crashLog(name, fixme_ = True):
 	"""
 	Writes crashlog, ignoring duplicates
@@ -41,7 +41,7 @@ def crashLog(name, fixme_ = True):
 		fixme_ needeed to know if print the "fixme" message or not
 	"""
 	global lastErrorBody
-	logger.error("write crashlog %s" % name)
+	logger.error("crashlog %s has been written" % name)
 	if fixme_:
 		fixme(name)
 	try:
@@ -57,6 +57,7 @@ def crashLog(name, fixme_ = True):
 		fixme("crashlog")
 		wException()
 
+
 def Print(text, line = True):
 	"""
 	This function is needed to prevent errors
@@ -71,11 +72,13 @@ def Print(text, line = True):
 	except (IOError, OSError):
 		pass
 
+
 def wException(file = False):
 	exception = traceback.format_exc().strip()
 	if not file:
 		Print(exception)
 	return exception
+
 
 def returnExc():
 	exc = sys.exc_info()

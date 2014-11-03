@@ -17,7 +17,7 @@ def initializeUser(source, resource, prs):
 		Transport[jid] = user = User((phone, None), jid)
 		try:
 			if user.connect():
-				user.initialize(False, True, resource)
+				user.initialize(False, True, resource) ## probably we need to know resource a bit earlier than this time
 				runThread(executeHandlers, ("prs01", (source, prs)))
 			else:
 				crashLog("user.connect", False)
@@ -40,7 +40,7 @@ def presence_handler(cl, prs):
 				if resource not in user.resources:
 					logger.debug("Received presence %s from user. Will send sendInitPresence (jid: %s)" % (pType, source))
 					user.resources.add(resource)
-					runThread(user.sendInitPresence, ())
+					runThread(user.sendInitPresence, ()) ## warning: this line is probably causes an errors such as "VK has no attribute engine" when user is using gmail.com
 
 		elif pType == "unavailable":
 			if jidTo == TransportID and resource in user.resources:
