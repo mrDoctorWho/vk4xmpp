@@ -16,7 +16,8 @@ def statustovk_prs01(source, prs):
 				if mask & 1024 == 1024:
 					user.vk.method("status.set", {"text": status})
 				else:
-					logger.errror("not changing user's status on the site 'cause we do not have enough permissions (jid: %s)" % source)
+					sendMessage(Component, source, TransportID, _("Not enough permissions to publish your status on the site. Please, register again."))
+					logger.error("not changing user's status on the site 'cause we do not have enough permissions (jid: %s)" % source)
 			user.last_status = status
 
 registerHandler("prs01", statustovk_prs01)

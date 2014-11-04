@@ -165,6 +165,7 @@ DESC = _("© simpleApps, 2013 — 2014."
 	" via donation by:\nYandex.Money: 410012169830956"
 	"\nWebMoney: Z405564701378 | R330257574689.")
 
+
 def initDatabase(filename):
 	"""
 	Initializes database if it doesn't exists
