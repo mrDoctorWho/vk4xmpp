@@ -417,8 +417,12 @@ class VK(object):
 		Else returns socket object connected to poll server
 		"""
 		if not self.pollInitialzed:
-			raise api.LongPollError()
-		return self.engine.RIP.getOpener(self.pollServer, self.pollConfig)
+			raise api.LongPollError("The Poll has't initialized yet")
+		opener = self.engine.RIP.getOpener(self.pollServer, self.pollConfig)
+		if opener:
+			return opener
+		else:
+			raise api.LongPollError("Uknown Poll error")
 
 	def method(self, method, args=None, nodecode=False, force=False):
 		"""
@@ -619,7 +623,7 @@ class User(object):
 				runThread(removeUser, (self,))
 
 		logger.debug("User: connecting (jid: %s)" % self.source)
-		self.auth = False
+		self.auth = None
 		## TODO: Check the code below
 		## what the hell is going on down here?
 		if self.username and self.password:
@@ -774,14 +778,13 @@ class User(object):
 		"""
 		## todo: add last poll result
 		## && rename the Poll.poll to Poll.list
-		## todo: WITH opener.read?
 		try:
-			data = opener.read()
+			with opener as sock:
+				data = sock.read()
 		except (httplib.BadStatusLine, socket.error):
 			return 1
 
 		if self.vk.engine.captcha:
-			opener.close()
 			return -1
 
 		if not data:
@@ -799,6 +802,7 @@ class User(object):
 		self.vk.pollConfig["ts"] = data["ts"]
 		for evt in data.get("updates", ()):
 			typ = evt.pop(0)
+
 			if typ == 4:  # new message
 				runThread(self.sendMessages)
 

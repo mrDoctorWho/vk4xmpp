@@ -57,11 +57,11 @@ def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 	sender(Component, message)
 
 
-def outgoungChatMessageHandler(self, vkChat):
+def outgoingChatMessageHandler(self, vkChat):
 	if not self.settings.groupchats:
 		return None
 	if vkChat.has_key("chat_id"):
-		owner = vkChat["admin_id"]
+		owner = vkChat.get("admin_id", "1")
 		fromID = vkChat["uid"]
 		chatID = vkChat["chat_id"]
 		chatJID = "%s_chat#%s@%s" % (self.vk.userID, chatID, ConferenceServer)
@@ -72,11 +72,11 @@ def outgoungChatMessageHandler(self, vkChat):
 		if not self.vk.userID:
 			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % self.source)
 			self.vk.getUserID()
-			runThread(outgoungChatMessageHandler, (self, vkChat), delay=10)
+			runThread(outgoingChatMessageHandler, (self, vkChat), delay=10)
 			return None
 
 		if chatJID not in self.chats:
-			chat = self.chats[chatJID] = Chat(owner, chatID, chatJID, vkChat["title"], vkChat["date"])
+			chat = self.chats[chatJID] = Chat(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
 			chat.create(self)
 		else:
 			chat = self.chats[chatJID]
@@ -94,12 +94,12 @@ def outgoungChatMessageHandler(self, vkChat):
 
 
 class Chat(object):
-	def __init__(self, owner, id, jid, topic, date):
+	def __init__(self, owner, id, jid, topic, date, users=[]):
 		self.id = id
 		self.jid = jid
 		self.owner = owner
 		self.users = {}
-		self.raw_users = []
+		self.raw_users = users
 		self.created = False
 		self.invited = False
 		self.topic = topic
@@ -114,15 +114,16 @@ class Chat(object):
 
 	## TODO: Return chat object from the message
 	def initialize(self, user, chat):
-		vkChat = self.getVKChat(user, self.id)
-		if vkChat:
-			vkChat = vkChat[0]
-		elif not self.invited:
-			logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
-			runThread(self.initialize, (user, chat), delay=10)
-			return False
+		if not self.users:
+			vkChat = self.getVKChat(user, self.id)
+			if vkChat:
+				vkChat = vkChat[0]
+			elif not self.invited:
+				logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
+				runThread(self.initialize, (user, chat), delay=10)
+				return False
+			self.raw_users = vkChat.get("users")
 
-		self.raw_users = vkChat.get("users")
 		name = "@%s" % TransportID
 		makeMember(chat, user.source, TransportID)
 		if not self.invited:
@@ -252,6 +253,12 @@ def handleChatErrors(source, prs):
 							chat.create(user)
 						else:
 							joinChat(source, nick, destination)
+	# TODO:
+	## Make user leave if he left when transport's user wasn't online
+	## This could be done using jids or/and nicks lists. Completely unreliably as well as the groupchats realization itself
+#	if prs.getStatusCode() == "110":
+#		print prs.getJid()
+#		print prs.getType()
 
 
 def exterminateChat(user):
@@ -263,10 +270,10 @@ def exterminateChat(user):
 if ConferenceServer:
 	logger.info("extension groupchats is loaded")
 	TransportFeatures.append(xmpp.NS_GROUPCHAT)
-	registerHandler("msg01", outgoungChatMessageHandler)
+	registerHandler("msg01", outgoingChatMessageHandler)
 	registerHandler("msg02", incomingChatMessageHandler)
 	registerHandler("prs01", handleChatErrors)
 	registerHandler("evt03", exterminateChat)
 
 else:
-	del incomingChatMessageHandler, outgoungChatMessageHandler, inviteUser, joinChat, chatMessage
+	del incomingChatMessageHandler, outgoingChatMessageHandler, inviteUser, joinChat, chatMessage
