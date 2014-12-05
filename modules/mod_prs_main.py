@@ -5,6 +5,7 @@
 from __main__ import *
 from __main__ import _
 
+USERS_ON_INIT = set([])
 
 def initializeUser(source, resource, prs):
 	logger.debug("User not in the transport, but presence received. Searching in database (jid: %s)" % source)
@@ -24,6 +25,8 @@ def initializeUser(source, resource, prs):
 				sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
 		except Exception:
 			crashLog("prs.init")
+	if source in USERS_ON_INIT:
+		USERS_ON_INIT.remove(source)
 
 
 def presence_handler(cl, prs):
@@ -79,7 +82,10 @@ def presence_handler(cl, prs):
 
 
 	elif pType in ("available", None) and destination == TransportID:
-		runThread(initializeUser, args=(source, resource, prs))
+		if source not in USERS_ON_INIT:
+			runThread(initializeUser, args=(source, resource, prs))
+		else:
+			USERS_ON_INIT.add(source)
 	runThread(executeHandlers, ("prs01", (source, prs)))
 
 

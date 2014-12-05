@@ -727,7 +727,7 @@ class User(object):
 			init: needed to know if function called at init (add time or not)
 		Plugins notice (msg01):
 			If plugin returs None then message will not be sent by transport's core, it shall be sent by plugin itself
-			Otherwise, if plugin returns string, it will be sent by transport's core
+			Otherwise, if plugin returns string, the message will be sent by transport's core
 		"""
 		with self.__sync:
 			date = 0
@@ -1145,7 +1145,7 @@ def removeUser(user, roster=False, semph=Semaphore, notify=True):
 
 def getPid():
 	"""
-	Getting new PID and kills previous PID
+	Gets new PID and kills previous PID
 	by signals 15 and then 9
 	"""
 	pid = os.getpid()
@@ -1269,8 +1269,8 @@ def main():
 
 def disconnectHandler(crash=True):
 	"""
-	Handles disconnects
-	And write crashlog if crash parameter is equals True
+	Handles disconnect
+	And writes a crashlog if crash parameter is equals True
 	"""
 	if crash:
 		crashLog("main.disconnect")
