@@ -44,7 +44,7 @@ def evt04_handler(vk):
 	Parameters:
 		vk: VK class object
 	"""
-	print "Haha! Look at this man, he's got a captcha: %s. This image: %s is not for robots" % (vk.source, vk.engine.captcha["img"])
+	print "Look at this man, he've got a captcha: %s. This image: %s is not for robots" % (vk.source, vk.engine.captcha["img"])
 
 registerHandler("evt04", evt04_handler)
 
@@ -52,7 +52,7 @@ def evt05_handler(user):
 	"""
 	Threaded handler.
 	Called when user became online (our xmpp user, so we received available/probe presence)
-	Exactly at end of user.initialize() function
+	Exactly at end of the user.initialize() function
 	Parameters:
 		user: User class object
 	"""
@@ -68,7 +68,7 @@ def evt06_handler(vk):
 	Parameters:
 		vk: VK class object
 	"""
-	print "We're lost this guy: %s" % vk.source ## yes VK class object too have source attribute
+	print "We've lost this guy: %s" % vk.source ## yes VK class object too have source attribute
 
 registerHandler("evt06", evt06_handler)
 
@@ -146,7 +146,7 @@ registerHandler("prs02", prs02_handler)
 ## For field types look http://xmpp.org/extensions/xep-0004.html section 3.3 "Field Types"
 ## Ok now, look here.
 GLOBAL_USER_SETTINGS["awesome_setting"] = {"label": "My new setting", "value": 0} ## If not type added, then boolean will be used
-## Settings are being automatically saved as soon as it changed.
+## Settings are being automatically saved as soon as they changed.
 ## To check if the value is equal to something, do:
 ## print user.settings.awesome_setting == 0
 ## where "user" is the User class object
