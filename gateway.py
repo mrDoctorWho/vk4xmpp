@@ -302,7 +302,7 @@ class Settings(object):
 		if attr in self.settings:
 			return self.settings[attr]["value"]
 		if not hasattr(self, attr):
-			raise AttributeError()
+			return False
 		return object.__getattribute__(self, attr)
 
 	def exterminate(self):

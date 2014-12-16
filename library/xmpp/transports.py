@@ -263,7 +263,7 @@ class TCPsocket(PlugIn):
 		with self._sequence:
 			try:
 				self._send(data)
-			except Exception:
+			except (Exception, socket.error):
 				self.DEBUG("Socket error while sending data.", "error")
 				self._owner.disconnected()
 			else:
