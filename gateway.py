@@ -241,7 +241,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 205, 0
+	revNumber, rev = 230, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -265,7 +265,7 @@ def vk2xmpp(id):
 
 Revision = getGatewayRev()
 
-## Escaping xmpp not-allowed chars
+## Escaping xmpp non-allowed chars
 badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 sortMsg = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
@@ -776,8 +776,6 @@ class User(object):
 			1 mean all is fine (request again)
 			-1 mean do nothing
 		"""
-		## todo: add last poll result
-		## && rename the Poll.poll to Poll.list
 		try:
 			with opener as sock:
 				data = sock.read()
