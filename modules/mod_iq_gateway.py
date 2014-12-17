@@ -14,19 +14,19 @@ def gateway_handler(cl, iq):
 		result = iq.buildReply("result")
 		if itype == "get" and not iqChildren:
 			query = xmpp.Node("query", {"xmlns": xmpp.NS_GATEWAY})
-			query.setTagData("desc", "Enter api token")
+			query.setTagData("desc", "Enter user ID")
 			query.setTag("prompt")
 			result.setPayload([query])
 
 		elif iqChildren and itype == "set":
-			token = ""
+			user = ""
 			for node in iqChildren:
 				if node.getName() == "prompt":
-					token = node.getData()
+					user = node.getData()
 					break
-			if token:
-				xNode = xmpp.simplexml.Node("prompt")
-				xNode.setData(token[0])
+			if user:
+				xNode = xmpp.simplexml.Node("jid")
+				xNode.setData(user[0] + "@" + TransportID)
 				result.setQueryPayload([xNode])
 		else:
 			raise xmpp.NodeProcessed()
