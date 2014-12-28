@@ -98,8 +98,8 @@ class Chat(object):
 		self.id = id
 		self.jid = jid
 		self.owner = owner
-		self.users = {}
-		self.raw_users = users
+		self.users = {} ## jabber users
+		self.raw_users = users ## vk ids (users)
 		self.created = False
 		self.invited = False
 		self.topic = topic
@@ -135,9 +135,14 @@ class Chat(object):
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
 	def update(self, userObject, vkChat):
-		users = vkChat["chat_active"].split(",")
-		for user in users:
-			if not user in self.users:
+		users = vkChat["chat_active"].split(",") or []
+		users_new = self.getVKChat(user, self.id) or []
+		## list of all users. We could miss some of them in vkChat or in users_new.
+		all_users = set([int(x) for x in (list(users) + list(users_new))])
+
+		for user in all_users:
+			## checking if there new users we didn't join yet
+			if not user in self.raw_users:
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)" % (user, self.jid, userObject.source))
 				jid = vk2xmpp(user)
 				name = userObject.vk.getUserData(user)["name"]
@@ -146,7 +151,8 @@ class Chat(object):
 				joinChat(self.jid, name, jid) 
 
 		for user in self.users.keys():
-			if not user in users and user != TransportID:
+			## checking if there old users we have to remove
+			if not user in all_users and user != TransportID:
 				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" % (user, self.jid, userObject.source))
 				del self.users[user]
 				leaveChat(self.jid, vk2xmpp(user))
@@ -157,7 +163,7 @@ class Chat(object):
 		if topic != self.topic:
 			chatMessage(self.jid, topic, TransportID, True)
 			self.topic = topic
-		self.raw_users = users
+		self.raw_users = all_users
 
 	def getVKChat(self, user, id):
 		chats = user.vk.method("execute.getChats")
@@ -238,13 +244,14 @@ def handleChatErrors(source, prs):
 	## is it safe by the way?
 	destination = prs.getTo().getStripped()
 	if prs.getType() == "error":
-		code = prs.getErrorCode()
+		error = prs.getErrorCode()
+		status = prs.getStatusCode()
 		nick = prs.getFrom().getResource()
 		if source.split("@")[1] == ConferenceServer:
 			user = Chat.getUserObject(source)
 			if user and source in getattr(user, "chats", {}):
 				chat = user.chats[source]
-				if code == "409":
+				if error == "409":
 					id = vk2xmpp(destination)
 					if id in chat.users:
 						nick += "."
@@ -253,6 +260,7 @@ def handleChatErrors(source, prs):
 							chat.create(user)
 						else:
 							joinChat(source, nick, destination)
+		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s" (code, status, source))
 	# TODO:
 	## Make user leave if he left when transport's user wasn't online
 	## This could be done using jids or/and nicks lists. Completely unreliably as well as the groupchats realization itself

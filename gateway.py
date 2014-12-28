@@ -71,6 +71,7 @@ Semaphore = threading.Semaphore()
 LOG_LEVEL = logging.DEBUG
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
+DEBUG_POLL = False
 THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
 STANZA_SEND_INTERVAL = 0.03125
@@ -465,7 +466,7 @@ class VK(object):
 				elif e.message == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
 				## We are removing this user from database. Why? Just in case.
-				removeUser(Transport.get(self.source, self), roster, False)
+				runThread(removeUser, (self.source, roster))
 				logger.error("VK: apiError %s (jid: %s)" % (e.message, self.source))
 				self.online = False
 		return result
@@ -1008,7 +1009,8 @@ class Poll:
 						cls.__add(user)
 					else:
 						cls.__addToBuff(user)
-					logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
+					if DEBUG_POLL:
+						logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
 
 
 def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None):
@@ -1068,6 +1070,7 @@ def sender(cl, stanza, cb=None, args={}):
 			cl.send(stanza)
 		except Exception:
 			crashLog("sender")
+			disconnectHandler(True)
 
 
 ## TODO: make it as extension
@@ -1118,10 +1121,11 @@ def removeUser(user, roster=False, semph=Semaphore, notify=True):
 	user = Transport.get(source) ## here's probability it's not the User object
 	if notify:
 		sendMessage(Component, source, TransportID, _("The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
-	logger.debug("User: removing user from db (jid: %s)" % source)
+	logger.debug("User: removing user from db (jid: %s, semph: %s)" % (source, "Semaphore" if semph else "None"))
 	with Database(DatabaseFile, semph) as db:
 		db("delete from users where jid=?", (source,))
 		db.commit()
+	logger.debug("User: deleted (jid: %s)" % source)
 
 	if roster and user:
 		friends = user.friends

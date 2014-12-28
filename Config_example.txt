@@ -93,3 +93,6 @@ STANZA_SEND_INTERVAL = 0.03125
 ## But users like to see avatars in their roster. If it will cause disconnects, but you still want to use it, then just increase the STANZA_SEND_INTERVAL value
 ## But be careful, this value is global so transport will became slower.
 ENABLE_PHOTO_HASHES = False
+
+## Debug longpoll queries
+DEBUG_POLL = False
