@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 # File contains parts of code from 
 # BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
 
@@ -136,7 +136,7 @@ class Chat(object):
 
 	def update(self, userObject, vkChat):
 		users = vkChat["chat_active"].split(",") or []
-		users_new = self.getVKChat(user, self.id) or []
+		users_new = self.getVKChat(userObject, self.id) or []
 		## list of all users. We could miss some of them in vkChat or in users_new.
 		all_users = set([int(x) for x in (list(users) + list(users_new))])
 
@@ -260,7 +260,7 @@ def handleChatErrors(source, prs):
 							chat.create(user)
 						else:
 							joinChat(source, nick, destination)
-		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s" (code, status, source))
+		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s" % (error, status, source))
 	# TODO:
 	## Make user leave if he left when transport's user wasn't online
 	## This could be done using jids or/and nicks lists. Completely unreliably as well as the groupchats realization itself

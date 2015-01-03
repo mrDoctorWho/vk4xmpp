@@ -94,5 +94,5 @@ STANZA_SEND_INTERVAL = 0.03125
 ## But be careful, this value is global so transport will became slower.
 ENABLE_PHOTO_HASHES = False
 
-## Debug longpoll queries
+## Debug longpoll queries. It should contain a list of methods which you would like to debug.
 DEBUG_POLL = False

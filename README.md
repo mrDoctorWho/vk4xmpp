@@ -95,4 +95,4 @@ python ./gateway.py
 
 
 
-© simpleApps, 2013 — 2014.
+© simpleApps, 2013 — 2015.
