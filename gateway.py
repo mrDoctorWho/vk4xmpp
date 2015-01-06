@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.31
-# © simpleApps, 2013 — 2014.
+# vk4xmpp gateway, v2.34
+# © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
 import gc
@@ -68,6 +68,9 @@ IDENTIFIER = {"type": "vk",
 
 Semaphore = threading.Semaphore()
 
+ALIVE = True
+
+## config vairables
 LOG_LEVEL = logging.DEBUG
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
@@ -211,8 +214,10 @@ def executeHandlers(type, list=()):
 	"""
 	Executes all handlers by type with list as list of args
 	"""
+	logger.debug("executing handlers of type %s" % type)
 	for handler in Handlers[type]:
 		execute(handler, list)
+	logger.debug("%d handlers were successfully executed" % (len(Handlers[type])))
 
 
 def runThread(func, args=(), name=None, att=3, delay=0):
@@ -404,7 +409,7 @@ class VK(object):
 		except Exception:
 			return False
 		if not response:
-			logger.error("longpoll: no response!")
+			logger.warning("longpoll: no response!")
 			return False
 		self.pollServer = "http://%s" % response.pop("server")
 		self.pollConfig.update(response)
@@ -418,7 +423,7 @@ class VK(object):
 		Else returns socket object connected to poll server
 		"""
 		if not self.pollInitialzed:
-			raise api.LongPollError("The Poll has't initialized yet")
+			raise api.LongPollError("The Poll wasn't initialized yet")
 		opener = self.engine.RIP.getOpener(self.pollServer, self.pollConfig)
 		if opener:
 			return opener
@@ -578,7 +583,6 @@ class User(object):
 	"""
 	Main class contain the functions to connect xmpp & VK
 	"""
-
 	def __init__(self, data=(), source=""):
 		self.password = None
 		self.username = None
@@ -972,7 +976,7 @@ class Poll:
 		As soon as socket will be ready to be read, will be called user.processPollResult()
 		Read processPollResult.__doc__ to learn more about status codes
 		"""
-		while True:
+		while ALIVE:
 			socks = cls.__list.keys()
 			if not socks:
 				time.sleep(0.02)
@@ -1000,7 +1004,7 @@ class Poll:
 					if not user:
 						continue
 					if not user.vk.online:
-						logger.debug("longpoll: user became offline, so removing his ass from poll (jid: %s)" % user.source)
+						logger.debug("longpoll: user became offline, so removing him from the poll list (jid: %s)" % user.source)
 						cls.remove(user)
 					result = execute(user.processPollResult, (opener,))
 					if result == -1:
@@ -1086,7 +1090,7 @@ def updateCron():
 	"""
 	Calls functions for update friends and typing users list
 	"""
-	while True:
+	while ALIVE:
 		for user in Transport.values():
 			cTime = time.time()
 			user.updateTypingUsers(cTime)
@@ -1112,7 +1116,7 @@ def removeUser(user, roster=False, semph=Semaphore, notify=True):
 	Parameters:
 		user: User class object or jid without resource
 		roster: remove vk contacts from user's roster (only if User class object was in first param)
-		semph: use semaphore if needed
+		semph: use semaphore if required
 	"""
 	if isinstance(user, (str, unicode)): # unicode is default, but... who knows
 		source = user
@@ -1126,18 +1130,15 @@ def removeUser(user, roster=False, semph=Semaphore, notify=True):
 		db("delete from users where jid=?", (source,))
 		db.commit()
 	logger.debug("User: deleted (jid: %s)" % source)
-
 	if roster and user:
 		friends = user.friends
 		user.exists = False ## Make the Daleks happy
 		if friends:
 			logger.debug("User: removing myself from roster (jid: %s)" % source)
-			for id in friends.keys():
+			for id in friends.keys() + [TransportID]:
 				jid = vk2xmpp(id)
 				sendPresence(source, jid, "unsubscribe")
 				sendPresence(source, jid, "unsubscribed")
-			sendPresence(source, TransportID, "unsubscribe")
-			sendPresence(source, TransportID, "unsubscribed")
 			user.settings.exterminate()
 			executeHandlers("evt03", (user,))
 		Poll.remove(user)
@@ -1274,17 +1275,28 @@ def disconnectHandler(crash=True):
 	Handles disconnect
 	And writes a crashlog if crash parameter is equals True
 	"""
+	logger.debug("disconnectHandler has been called!")
+	executeHandlers("evt02")
 	if crash:
 		crashLog("main.disconnect")
+	## In case to catch some weird errors right here
+	logger.critical("Disconnecting from the server")
 	try:
 		Component.disconnect()
 	except AttributeError:
 		pass
-	executeHandlers("evt02")
+	except Exception:
+		crashlog("disconnect_handler")
+	global ALIVE
+	ALIVE = False
+	logger.info("Disconnected successfully!")
 	if not Daemon:
+		logger.warning("The trasnport is going to be restarted!")
 		Print("Reconnecting...")
+		time.sleep(5)
 		os.execl(sys.executable, sys.executable, sys.argv[0])
 	else:
+		logger.info("The transport is shutting down!")
 		sys.exit(-1)
 
 
@@ -1325,10 +1337,12 @@ if __name__ == "__main__":
 	loadExtensions("extensions")
 	transportSettings = Settings(TransportID, user=False)
 	main()
-	while True:
+	while ALIVE:
 		try:
 			Component.iter(6)
 		except Exception:
 			logger.critical("disconnected")
 			crashLog("component.iter")
 			disconnectHandler(True)
+
+# It's the end!

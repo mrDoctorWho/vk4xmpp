@@ -1,5 +1,5 @@
 # coding: utf-8
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 import cookielib
 import httplib
@@ -52,7 +52,7 @@ def attemptTo(maxRetries, resultType, *errors):
 					data = func(*args, **kwargs)
 				except errors as exc:
 					retries += 1
-					logger.info("vkapi: trying to execute \"%s\" in #%d time" % (func.func_name, retries))
+					logger.warning("vkapi: trying to execute \"%s\" in #%d time" % (func.func_name, retries))
 					time.sleep(0.2)
 				else:
 					break
@@ -60,7 +60,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				if hasattr(exc, "errno") and exc.errno == 101:
 					raise NetworkNotFound()
 				data = resultType()
-				logger.debug("vkapi: Error %s occurred on executing %s" % (exc, func))
+				logger.warning("vkapi: Error %s occurred on executing %s" % (exc, func))
 			return data
 
 		wrapper.__name__ = func.__name__
@@ -175,7 +175,7 @@ class RequestProcessor(object):
 		return (body, resp)
 
 ## todo: move getOpener the hell out of here
-	@attemptTo(REQUEST_RETRIES, tuple, socket.gaierror, socket.timeout)
+	@attemptTo(REQUEST_RETRIES, tuple, socket.gaierror, socket.timeout, socket.error)
 	def getOpener(self, url, query={}):
 		"""
 		Opens a connection to url and returns AsyncHTTPRequest() object

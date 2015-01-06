@@ -58,6 +58,9 @@ def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 
 
 def outgoingChatMessageHandler(self, vkChat):
+	"""
+	Handles outging messages (VK) and sends them to XMPP
+	"""
 	if not self.settings.groupchats:
 		return None
 	if vkChat.has_key("chat_id"):
@@ -94,6 +97,9 @@ def outgoingChatMessageHandler(self, vkChat):
 
 
 class Chat(object):
+	"""
+	Class used for Chat handling
+	"""
 	def __init__(self, owner, id, jid, topic, date, users=[]):
 		self.id = id
 		self.jid = jid
@@ -106,6 +112,9 @@ class Chat(object):
 		self.creation_date = date
 
 	def create(self, user):	
+		"""
+		Creates a chat, join it and set the config
+		"""
 		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" % (self.jid, self.raw_users, self.owner, user.source))
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
@@ -114,6 +123,15 @@ class Chat(object):
 
 	## TODO: Return chat object from the message
 	def initialize(self, user, chat):
+		"""
+		Initializes chat object: 
+			1) requests users list if required
+			2) makes them members
+			3) invites the user 
+			4) sets the chat topic
+		Parameters:
+			chat: chat's jid
+		"""
 		if not self.users:
 			vkChat = self.getVKChat(user, self.id)
 			if vkChat:
@@ -135,8 +153,14 @@ class Chat(object):
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
 	def update(self, userObject, vkChat):
+		"""
+		Updates chat users and sends messages
+		Uses two users list to prevent losing anyone
+		"""
 		users = vkChat["chat_active"].split(",") or []
-		users_new = self.getVKChat(userObject, self.id) or []
+		users_new = self.getVKChat(userObject, self.id)
+		if users_new:
+			users_new = users_new[0].get("users", [])
 		## list of all users. We could miss some of them in vkChat or in users_new.
 		all_users = set([int(x) for x in (list(users) + list(users_new))])
 
@@ -166,11 +190,17 @@ class Chat(object):
 		self.raw_users = all_users
 
 	def getVKChat(self, user, id):
+		"""
+		Searches the chat by id
+		"""
 		chats = user.vk.method("execute.getChats")
-		return filter(lambda dict: dict.get("chat_id") == id, chats)
+		return filter(lambda dict: dict.get("chat_id") == id, chats) or []
 
 	@classmethod
 	def setConfig(cls, chat, jidFrom, exterminate=False, cb=None, args={}):
+		"""
+		Sets the chat config
+		"""
 		iq = xmpp.Iq("set", to=chat, frm=jidFrom)
 		query = iq.addChild("query", namespace=xmpp.NS_MUC_OWNER)
 		if exterminate:
@@ -184,6 +214,9 @@ class Chat(object):
 		sender(Component, iq, cb, args)
 
 	def onConfigSet(self, cl, stanza, user):
+		"""
+		Called when the chat config has been set
+		"""
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: stanza \"result\" received from %s, continuing initialization (jid: %s)" % (chat, user.source))
@@ -194,12 +227,18 @@ class Chat(object):
 
 	@classmethod
 	def getParts(cls, source):
+		"""
+		Split the source and returns required parts
+		"""
 		node, domain = source.split("@")
 		creator, id = node.split("_chat#")
 		return (int(creator), int(id), domain)
 
 	@classmethod
 	def getUserObject(cls, source):
+		"""
+		Gets user object by chat jid
+		"""
 		user = None
 		creator, id, domain = cls.getParts(source)
 		if domain == ConferenceServer and creator: ## we will ignore zero-id
@@ -210,6 +249,9 @@ class Chat(object):
 
 
 def incomingChatMessageHandler(msg):
+	"""
+	Handles incoming (xmpp) messages and sends them to VK
+	"""
 	if msg.getType() == "groupchat":
 		body = msg.getBody()
 		destination = msg.getTo().getStripped()
@@ -239,6 +281,9 @@ def incomingChatMessageHandler(msg):
 
 
 def handleChatErrors(source, prs):
+	"""
+	Handles error presences
+	"""
 	## todo: leave on 401, 403, 405
 	## and rejoin timer on 404, 503
 	## is it safe by the way?
@@ -270,6 +315,9 @@ def handleChatErrors(source, prs):
 
 
 def exterminateChat(user):
+	"""
+	Calls a Dalek to exterminate the chat
+	"""
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
 		Chat.setConfig("%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer), TransportID, True)
@@ -284,4 +332,6 @@ if ConferenceServer:
 	registerHandler("evt03", exterminateChat)
 
 else:
-	del incomingChatMessageHandler, outgoingChatMessageHandler, inviteUser, joinChat, chatMessage
+	del sendIQ, makeMember, inviteUser, joinChat, leaveChat, \
+		outgoingChatMessageHandler, chatMessage, Chat, \
+		incomingChatMessageHandler, handleChatErrors
