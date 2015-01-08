@@ -72,6 +72,15 @@ def evt06_handler(vk):
 
 registerHandler("evt06", evt06_handler)
 
+def evt07_handler(user):
+	"""
+	Linear handler
+	Called when user is connecting (if authenticated)
+	Parameters:
+		user: User class object
+	"""
+	print "User", user.source, "is authenticated!"
+
 def msg01_handler(user, message):
 	"""
 	Linear handler.

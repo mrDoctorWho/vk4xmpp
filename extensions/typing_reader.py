@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014 (16.12.14 14:54PM GMT)
+# © simpleApps, 2014 (16.12.14 14:54PM GMT) — 2015.
 
 GLOBAL_USER_SETTINGS["typingreader"] = {"label": "Mark my messages as read when I compose message", "value": 0}
 
@@ -20,5 +20,5 @@ def typingreader_init(user):
 
 
 registerHandler("msg02", typingreader_watch)
-registerHandler("evt05", typingreader_init)
+registerHandler("evt07", typingreader_init)
  
