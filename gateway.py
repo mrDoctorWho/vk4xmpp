@@ -327,7 +327,7 @@ class VK(object):
 	"""
 	The base class containts most of functions to work with VK
 	"""
-	def __init__(self, number, password=None, source=None):
+	def __init__(self, number=None, password=None, source=None):
 		self.number = number
 		self.password = password
 		self.source = source
@@ -463,6 +463,9 @@ class VK(object):
 			except api.NetworkNotFound:
 				logger.critical("VK: network is unavailable. Is vk down or you have network problems?")
 				self.online = False
+
+			except api.AccessDenied:
+				logger.error("VK: got \"Access Denied\" while executing method(%s) (%s) (jid: %s)" % (method, e.message, self.source))
 
 			except api.VkApiError as e:
 				roster = False

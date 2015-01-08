@@ -347,6 +347,8 @@ class APIBinding:
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 						raise CaptchaNeeded()
+				elif eCode == 15:
+					raise AccessDenied()
 				elif eCode in (1, 9, 100): ## 1 is an unknown error / 9 is flood control / 100 is wrong method or parameters loss 
 					return {"error": eCode}
 				raise VkApiError(body["error"])
@@ -421,5 +423,12 @@ class NotAllowed(VkApiError):
 	"""
 	Will be raised when happens error with code 7
 	Happens usually when someone's added our user in the black-list
+	"""
+	pass
+
+class AccessDenied(VkApiError):
+	"""
+	This one should be ignored as well.
+	Happens for an unknown reason with any GET-like method
 	"""
 	pass
