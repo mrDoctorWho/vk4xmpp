@@ -464,7 +464,7 @@ class VK(object):
 				logger.critical("VK: network is unavailable. Is vk down or you have network problems?")
 				self.online = False
 
-			except api.AccessDenied:
+			except api.AccessDenied as e:
 				logger.error("VK: got \"Access Denied\" while executing method(%s) (%s) (jid: %s)" % (method, e.message, self.source))
 
 			except api.VkApiError as e:
