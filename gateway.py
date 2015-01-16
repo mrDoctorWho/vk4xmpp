@@ -1290,7 +1290,7 @@ def disconnectHandler(crash=True):
 	except AttributeError:
 		pass
 	except Exception:
-		crashlog("disconnect_handler")
+		crashLog("disconnect_handler")
 	global ALIVE
 	ALIVE = False
 	logger.info("Disconnected successfully!")
