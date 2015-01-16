@@ -192,7 +192,7 @@ class APIBinding:
 	Allows to make a password authorization
 	"""
 	def __init__(self, number=None, password=None, token=None, app_id=3789129,
-	scope=69638, debug=[]):
+	scope=69638, debug=None):
 		self.password = password
 		self.number = number
 		self.token = token
@@ -206,7 +206,7 @@ class APIBinding:
 
 		self.RIP = RequestProcessor()
 		self.attempts = 0
-		self.debug = ()
+		self.debug = debug or []
 
 	def loginByPassword(self):
 		"""
@@ -326,6 +326,7 @@ class APIBinding:
 			if "response" in body:
 				return body["response"] or {}
 
+			## according to vk.com/dev/errors
 			elif "error" in body:
 				error = body["error"]
 				eCode = error["error_code"]

@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014.
+# © simpleApps, 2014 — 2015.
 ## TODO: Add check if mod_iq_captcha exists.
 
 from hashlib import sha1
@@ -18,7 +18,9 @@ def captchaSend(self):
 	if image:
 		hash = sha1(image).hexdigest()
 		encoded = image.encode("base64")
-		form = utils.buildDataForm(type="form", fields = [{"var": "FORM_TYPE", "value": xmpp.NS_CAPTCHA, "type": "hidden"},
+		form = utils.buildDataForm(type="form", fields = [
+													{"var": "FORM_TYPE", "value": xmpp.NS_CAPTCHA, "type": "hidden"},
+													{"var": "challenge", "value": self.engine.captcha["sid"], "type": "hidden"},
 													{"var": "from", "value": TransportID, "type": "hidden"},
 													{"var": "ocr", "label": _("Enter shown text"),
 														"payload": [xmpp.Node("required"), xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},

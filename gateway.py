@@ -75,6 +75,7 @@ LOG_LEVEL = logging.DEBUG
 USER_LIMIT = 0
 DEBUG_XMPPPY = False
 DEBUG_POLL = False
+DEBUG_API = False
 THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
 STANZA_SEND_INTERVAL = 0.03125
@@ -247,7 +248,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 230, 0
+	revNumber, rev = 240, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -381,7 +382,7 @@ class VK(object):
 		Calls self.checkData() and initializes longPoll if all is ok
 		"""
 		logger.debug("VK.auth %s token (jid: %s)" % ("with" if token else "without", self.source))
-		self.engine = api.APIBinding(self.number, self.password, token=token)
+		self.engine = api.APIBinding(self.number, self.password, token=token, debug=DEBUG_API)
 		try:
 			self.checkData()
 		except api.AuthError as e:

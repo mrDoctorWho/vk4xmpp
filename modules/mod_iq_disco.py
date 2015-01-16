@@ -5,7 +5,7 @@
 from __main__ import *
 
 
-NODES = {"admin": ("Delete users", "Global message", "Show crashlogs"), "user": ("Edit settings",)}
+NODES = {"admin": ("Delete users", "Global message", "Show crashlogs", "Reload config"), "user": ("Edit settings",)}
 
 def disco_handler(cl, iq):
 	source = iq.getFrom().getStripped()
@@ -143,6 +143,16 @@ def commands_handler(cl, iq):
 								)
 							commandTag.addChild(node=form)
 							completed = True
+				elif node == "Reload config":
+					try:
+						execfile(Config, globals())
+					except Exception:
+						commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
+						form = utils.buildDataForm(None, None, 
+							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
+								{"var": "body", "type": "text-multi", "label": "Error while loading the config file", "value": wException()}])
+						commandTag.addChild(node=form)
+					completed = True
 
 
 			if node == "Edit settings" and source in Transport:
