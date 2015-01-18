@@ -82,7 +82,8 @@ STANZA_SEND_INTERVAL = 0.03125
 VK_ACCESS = 69638
 GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1},
 						"keep_onlne": {"label": "Keep my status online", "value": 1}}
-GLOBAL_TRANSPORT_SETTINGS = {} # globals(), lol
+TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
+												"friends when user log off", "value": 0}}
 
 
 pidFile = "pidFile.txt"
@@ -292,7 +293,7 @@ class Settings(object):
 		if user:
 			self.settings = deepcopy(GLOBAL_USER_SETTINGS)
 		else:
-			self.settings = GLOBAL_TRANSPORT_SETTINGS
+			self.settings = TRANSPORT_SETTINGS
 		self.settings.update(eval(rFile(self.filename))) ## better use json.load() instead
 		self.keys = self.settings.keys
 		self.items = self.settings.items
@@ -702,15 +703,20 @@ class User(object):
 				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
 		sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
-	def sendOutPresence(self, destination, reason=None):
+	def sendOutPresence(self, destination, reason=None, all=False):
 		"""
 		Sends out presence (unavailable) to destination and set reason if exists
 		Parameters:
 			destination: to whom send the stanzas
 			reason: offline status message
+			all: send an unavailable from all friends or only the ones who's online
 		"""
 		logger.debug("User: sending out presence to %s" % self.source)
-		for uid in self.friends.keys() + [TransportID]:
+		friends = self.friends.keys()
+		if not all and friends:
+			friends = filter(lambda key: self.friends[key]["online"], friends)
+
+		for uid in friends + [TransportID]:
 			sendPresence(destination, vk2xmpp(uid), "unavailable", reason=reason)
 
 	def sendSubPresence(self, dist=None):
@@ -1324,7 +1330,7 @@ def exit(signal=None, frame=None):
 	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
 	Print("#! %s" % status, False)
 	for user in Transport.itervalues():
-		user.sendOutPresence(user.source, status)
+		user.sendOutPresence(user.source, status, all=True)
 		Print("." * len(user.friends), False)
 	Print("\n")
 	executeHandlers("evt02")

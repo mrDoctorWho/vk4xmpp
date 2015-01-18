@@ -5,7 +5,7 @@
 from __main__ import *
 
 
-NODES = {"admin": ("Delete users", "Global message", "Show crashlogs", "Reload config"), "user": ("Edit settings",)}
+NODES = {"admin": ("Delete users", "Global message", "Show crashlogs", "Reload config", "Global Transport settings"), "user": ("Edit settings",)}
 
 def disco_handler(cl, iq):
 	source = iq.getFrom().getStripped()
@@ -53,9 +53,9 @@ def disco_handler(cl, iq):
 		elif node == xmpp.NS_COMMANDS:
 			if source == evalJID:
 				for node in NODES["admin"]:
-					payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID }))
+					payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID}))
 			for node in NODES["user"]:
-				payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID }))
+				payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID}))
 			result.setQueryPayload(payload)
 
 		else:
@@ -70,12 +70,14 @@ def getUsersList():
 		result = db.fetchall()
 	return result
 
+
 def deleteUsers(jids):
 	for key in jids:
 		try:
 			removeUser(key)
 		except Exception:
 			pass
+
 
 def sendGlobalMessage(text):
 	jids = getUsersList()
@@ -143,17 +145,33 @@ def commands_handler(cl, iq):
 								)
 							commandTag.addChild(node=form)
 							completed = True
+		
 				elif node == "Reload config":
 					try:
 						execfile(Config, globals())
 					except Exception:
-						commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
+##						commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
 						form = utils.buildDataForm(None, None, 
 							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
 								{"var": "body", "type": "text-multi", "label": "Error while loading the config file", "value": wException()}])
 						commandTag.addChild(node=form)
 					completed = True
 
+				elif node == "Global Transport settings":
+					config = transportSettings.settings
+					if not form:
+						form_fields = [{"var": "FORM_TYPE", "type": "hidden"}]
+						for key, values in config.items():
+							form_fields.append({"var": key, "label": values["label"], "type": values.get("type", "boolean"), "value": values["value"]}) ## todo: Add support for list-multi and others?
+
+						form = utils.buildDataForm(None, None, form_fields,	"Choose wisely")
+						commandTag.addChild(node=form)
+					elif form and source in Transport:
+						form = xmpp.DataForm(node=form).asDict()
+						for key in form.keys():
+							if key in config.keys():
+								transportSettings.settings[key] = utils.normalizeValue(form[key])
+						completed = True
 
 			if node == "Edit settings" and source in Transport:
 				logger.info("user want to edit his settings (jid: %s)" % source)
@@ -177,7 +195,6 @@ def commands_handler(cl, iq):
 				result.setTag("command", {"status": "completed", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
 
 		sender(cl, result)
-
 
 
 def load():

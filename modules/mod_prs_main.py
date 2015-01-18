@@ -52,6 +52,8 @@ def presence_handler(cl, prs):
 					user.sendOutPresence(jidFrom)
 			if not user.resources:
 				sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
+				if transportSettings.send_unavailable:
+					user.sendOutPresence(jidFrom)
 				user.vk.disconnect()
 				try:
 					del Transport[source]

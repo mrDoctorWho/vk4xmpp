@@ -12,6 +12,7 @@ try:
 except ImportError:
 	mod_xhtml = None
 
+
 def sendIQ(chat, attr, data, afrls, role, jidFrom, cb=None, args={}):
 	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
 	query = xmpp.Node("query", {"xmlns": xmpp.NS_MUC_ADMIN})
@@ -121,7 +122,6 @@ class Chat(object):
 		joinChat(self.jid, name, TransportID) ## we're joining to chat with the room owner's name to set the topic. That's why we have so many lines of code right here
 		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user}) ## executehandler?
 
-	## TODO: Return chat object from the message
 	def initialize(self, user, chat):
 		"""
 		Initializes chat object: 
@@ -158,11 +158,11 @@ class Chat(object):
 		Uses two users list to prevent losing anyone
 		"""
 		users = vkChat["chat_active"].split(",") or []
-		users_new = self.getVKChat(userObject, self.id)
-		if users_new:
-			users_new = users_new[0].get("users", [])
-		## list of all users. We could miss some of them in vkChat or in users_new.
-		all_users = set([int(x) for x in (list(users) + list(users_new))])
+		all_users = users
+		if userObject.settings.show_all_chat_users:
+			users = self.getVKChat(userObject, self.id)
+			if users:
+				all_users = users[0].get("users", [])
 
 		for user in all_users:
 			## checking if there new users we didn't join yet
@@ -188,13 +188,6 @@ class Chat(object):
 			chatMessage(self.jid, topic, TransportID, True)
 			self.topic = topic
 		self.raw_users = all_users
-
-	def getVKChat(self, user, id):
-		"""
-		Searches the chat by id
-		"""
-		chats = user.vk.method("execute.getChats")
-		return filter(lambda dict: dict.get("chat_id") == id, chats) or []
 
 	@classmethod
 	def setConfig(cls, chat, jidFrom, exterminate=False, cb=None, args={}):
@@ -224,6 +217,13 @@ class Chat(object):
 			self.created = True
 		else:
 			logger.error("groupchats: couldn't set room %s config (jid: %s)" % (chat, user.source))
+
+	@classmethod
+	def getVKChat(cls, user, id):
+		"""
+		Searches the chat by id
+		"""
+		return user.vk.method("messages.getChat") or []
 
 	@classmethod
 	def getParts(cls, source):
@@ -316,7 +316,7 @@ def handleChatErrors(source, prs):
 
 def exterminateChat(user):
 	"""
-	Calls a Dalek to exterminate the chat
+	Calls a Dalek for exterminate the chat
 	"""
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
@@ -324,6 +324,7 @@ def exterminateChat(user):
 
 
 if ConferenceServer:
+	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users (only active ones by default)", "value": 0}
 	logger.info("extension groupchats is loaded")
 	TransportFeatures.append(xmpp.NS_GROUPCHAT)
 	registerHandler("msg01", outgoingChatMessageHandler)

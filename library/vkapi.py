@@ -32,7 +32,6 @@ except ImportError:
 	logger.error("vkapi: ujson couldn't be loaded, using simplejson instead")
 
 
-
 def attemptTo(maxRetries, resultType, *errors):
 	"""
 	Tries to execute function ignoring specified errors specified number of
