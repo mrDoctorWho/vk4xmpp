@@ -20,7 +20,6 @@ def captchaSend(self):
 		encoded = image.encode("base64")
 		form = utils.buildDataForm(type="form", fields = [
 													{"var": "FORM_TYPE", "value": xmpp.NS_CAPTCHA, "type": "hidden"},
-													{"var": "challenge", "value": self.engine.captcha["sid"], "type": "hidden"},
 													{"var": "from", "value": TransportID, "type": "hidden"},
 													{"var": "ocr", "label": _("Enter shown text"),
 														"payload": [xmpp.Node("required"), xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},
