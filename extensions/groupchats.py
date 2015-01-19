@@ -162,7 +162,7 @@ class Chat(object):
 		if userObject.settings.show_all_chat_users:
 			users = self.getVKChat(userObject, self.id)
 			if users:
-				all_users = users[0].get("users", [])
+				all_users = users.get("users", [])
 
 		for user in all_users:
 			## checking if there new users we didn't join yet
