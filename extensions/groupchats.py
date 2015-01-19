@@ -221,9 +221,9 @@ class Chat(object):
 	@classmethod
 	def getVKChat(cls, user, id):
 		"""
-		Searches the chat by id
+		Get vk chat by id
 		"""
-		return user.vk.method("messages.getChat") or []
+		return user.vk.method("messages.getChat", {"chat_id": id}) or []
 
 	@classmethod
 	def getParts(cls, source):
