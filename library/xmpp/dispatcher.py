@@ -54,6 +54,7 @@ class Dispatcher(PlugIn):
 		PlugIn.__init__(self)
 		self.handlers = {}
 		self._expected = {}
+		self.dc=False
 		self._defaultHandler = None
 		self._pendingExceptions = []
 		self._eventHandler = None
@@ -480,8 +481,9 @@ class Dispatcher(PlugIn):
 		"""
 		Send a stream terminator and and handle all incoming stanzas before stream closure.
 		"""
-		self._owner_send("</stream:stream>")
-		while self.Process(1):
-			pass
+		if self._owner.connected:
+			self._owner_send("</stream:stream>")
+			while self.Process(1):
+				pass
 
 	iter = type(send)(Process.__code__, Process.__globals__, name = "iter", argdefs = Process.__defaults__, closure = Process.__closure__)

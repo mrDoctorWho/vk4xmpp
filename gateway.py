@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.34
+# vk4xmpp gateway, v2.35
 # © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
@@ -701,6 +701,7 @@ class User(object):
 		for uid, value in self.friends.iteritems():
 			if value["online"]:
 				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
+		## TODO: Add an option to display geeky stats in the status?
 		sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
 	def sendOutPresence(self, destination, reason=None, all=False):
@@ -1027,18 +1028,19 @@ class Poll:
 						logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
 
 
-def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None):
+def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None, show=None):
 	"""
 	Sends presence to destination from source
 	Parameters:
 		destination: to whom send the presence
 		source: from who send the presence
-		pType: a presence type
-		nick: needed to add <nick> tag to stanza
-		reason: needed to set status message
-		caps: needed to know if need to add caps into stanza
+		pType: the presence type
+		nick: add <nick> tag to stanza or not
+		reason: set status message or not
+		caps: add caps into stanza or not
+		show: add status show
 	"""
-	presence = xmpp.Presence(destination, pType, frm=source, status=reason)
+	presence = xmpp.Presence(destination, pType, frm=source, status=reason, show=show)
 	if nick:
 		presence.setTag("nick", namespace=xmpp.NS_NICK)
 		presence.setTagData("nick", nick)

@@ -13,16 +13,22 @@ except ImportError:
 	mod_xhtml = None
 
 
-def sendIQ(chat, attr, data, afrls, role, jidFrom, cb=None, args={}):
+def sendIQ(chat, attr, data, afrls, role, jidFrom, reason=None, cb=None, args={}):
 	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
 	query = xmpp.Node("query", {"xmlns": xmpp.NS_MUC_ADMIN})
 	arole = query.addChild("item", {attr: data, afrls: role})
+	if reason:
+		arole.setTagData("reason", reason)
 	stanza.addChild(node = query)
 	sender(Component, stanza, cb, args)
 
 
 def makeMember(chat, jid, jidFrom, cb=None, args={}):
-	sendIQ(chat, "jid", jid, "affiliation", "member", jidFrom, cb, args)
+	sendIQ(chat, "jid", jid, "affiliation", "member", jidFrom, cb=cb, args=args)
+
+
+def makeOutcast(chat, jid, jidFrom, reason=None, cb=None, args={}):
+	sendIQ(chat, "jid", jid, "affiliation", "outcast", jidFrom, reason=reason, cb=cb, args=args)
 
 
 def inviteUser(chat, jidTo, jidFrom, name):
@@ -40,8 +46,8 @@ def joinChat(chat, name, jidFrom):
 	sender(Component, prs)
 
 
-def leaveChat(chat, jidFrom):
-	prs = xmpp.Presence(chat, "unavailable", frm=jidFrom)
+def leaveChat(chat, jidFrom, reason=None):
+	prs = xmpp.Presence(chat, "unavailable", frm=jidFrom, status=reason)
 	sender(Component, prs)
 
 
@@ -85,14 +91,16 @@ def outgoingChatMessageHandler(self, vkChat):
 		else:
 			chat = self.chats[chatJID]
 
-		## joining new people and make the old ones leave
-		chat.update(self, vkChat)
-
-		body = escape("", uHTML(vkChat["body"]))
-		body += parseAttachments(self, vkChat)
-		body += parseForwardedMessages(self, vkChat)
-		if body:
-			chatMessage(chatJID, body, vk2xmpp(fromID), None, vkChat["date"])
+		## join new people and make the old ones leave
+		if chat.created:
+			chat.update(self, vkChat)
+			body = escape("", uHTML(vkChat["body"]))
+			body += parseAttachments(self, vkChat)
+			body += parseForwardedMessages(self, vkChat)
+			if body:
+				chatMessage(chatJID, body, vk2xmpp(fromID), None, vkChat["date"])
+		else:
+			runThread(outgoingChatMessageHandler, (self, vkChat), delay=15)
 		return None
 	return ""
 
@@ -102,19 +110,34 @@ class Chat(object):
 	Class used for Chat handling
 	"""
 	def __init__(self, owner, id, jid, topic, date, users=[]):
+		"""
+		Initializes Chat class.
+		Not obvious attributes:
+			id: chat's id (int)
+			jid: chat's jid (str)
+			owner: owner's id (str)
+			users: dictionary of ids, id: {"name": nickname, "jid": jid}
+			raw_users: vk id's (list of str or int, hell knows)
+			created: flag if the chat was created successfully
+			invited: flag if the user was invited
+			topic: chat's topic
+			errors: list of chat's errors (not needed at this moment)
+			creation_date: hell knows
+		"""
 		self.id = id
 		self.jid = jid
 		self.owner = owner
-		self.users = {} ## jabber users
-		self.raw_users = users ## vk ids (users)
+		self.users = {}
+		self.raw_users = users
 		self.created = False
 		self.invited = False
 		self.topic = topic
+		self.errors = []
 		self.creation_date = date
 
 	def create(self, user):	
 		"""
-		Creates a chat, join it and set the config
+		Creates a chat, joins it and sets the config
 		"""
 		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" % (self.jid, self.raw_users, self.owner, user.source))
 		name = user.vk.getUserData(self.owner)["name"]
@@ -134,9 +157,7 @@ class Chat(object):
 		"""
 		if not self.users:
 			vkChat = self.getVKChat(user, self.id)
-			if vkChat:
-				vkChat = vkChat[0]
-			elif not self.invited:
+			if not vkChat and not self.invited:
 				logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
 				runThread(self.initialize, (user, chat), delay=10)
 				return False
@@ -157,8 +178,7 @@ class Chat(object):
 		Updates chat users and sends messages
 		Uses two users list to prevent losing anyone
 		"""
-		users = vkChat["chat_active"].split(",") or []
-		all_users = users
+		all_users = vkChat["chat_active"].split(",") or []
 		if userObject.settings.show_all_chat_users:
 			users = self.getVKChat(userObject, self.id)
 			if users:
@@ -175,7 +195,7 @@ class Chat(object):
 				joinChat(self.jid, name, jid) 
 
 		for user in self.users.keys():
-			## checking if there old users we have to remove
+			## checking if there are old users we have to remove
 			if not user in all_users and user != TransportID:
 				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" % (user, self.jid, userObject.source))
 				del self.users[user]
@@ -212,18 +232,21 @@ class Chat(object):
 		"""
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
+			self.created = True
 			logger.debug("groupchats: stanza \"result\" received from %s, continuing initialization (jid: %s)" % (chat, user.source))
 			execute(self.initialize, (user, chat)) ## i don't trust VK so it's better to execute it
-			self.created = True
 		else:
 			logger.error("groupchats: couldn't set room %s config (jid: %s)" % (chat, user.source))
 
-	@classmethod
+	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
 		"""
 		Get vk chat by id
 		"""
-		return user.vk.method("messages.getChat", {"chat_id": id}) or []
+		chat = user.vk.method("messages.getChat", {"chat_id": id})
+		if not chat:
+			raise RuntimeError("Well, this is embarrassing.")
+		return chat
 
 	@classmethod
 	def getParts(cls, source):
@@ -231,7 +254,10 @@ class Chat(object):
 		Split the source and returns required parts
 		"""
 		node, domain = source.split("@")
-		creator, id = node.split("_chat#")
+		if "_chat#" in node: ## Custom chat name?
+			creator, id = node.split("_chat#")
+		else:
+			return (None, None, None)
 		return (int(creator), int(id), domain)
 
 	@classmethod
@@ -282,36 +308,46 @@ def incomingChatMessageHandler(msg):
 
 def handleChatErrors(source, prs):
 	"""
-	Handles error presences
+	Handles error presences from groupchats
 	"""
 	## todo: leave on 401, 403, 405
 	## and rejoin timer on 404, 503
-	## is it safe by the way?
 	destination = prs.getTo().getStripped()
-	if prs.getType() == "error":
-		error = prs.getErrorCode()
-		status = prs.getStatusCode()
-		nick = prs.getFrom().getResource()
-		if source.split("@")[1] == ConferenceServer:
-			user = Chat.getUserObject(source)
-			if user and source in getattr(user, "chats", {}):
-				chat = user.chats[source]
-				if error == "409":
-					id = vk2xmpp(destination)
-					if id in chat.users:
-						nick += "."
-						if not chat.created and id == TransportID:
-							chat.users[id]["name"] = nick
-							chat.create(user)
-						else:
-							joinChat(source, nick, destination)
+	error = prs.getErrorCode()
+	status = prs.getStatusCode()
+	nick = prs.getFrom().getResource()
+	if status or prs.getType() == "error":
+		user = Chat.getUserObject(source)
+		if user and source in getattr(user, "chats", {}):
+			chat = user.chats[source]
+			if error == "409":
+				id = vk2xmpp(destination)
+				if id in chat.users:
+					nick += "."
+					if not chat.created and id == TransportID:
+						chat.users[id]["name"] = nick
+						chat.create(user)
+					else:
+						joinChat(source, nick, destination)
 		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s" % (error, status, source))
-	# TODO:
-	## Make user leave if he left when transport's user wasn't online
-	## This could be done using jids or/and nicks lists. Completely unreliably as well as the groupchats realization itself
-#	if prs.getStatusCode() == "110":
-#		print prs.getJid()
-#		print prs.getType()
+
+
+def handleChatPresences(source, prs):
+	"""
+	Makes old users leave
+	"""
+	jid = prs.getJid()
+	if jid and "@" in jid:
+		user = Chat.getUserObject(source)
+		if user and source in getattr(user, "chats", {}):
+			chat = user.chats[source]
+			if jid.split("@")[1] == TransportID and chat.created:
+				id = vk2xmpp(jid)
+				if id != TransportID and id not in chat.users.keys():
+					if (time.gmtime().tm_mon, time.gmtime().tm_mday) == (4, 1):
+						makeOutcast(source, jid, TransportID, _("Get the hell outta here!"))
+					else:
+						leaveChat(source, jid, _("I am not welcomed here")) 
 
 
 def exterminateChat(user):
@@ -330,9 +366,10 @@ if ConferenceServer:
 	registerHandler("msg01", outgoingChatMessageHandler)
 	registerHandler("msg02", incomingChatMessageHandler)
 	registerHandler("prs01", handleChatErrors)
+	registerHandler("prs01", handleChatPresences)
 	registerHandler("evt03", exterminateChat)
 
 else:
-	del sendIQ, makeMember, inviteUser, joinChat, leaveChat, \
+	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
-		incomingChatMessageHandler, handleChatErrors
+		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChat

@@ -1,9 +1,10 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 from __main__ import *
 from __main__ import _
+from __main__ import Component ## being missed somehow
 import random
 import urllib
 
@@ -40,7 +41,7 @@ def sendPhoto(user, data, type, address, mType):
 	else:
 		answer = _("Something went wrong. We are so sorry.")
 	if send:
-		msgSend(Component, user.source, answer, destination, timestamp=1)
+		sendMessage(Component, user.source, destination, answer, timestamp=1)
 
 
 def parseXHTML(user, html, source, destination, mType="user_id"):

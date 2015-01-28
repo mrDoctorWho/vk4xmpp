@@ -13,6 +13,7 @@ def initializeUser(source, resource, prs):
 		db("select jid,username from users where jid=?", (source,))
 		data = db.fetchone()
 	if data:
+		sendPresence(source, TransportID, None, IDENTIFIER["name"], caps=True, reason=_("You are being initialized, please wait..."), show="xa")
 		logger.debug("User has been found in database (jid: %s)" % source)
 		jid, phone = data
 		Transport[jid] = user = User((phone, None), jid)
