@@ -429,6 +429,6 @@ class NotAllowed(VkApiError):
 class AccessDenied(VkApiError):
 	"""
 	This one should be ignored as well.
-	Happens for an unknown reason with any GET-like method
+	Happens for an unknown reason with any method
 	"""
 	pass

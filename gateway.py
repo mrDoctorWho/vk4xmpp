@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.35
+# vk4xmpp gateway, v2.36
 # © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
@@ -11,12 +11,13 @@ import logging
 import os
 import re
 import select
-import socket
 import signal
+import socket
 import sqlite3
 import sys
 import threading
 import time
+from argparse import ArgumentParser
 from copy import deepcopy
 
 core = getattr(sys.modules["__main__"], "__file__", None)
@@ -31,14 +32,16 @@ sys.path.insert(0, "library")
 sys.path.insert(1, "modules")
 reload(sys).setdefaultencoding("utf-8")
 
-import xmpp
+## Now we can import our own modules
 import utils
-
+import vkapi as api
+import xmpp
 from itypes import Database
-from webtools import *
-from writer import *
 from stext import *
 from stext import _
+from webtools import *
+from writer import *
+
 
 Transport = {}
 WatcherList = []
@@ -85,16 +88,12 @@ GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
 												"friends when user log off", "value": 0}}
 
-
 pidFile = "pidFile.txt"
 logFile = "vk4xmpp.log"
 crashDir = "crash"
 settingsDir = "settings"
 
-
-from argparse import ArgumentParser
 argParser = ArgumentParser()
-
 argParser.add_argument("-c", "--config", help="set the general config file destination", default="Config.txt")
 argParser.add_argument("-d", "--daemon", help="run in daemon mode (no auto-restart)", action="store_true")
 args = argParser.parse_args()
@@ -134,8 +133,6 @@ formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s",
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
 
-import vkapi as api
-
 setVars(DefLang, root)
 
 if THREAD_STACK_SIZE:
@@ -156,9 +153,9 @@ Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 ## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
 ## Presences: 01 incoming presence, 02 - is used to modify outgoing presence (xmpp)
 Handlers = {"msg01": [], "msg02": [],
-			"msg03": [], "evt01": [], 
+			"msg03": [], "evt01": [],
 			"evt02": [], "evt03": [],
-			"evt04": [], "evt05": [], 
+			"evt04": [], "evt05": [],
 			"evt06": [], "evt07": [],
 			"prs01": [], "prs02": []}
 
@@ -249,7 +246,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 240, 0
+	revNumber, rev = 246, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -396,7 +393,7 @@ class VK(object):
 			return False
 		logger.debug("VK.auth completed")
 		self.online = True
-		runThread(self.initPoll, ())
+		runThread(self.initPoll, (), "__initPoll-%s" % self.source)
 		return True
 
 	def initPoll(self):
@@ -629,7 +626,7 @@ class User(object):
 				self.exists = True
 				self.source, self.username, self.token, self.lastMsgID, self.rosterSet = data
 			elif self.password or self.token:
-				logger.debug("User: %s exists in database. Record would be deleted." % self.source)
+				logger.debug("User: %s exists in database. The record will be deleted." % self.source)
 				runThread(removeUser, (self,))
 
 		logger.debug("User: connecting (jid: %s)" % self.source)
@@ -818,7 +815,7 @@ class User(object):
 			typ = evt.pop(0)
 
 			if typ == 4:  # new message
-				runThread(self.sendMessages)
+				runThread(self.sendMessages, name="sendMessages-%s" % self.source)
 
 			elif typ == 8: # user has joined
 				uid = abs(evt[0])
@@ -919,7 +916,7 @@ class Poll:
 		"""
 		cls.__buff.add(user)
 		logger.debug("longpoll: adding user to watcher (jid: %s)" % user.source)
-		runThread(cls.__initPoll, (user,), cls.__initPoll.__name__)
+		runThread(cls.__initPoll, (user,), "__initPoll-%s" % user.source)
 
 	@classmethod
 	def add(cls, some_user):
@@ -972,7 +969,7 @@ class Poll:
 					cls.__buff.remove(user)
 					cls.__add(Transport[user.source])
 					break
-			time.sleep(10) 
+			time.sleep(10)
 		else:
 			with cls.__lock:
 				if user not in cls.__buff:
@@ -1072,7 +1069,7 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 
 def sender(cl, stanza, cb=None, args={}):
 	"""
-	Sends stanza. Writes crashlog on error
+	Sends stanza. Writes a crashlog on error
 	Parameters:
 		cl: xmpp.Client object
 		stanza: xmpp.Node object
@@ -1100,7 +1097,7 @@ def watcherMsg(text):
 
 def updateCron():
 	"""
-	Calls functions for update friends and typing users list
+	Calls the functions to update friends and typing users list
 	"""
 	while ALIVE:
 		for user in Transport.values():
@@ -1306,7 +1303,7 @@ def disconnectHandler(crash=True):
 		logger.warning("The trasnport is going to be restarted!")
 		Print("Reconnecting...")
 		time.sleep(5)
-		os.execl(sys.executable, sys.executable, sys.argv[0])
+		os.execl(sys.executable, sys.executable, *sys.argv)
 	else:
 		logger.info("The transport is shutting down!")
 		sys.exit(-1)

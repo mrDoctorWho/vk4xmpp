@@ -87,20 +87,13 @@ def outgoingChatMessageHandler(self, vkChat):
 
 		if chatJID not in self.chats:
 			chat = self.chats[chatJID] = Chat(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
-			chat.create(self)
+			chat.create(self) ## we can add self, vkChat to the create() function to prevent losing or messing up the messages
 		else:
 			chat = self.chats[chatJID]
-
-		## join new people and make the old ones leave
-		if chat.created:
-			chat.update(self, vkChat)
-			body = escape("", uHTML(vkChat["body"]))
-			body += parseAttachments(self, vkChat)
-			body += parseForwardedMessages(self, vkChat)
-			if body:
-				chatMessage(chatJID, body, vk2xmpp(fromID), None, vkChat["date"])
-		else:
-			runThread(outgoingChatMessageHandler, (self, vkChat), delay=15)
+		## read the comments above the handleMessage function
+		if not chat.created:
+			time.sleep(1.5)
+		chat.handleMessage(self, vkChat)
 		return None
 	return ""
 
@@ -155,7 +148,7 @@ class Chat(object):
 		Parameters:
 			chat: chat's jid
 		"""
-		if not self.users:
+		if not self.raw_users:
 			vkChat = self.getVKChat(user, self.id)
 			if not vkChat and not self.invited:
 				logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
@@ -186,17 +179,17 @@ class Chat(object):
 
 		for user in all_users:
 			## checking if there new users we didn't join yet
-			if not user in self.raw_users:
+			if not user in self.users.keys():
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)" % (user, self.jid, userObject.source))
 				jid = vk2xmpp(user)
 				name = userObject.vk.getUserData(user)["name"]
-				self.users[user] = {"name": name, "jid": jid}
+				self.users[int(user)] = {"name": name, "jid": jid}
 				makeMember(self.jid, jid, TransportID)
 				joinChat(self.jid, name, jid) 
 
 		for user in self.users.keys():
 			## checking if there are old users we have to remove
-			if not user in all_users and user != TransportID:
+			if not str(user) in all_users and user != TransportID:
 				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" % (user, self.jid, userObject.source))
 				del self.users[user]
 				leaveChat(self.jid, vk2xmpp(user))
@@ -237,6 +230,20 @@ class Chat(object):
 			execute(self.initialize, (user, chat)) ## i don't trust VK so it's better to execute it
 		else:
 			logger.error("groupchats: couldn't set room %s config (jid: %s)" % (chat, user.source))
+
+	# here is a possibility to get messed up if many messages were sent before we created the chat 
+	# we have to send the messages immendiately as soon as possible, so delay can mess the messages up
+	def handleMessage(self, user, vkChat, retry=10):
+		if self.created:
+			self.update(user, vkChat)
+			body = escape("", uHTML(vkChat["body"]))
+			body += parseAttachments(user, vkChat)
+			body += parseForwardedMessages(user, vkChat)
+			if body:
+				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, vkChat["date"])
+		else:
+			logger.debug("groupchats: chat %s wasn't created well, so trying to start it again (jid: %s)", (self.jid, self.getUserObject(self.jid).source))
+			runThread(self.handleMessage, user, vkChat, (retry - 1), delay=(10 - retry))
 
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
