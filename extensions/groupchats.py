@@ -232,7 +232,7 @@ class Chat(object):
 			logger.debug("groupchats: stanza \"result\" received from %s, continuing initialization (jid: %s)" % (chat, user.source))
 			execute(self.initialize, (user, chat)) ## i don't trust VK so it's better to execute it
 		else:
-			logger.error("groupchats: couldn't set room %s config (jid: %s)" % (chat, user.source))
+			logger.error("groupchats: couldn't set room %s config, the answer is: %s (jid: %s)" % (chat, str(stanza), user.source))
 
 	# here is a possibility to get messed up if many messages were sent before we created the chat 
 	# we have to send the messages immendiately as soon as possible, so delay can mess the messages up
@@ -245,8 +245,8 @@ class Chat(object):
 			if body:
 				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, vkChat["date"])
 		else:
-			logger.debug("groupchats: chat %s wasn't created well, so trying to start it again (jid: %s)", (self.jid, self.getUserObject(self.jid).source))
-			runThread(self.handleMessage, user, vkChat, (retry - 1), delay=(10 - retry))
+			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", (self.jid, self.getUserObject(self.jid).source))
+			runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
 
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
@@ -326,6 +326,7 @@ def handleChatErrors(source, prs):
 	error = prs.getErrorCode()
 	status = prs.getStatusCode()
 	nick = prs.getFrom().getResource()
+	user = None
 	if status or prs.getType() == "error":
 		user = Chat.getUserObject(source)
 		if user and source in getattr(user, "chats", {}):
@@ -339,7 +340,7 @@ def handleChatErrors(source, prs):
 						chat.create(user)
 					else:
 						joinChat(source, nick, destination)
-		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s" % (error, status, source))
+		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
 
 
 def handleChatPresences(source, prs):

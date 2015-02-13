@@ -1,11 +1,17 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014.
+# © simpleApps, 2014 — 2015.
 
 from __main__ import *
 
+NODES = {"admin": ("Delete users", 
+					"Global message", 
+					"Show crashlogs", 
+					"Reload config", 
+					"Global Transport settings", 
+					"Check an API token"), 
+		"user": ("Edit settings",)}
 
-NODES = {"admin": ("Delete users", "Global message", "Show crashlogs", "Reload config", "Global Transport settings"), "user": ("Edit settings",)}
 
 def disco_handler(cl, iq):
 	source = iq.getFrom().getStripped()
@@ -145,6 +151,9 @@ def commands_handler(cl, iq):
 								)
 							commandTag.addChild(node=form)
 							completed = True
+
+				elif node == "Check an API token":
+					pass
 		
 				elif node == "Reload config":
 					try:

@@ -340,6 +340,13 @@ class VK(object):
 
 	getToken = lambda self: self.engine.token
 
+	def setToken(self, token): 
+		"""
+		Future feature for api v5.0
+		"""
+		self.engine.token = token
+		return self
+
 	def checkData(self):
 		"""
 		Checks the token or authorizes by password
@@ -374,7 +381,7 @@ class VK(object):
 			return False
 		return True
 
-	def auth(self, token=None, raise_exc=False):
+	def auth(self, token=None, raise_exc=False, initpoll=True):
 		"""
 		Initializes self.engine object
 		Calls self.checkData() and initializes longPoll if all is ok
@@ -390,10 +397,13 @@ class VK(object):
 			return False
 		except Exception:
 			crashLog("VK.auth")
+			if raise_exc:
+				raise
 			return False
 		logger.debug("VK.auth completed")
-		self.online = True
-		runThread(self.initPoll, (), "__initPoll-%s" % self.source)
+		if initpoll:
+			self.online = True
+			runThread(self.initPoll, (), "__initPoll-%s" % self.source)
 		return True
 
 	def initPoll(self):
@@ -694,7 +704,8 @@ class User(object):
 		"""
 		if not self.friends:
 			self.friends = self.vk.getFriends()
-		logger.debug("User: sending init presence (friends %s) (jid %s)" % (("exists" if self.friends else "empty"), self.source))
+		count = len(self.friends)
+		logger.debug("User: sending init presence (friends count: %s) (jid %s)" % (count, self.source))
 		for uid, value in self.friends.iteritems():
 			if value["online"]:
 				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
