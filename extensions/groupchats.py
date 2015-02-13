@@ -278,9 +278,10 @@ class Chat(object):
 		user = None
 		creator, id, domain = cls.getParts(source)
 		if domain == ConferenceServer and creator: ## we will ignore zero-id
-			jid = jidToID[creator]
-			if jid in Transport:
-				user = Transport[jid]
+			if creator in jidToID:
+				jid = jidToID[creator]
+				if jid in Transport:
+					user = Transport[jid]
 		return user
 
 
@@ -386,4 +387,4 @@ if ConferenceServer:
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
-		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChat
+		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats

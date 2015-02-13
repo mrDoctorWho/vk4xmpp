@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.36
+# vk4xmpp gateway, v2.5
 # © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
@@ -84,7 +84,8 @@ MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
 STANZA_SEND_INTERVAL = 0.03125
 VK_ACCESS = 69638
 GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1},
-						"keep_onlne": {"label": "Keep my status online", "value": 1}}
+						"keep_onlne": {"label": "Keep my status online", "value": 1},
+						"i_am_ghost": {"label": "I am a ghost", "value": 0}}
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
 												"friends when user log off", "value": 0}}
 
@@ -246,7 +247,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 246, 0
+	revNumber, rev = 250, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -702,14 +703,15 @@ class User(object):
 		"""
 		Sends init presence (available) to user from all his online friends
 		"""
-		if not self.friends:
-			self.friends = self.vk.getFriends()
-		count = len(self.friends)
-		logger.debug("User: sending init presence (friends count: %s) (jid %s)" % (count, self.source))
-		for uid, value in self.friends.iteritems():
-			if value["online"]:
-				sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
-		## TODO: Add an option to display geeky stats in the status?
+		if not self.settings.i_am_ghost:
+			if not self.friends:
+				self.friends = self.vk.getFriends()
+			count = len(self.friends)
+			logger.debug("User: sending init presence (friends count: %s) (jid %s)" % (count, self.source))
+			for uid, value in self.friends.iteritems():
+				if value["online"]:
+					sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
+			## TODO: Add an option to display geeky stats in the status?
 		sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
 	def sendOutPresence(self, destination, reason=None, all=False):
@@ -829,8 +831,9 @@ class User(object):
 				runThread(self.sendMessages, name="sendMessages-%s" % self.source)
 
 			elif typ == 8: # user has joined
-				uid = abs(evt[0])
-				sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True)
+				if not self.settings.i_am_ghost:
+					uid = abs(evt[0])
+					sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True)
 
 			elif typ == 9: # user has left
 				uid = abs(evt[0])
@@ -863,22 +866,23 @@ class User(object):
 		Sends unsubscribe presences if some friends disappeared
 		"""
 		if cTime - self.last_udate > 360 and not self.vk.engine.captcha:
-			if self.settings.keep_onlne:
-				self.vk.method("account.setOnline")
-			self.last_udate = cTime
-			friends = self.vk.getFriends()
-			if not friends:
-				logger.error("updateFriends: no friends received (jid: %s)." % self.source)
-				return None
-			if friends:
-				for uid in friends:
-					if uid not in self.friends:
-						self.sendSubPresence({uid: friends[uid]})
-				for uid in self.friends:
-					if uid not in friends:
-						sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
-						sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
-				self.friends = friends
+			if not self.settings.i_am_ghost:
+				if self.settings.keep_onlne:
+					self.vk.method("account.setOnline")
+				self.last_udate = cTime
+				friends = self.vk.getFriends()
+				if not friends:
+					logger.error("updateFriends: no friends received (jid: %s)." % self.source)
+					return None
+				if friends:
+					for uid in friends:
+						if uid not in self.friends:
+							self.sendSubPresence({uid: friends[uid]})
+					for uid in self.friends:
+						if uid not in friends:
+							sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
+							sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
+					self.friends = friends
 
 ## TODO: rename to retry
 	def tryAgain(self):
