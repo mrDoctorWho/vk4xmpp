@@ -172,6 +172,7 @@ class Chat(object):
 		Uses two users list to prevent losing anyone
 		"""
 		all_users = vkChat["chat_active"].split(",") or []
+		all_users = [int(user) for user in all_users]
 		if userObject.settings.show_all_chat_users:
 			users = self.getVKChat(userObject, self.id)
 			if users:
@@ -189,12 +190,14 @@ class Chat(object):
 
 		for user in self.users.keys():
 			## checking if there are old users we have to remove
-			if not str(user) in all_users and user != TransportID:
+			if not user in all_users and user != TransportID:
 				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" % (user, self.jid, userObject.source))
-				del self.users[user]
 				leaveChat(self.jid, vk2xmpp(user))
+				del self.users[user]
 				if user == userObject.vk.userID:
+					logger.warning("groupchats: user %s has left the chat %s, so the chat would be EXTERMINATED (jid: %s)" % (user, self.jid, userObject.source))
 					self.setConfig(self.jid, TransportID, exterminate=True) ## exterminate the chats when user leave conference or just go offline?
+					del userObject.chats[self.jid]
 
 		topic = vkChat["title"]
 		if topic != self.topic:
@@ -357,13 +360,16 @@ def handleChatPresences(source, prs):
 						leaveChat(source, jid, _("I am not welcomed here")) 
 
 
-def exterminateChat(user):
+def exterminateChats(user):
 	"""
 	Calls a Dalek for exterminate the chat
 	"""
 	chats = user.vk.method("execute.getChats")
 	for chat in chats:
-		Chat.setConfig("%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer), TransportID, True)
+		jid = "%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer)
+		Chat.setConfig(jid, TransportID, True)
+		if jid in user.chats:
+			del user.chats[jid]
 
 
 if ConferenceServer:
@@ -374,7 +380,7 @@ if ConferenceServer:
 	registerHandler("msg02", incomingChatMessageHandler)
 	registerHandler("prs01", handleChatErrors)
 	registerHandler("prs01", handleChatPresences)
-	registerHandler("evt03", exterminateChat)
+	registerHandler("evt03", exterminateChats)
 
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \

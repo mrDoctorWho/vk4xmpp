@@ -851,7 +851,7 @@ class User(object):
 		Sends subscribe presences if new friends found
 		Sends unsubscribe presences if some friends disappeared
 		"""
-		if cTime - self.last_udate > 360:
+		if cTime - self.last_udate > 360 and not self.vk.engine.captcha:
 			if self.settings.keep_onlne:
 				self.vk.method("account.setOnline")
 			self.last_udate = cTime
@@ -1354,4 +1354,4 @@ if __name__ == "__main__":
 			crashLog("component.iter")
 			disconnectHandler(True)
 
-# It's the end!
+# This is the end!
