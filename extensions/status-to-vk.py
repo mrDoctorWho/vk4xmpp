@@ -14,7 +14,10 @@ def statustovk_prs01(source, prs):
 			status = prs.getStatus()
 			if not getattr(user, "last_status", None) or user.last_status != status:
 				if mask & 1024 == 1024:
-					user.vk.method("status.set", {"text": status})
+					if not status:
+						user.vk.method("status.set", {"text": ""})
+					else:
+						user.vk.method("status.set", {"text": status})
 				else:
 					sendMessage(Component, source, TransportID, _("Not enough permissions to publish your status on the site. Please, register again."))
 					logger.error("not changing user's status on the site 'cause we do not have enough permissions (jid: %s)" % source)
