@@ -2,6 +2,10 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2014.
 
+"""
+This plugin allows user to see his friends status messages
+"""
+
 GLOBAL_USER_SETTINGS["status_from_vk"] = {"label": "Show my friends status messages", "value": 0}
 
 

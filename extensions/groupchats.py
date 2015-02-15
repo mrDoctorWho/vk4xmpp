@@ -4,6 +4,10 @@
 # File contains parts of code from 
 # BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
 
+"""
+This plugin handles Multi-Dialogs by VK
+"""
+
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("'groupchats' requires 'forwarded_messages'")
 

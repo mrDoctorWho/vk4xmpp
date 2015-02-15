@@ -227,10 +227,13 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 	Parameters:
 		func: function needed to be run in thread
 		args: function arguments
-		name: thread namespace
-		att: number of attempts
+		name: thread name
+		att: a number of attempts
+		delay: if set, then threading.Timer will be started, not threading.Thread
+
 	"""
 	if delay:
+		logger.debug("threading: starting timer for %s%s, name:%s, delay:%s" % (func.func_name, str(args), name, delay))
 		thr = threading.Timer(delay, execute, (func, args))
 	else:
 		thr = threading.Thread(target=execute, args=(func, args))
