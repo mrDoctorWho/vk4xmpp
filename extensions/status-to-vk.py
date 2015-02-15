@@ -10,10 +10,12 @@ def statustovk_prs01(source, prs):
 	if source in Transport and prs.getType() in ("available", None):
 		user = Transport[source]
 		if user.settings.status_to_vk:
-			mask = user.vk.method("account.getAppPermissions") or 0
+			mask = user.vk.method("account.getAppPermissions") or None
 			status = prs.getStatus()
 			if not getattr(user, "last_status", None) or user.last_status != status:
-				if mask & 1024 == 1024:
+				if not mask:
+					logger.error("can't receive permission bitmask (jid: %s)" % source)
+				elif mask & 1024 == 1024:
 					if not status:
 						user.vk.method("status.set", {"text": ""})
 					else:
