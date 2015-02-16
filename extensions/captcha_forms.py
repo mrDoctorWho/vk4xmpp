@@ -5,7 +5,7 @@
 
 from hashlib import sha1
 
-def captchaSend(self):
+def sendCaptcha(self):
 	logger.debug("VKLogin: sending message with captcha to %s" % self.source)
 	body = _("WARNING: VK sent captcha to you."
 			 " Please, go to %s and enter text from image to chat."
@@ -33,4 +33,4 @@ def captchaSend(self):
 	sender(Component, Presence)
 
 
-registerHandler("evt04", captchaSend)
+registerHandler("evt04", sendCaptcha)

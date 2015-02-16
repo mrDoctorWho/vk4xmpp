@@ -7,7 +7,6 @@ Empty password/token field=Поле пароль/access-token не может б
 Incorrect password or access token!=Неправильный пароль или access-token!
 Initialization failed.=Ошибка инициализации.
 Feature not implemented.=Возможность не реализована.
-© simpleApps, 2013 — 2014.\nYou can support developing of this project via donation by:\nYandex.Money: 410012169830956\nWebMoney: Z405564701378 | R330257574689.=© simpleApps, 2013 — 2014.\nВы можете поддержать разработку этого или любого другого проекта с помощью пожертвования через:\nЯндекс.Деньги: 410012169830956\nWebMoney: Z405564701378 | R330257574689.
 If you found any problems, please contact us:\nhttp://github.com/mrDoctorWho/vk4xmpp • xmpp:simpleapps@conference.jabber.ru=Если вы столкнулись с какой-либо проблемой и считаете, что сделали всё верно, то, пожалуйста, свяжитесь с нами:\nhttp://github.com/mrDoctorWho/vk4xmpp • xmpp:simpleapps@conference.jabber.ru
 Contact uses VK4XMPP Transport\n%s=Контакт использует транспорт VK4XMPP\n%s
 User is not your friend.=Пользователь не ваш друг!

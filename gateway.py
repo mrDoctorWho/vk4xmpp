@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.5
+# vk4xmpp gateway, v2.55
 # © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
@@ -42,7 +42,6 @@ from stext import _
 from webtools import *
 from writer import *
 
-
 Transport = {}
 WatcherList = []
 WhiteList = []
@@ -74,18 +73,20 @@ Semaphore = threading.Semaphore()
 ALIVE = True
 
 ## config vairables
-LOG_LEVEL = logging.DEBUG
-USER_LIMIT = 0
 DEBUG_XMPPPY = False
 DEBUG_POLL = False
 DEBUG_API = False
-THREAD_STACK_SIZE = 0
+LOG_LEVEL = logging.DEBUG
 MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
 STANZA_SEND_INTERVAL = 0.03125
+THREAD_STACK_SIZE = 0
+USER_LIMIT = 0
 VK_ACCESS = 69638
+
 GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1},
 						"keep_onlne": {"label": "Keep my status online", "value": 1},
 						"i_am_ghost": {"label": "I am a ghost", "value": 0}}
+
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
 												"friends when user log off", "value": 0}}
 
@@ -129,8 +130,7 @@ except ImportError:
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
-formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s",
-				"[%d.%m.%Y %H:%M:%S]")
+formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", "[%d.%m.%Y %H:%M:%S]")
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
 
@@ -164,10 +164,7 @@ Stats = {"msgin": 0, ## from vk
 		 "msgout": 0, ## to vk
 		 "method": 0}
 
-DESC = _("© simpleApps, 2013 — 2014."
-	"\nYou can support developing of this project"
-	" via donation by:\nYandex.Money: 410012169830956"
-	"\nWebMoney: Z405564701378 | R330257574689.")
+DESC = "© simpleApps, 2013 — 2015."
 
 
 def initDatabase(filename):
@@ -198,7 +195,6 @@ def execute(handler, list=()):
 	return result
 
 
-## TODO: execute threaded handlers
 def registerHandler(type, func):
 	"""
 	Registers handlers and remove if the same is already exists
@@ -274,7 +270,7 @@ def vk2xmpp(id):
 
 Revision = getGatewayRev()
 
-## Escaping xmpp non-allowed chars
+## Escape xmpp non-allowed chars
 badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 sortMsg = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
@@ -343,13 +339,6 @@ class VK(object):
 		logger.debug("VK.__init__ with number:%s from jid:%s" % (number, source))
 
 	getToken = lambda self: self.engine.token
-
-	def setToken(self, token): 
-		"""
-		Future feature for api v5.0
-		"""
-		self.engine.token = token
-		return self
 
 	def checkData(self):
 		"""
@@ -486,7 +475,7 @@ class VK(object):
 					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
-				## We are removing this user from database. Why? Just in case.
+				## We removing this user from the database. Why? Just in case.
 				runThread(removeUser, (self.source, roster))
 				logger.error("VK: apiError %s (jid: %s)" % (e.message, self.source))
 				self.online = False
@@ -558,8 +547,6 @@ class VK(object):
 		Otherwise will request method users.get
 		Default fields is ["screen_name"]
 		"""
-#		if not self.source in Transport: ## That looks impossible, but it happened at least once. Thanks, bedbmak@!
-#			return None
 		user = Transport[self.source]
 		if not fields:
 			if uid in user.friends:
@@ -674,7 +661,6 @@ class User(object):
 			self.vk.online = True
 			self.friends = self.vk.getFriends()
 		return self.vk.online
-
 
 	def initialize(self, force=False, send=True, resource=None, raise_exc=False):
 		"""
@@ -1074,7 +1060,7 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 		source: from who send the message
 		body: obviously message body
 		timestamp: message timestamp (XEP-0091)
-		typ: xmpp chatstates (XEP-0085)
+		typ: xmpp chatstates type (XEP-0085)
 	"""
 	msg = xmpp.Message(destination, body, "chat", frm=source)
 	msg.setTag(typ, namespace=xmpp.NS_CHATSTATES)
@@ -1104,7 +1090,6 @@ def sender(cl, stanza, cb=None, args={}):
 			disconnectHandler(True)
 
 
-## TODO: make it as extension
 def watcherMsg(text):
 	"""
 	Send message to jids in watchers list
@@ -1175,7 +1160,7 @@ def removeUser(user, roster=False, semph=Semaphore, notify=True):
 
 def getPid():
 	"""
-	Gets new PID and kills previous PID
+	Gets new PID and kills the previous PID
 	by signals 15 and then 9
 	"""
 	pid = os.getpid()

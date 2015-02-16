@@ -249,7 +249,11 @@ class Chat(object):
 			if body:
 				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, vkChat["date"])
 		else:
-			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", (self.jid, self.getUserObject(self.jid).source))
+			source = "unknown"
+			userObject = self.getUserObject(self.jid)
+			if userObject:
+				source = userObject.source
+			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", (self.jid, source))
 			runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
 
 	@api.attemptTo(3, dict, RuntimeError)
