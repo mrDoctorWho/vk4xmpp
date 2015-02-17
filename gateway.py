@@ -383,6 +383,8 @@ class VK(object):
 		self.engine = api.APIBinding(self.number, self.password, token=token, debug=DEBUG_API)
 		try:
 			self.checkData()
+		except api.CaptchaNeeded:
+			raise
 		except api.AuthError as e:
 			logger.error("VK.auth failed with error %s (jid: %s)" % (e.message, self.source))
 			if raise_exc:
