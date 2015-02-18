@@ -2,7 +2,7 @@ WARNING: VK sent captcha to you. Please, go to %s and enter text from image to c
 Captcha valid.=Капча введена верно.
 Captcha invalid.=Капча введена неверно.
 Not now. Ok?=Не сейчас.
-Phone incorrect.=Неверный номер.
+Phone is incorrect.=Неверный номер.
 Empty password/token field=Поле пароль/access-token не может быть пустым!
 Incorrect password or access token!=Неправильный пароль или access-token!
 Initialization failed.=Ошибка инициализации.
@@ -24,7 +24,7 @@ If you won't get access-token automatically, please, follow authorization link a
 Phone number=Номер телефона
 Enter phone number in format +71234567890=Введите номер телефона в формате +71234567890
 Get access-token automatically=Получить access-token автоматически
-Try to get access-token automatically. (NOT recommended, password required!)=Попытаться получить access-token автоматически. (Не рекомендуется, требуется пароль)
+Tries to get access-token automatically. (NOT recommended, password required!)=Попытаться получить access-token автоматически. (Не рекомендуется, требуется пароль)
 Password/Access-token=Пароль/Access-token
 Type password, access-token or url (recommended)=Введите пароль, access-token или ссылку из браузера (рекомендуется)
 User authorization failed: invalid access_token. Please, register again=Ошибка авторизации: неправильный access_token. Пожалуйста, пройдите регистрацию снова.

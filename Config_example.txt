@@ -49,6 +49,10 @@ allowBePublic = True
 # Set to 0 for "unlimited".
 USER_LIMIT = 0
 
+# URL which will be used in registration form. See the example in js/vk4xmpp.html or in http://simpleapps.ru/vk4xmpp.html (if the site is still alive in your time)
+# URL MUST have "%d" somewhere, it's used for access definition. Since 01.08.2014 any plugin can modify the access, so it will be defined in the url.
+URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html#%d"
+
 #! Danger zone.
 #! Change settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENDED!
 ## Thread stack size (WARNING: THIS MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR).
@@ -63,7 +67,7 @@ MAXIMUM_FORWARD_DEPTH = 20
 URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
 
 ## Eval JID (JID for "!eval" command and admin-features in adhoc).
-evalJID = ""
+ADMIN_JIDS = []
 
 ## Debug xmpppy library.
 DEBUG_XMPPPY = False

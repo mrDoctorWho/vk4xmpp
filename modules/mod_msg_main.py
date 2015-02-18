@@ -1,11 +1,18 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
+
+"""
+Module purpose is to receive and handle messages
+"""
 
 from __main__ import *
 from __main__ import _
 
 def reportReceived(msg, jidFrom, jidTo):
+	"""
+	Reports if message is received
+	"""
 	if msg.getTag("request"):
 		answer = xmpp.Message(jidFrom, frm=jidTo)
 		tag = answer.setTag("received", namespace=xmpp.NS_RECEIPTS)
@@ -15,6 +22,11 @@ def reportReceived(msg, jidFrom, jidTo):
 
 
 def acceptCaptcha(cl, args, jidTo, source):
+	"""
+	Accepts the captcha value in 2 possible ways:
+		1. User sent a message
+		2. User sent an IQ with the captcha value
+	"""
 	if args:
 		answer = None
 		user = Transport[source]
@@ -66,13 +78,13 @@ def message_handler(cl, msg):
 					if text == "!captcha" and args:
 						acceptCaptcha(cl, args, jidTo, source)
 						answer = reportReceived(msg, jidFrom, jidTo)
-					elif text == "!eval" and args and source == evalJID:
+					elif text == "!eval" and args and source in ADMIN_JIDS:
 						try:
 							result = unicode(eval(args))
 						except Exception:
 							result = returnExc()
 						sendMessage(cl, source, jidTo, result)
-					elif text == "!exec" and args and source == evalJID:
+					elif text == "!exec" and args and source in ADMIN_JIDS:
 						try:
 							exec(unicode(args + "\n"), globals())
 						except Exception:

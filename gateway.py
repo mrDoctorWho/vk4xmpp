@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.55
+# vk4xmpp gateway, v2.56
 # © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
@@ -46,6 +46,7 @@ Transport = {}
 WatcherList = []
 WhiteList = []
 jidToID = {}
+ADMIN_JIDS = []
 
 TransportFeatures = [xmpp.NS_DISCO_ITEMS,
 					xmpp.NS_DISCO_INFO,
@@ -72,7 +73,7 @@ Semaphore = threading.Semaphore()
 
 ALIVE = True
 
-## config vairables
+# config vairables
 DEBUG_XMPPPY = False
 DEBUG_POLL = False
 DEBUG_API = False
@@ -90,24 +91,27 @@ GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1}
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
 												"friends when user log off", "value": 0}}
 
+# used files
 pidFile = "pidFile.txt"
 logFile = "vk4xmpp.log"
 crashDir = "crash"
 settingsDir = "settings"
 
+# cmd args
 argParser = ArgumentParser()
 argParser.add_argument("-c", "--config", help="set the general config file destination", default="Config.txt")
 argParser.add_argument("-d", "--daemon", help="run in daemon mode (no auto-restart)", action="store_true")
 args = argParser.parse_args()
-
 Daemon = args.daemon
 Config = args.config
 
+# config variables
 PhotoSize = "photo_100"
 DefLang = "ru"
 evalJID = ""
 AdditionalAbout = ""
 ConferenceServer = ""
+URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html#%d"
 
 allowBePublic = True
 
@@ -120,6 +124,10 @@ except Exception:
 	Print("#! Error loading config file:")
 	wException()
 	exit()
+
+# Compatibility with old config files
+if not ADMIN_JIDS:
+	ADMIN_JIDS = [evalJID]
 
 ## Trying to use faster library usjon instead of simplejson
 try:
@@ -210,10 +218,11 @@ def executeHandlers(type, list=()):
 	"""
 	Executes all handlers by type with list as list of args
 	"""
-	logger.debug("executing handlers of type %s" % type)
-	for handler in Handlers[type]:
+	handlers = Handlers[type]
+	logger.debug("executing handlers of type %s: %s" % (type, str([x.func_name for x in handlers])))
+	for handler in handlers:
 		execute(handler, list)
-	logger.debug("%d handlers were successfully executed" % (len(Handlers[type])))
+	logger.debug("%d handlers were successfully executed (type: %s, args: %s)" % (len(handlers), type, str(list)))
 
 
 def runThread(func, args=(), name=None, att=3, delay=0):
@@ -242,11 +251,24 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 		crashLog("runThread.%s" % name)
 
 
+def runDatabaseQuery(query, args):
+	"""
+	Querying database in separate thread.
+	The function's purpose is to minimize a risk of main thread lock
+	"""
+	# TODO: We can easy return value by a callback, but is it really required?
+	def linear(query, args):
+		with Database(DatabaseFile, Semaphore) as db:
+			db(query, args)
+			db.commit()
+	runThread(linear, (query, args))
+
+
 def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 250, 0
+	revNumber, rev = 256, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -324,7 +346,7 @@ class Settings(object):
 
 class VK(object):
 	"""
-	The base class containts most of functions to work with VK
+	The base class containts the functions which directly works with VK
 	"""
 	def __init__(self, number=None, password=None, source=None):
 		self.number = number
@@ -390,6 +412,8 @@ class VK(object):
 			if raise_exc:
 				raise
 			return False
+		except api.TokenError:
+			raise
 		except Exception:
 			crashLog("VK.auth")
 			if raise_exc:
@@ -452,36 +476,36 @@ class VK(object):
 		if not self.engine.captcha and (self.online or force):
 			try:
 				result = self.engine.method(method, args, nodecode)
-			except api.InternalServerError as e:
-				logger.error("VK: internal server error occurred while executing method(%s) (%s) (jid: %s)" % (method, e.message, self.source))
+			except (api.InternalServerError, api.AccessDenied) as e:
+				pass
 
-			except api.CaptchaNeeded:
+			except api.NetworkNotFound as e:
+				self.online = False
+
+			except api.CaptchaNeeded as e:
 				logger.error("VK: running captcha challenge (jid: %s)" % self.source)
 				self.captchaChallenge()
 				result = 0 ## why?
 
-			except api.NotAllowed:
+			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
 					sendMessage(Component, self.source, vk2xmpp(args.get("user_id", TransportID)), _("You're not allowed to perform this action."))
 
-			except api.NetworkNotFound:
-				logger.critical("VK: network is unavailable. Is vk down or you have network problems?")
-				self.online = False
-
-			except api.AccessDenied as e:
-				logger.error("VK: got \"Access Denied\" while executing method(%s) (%s) (jid: %s)" % (method, e.message, self.source))
-
 			except api.VkApiError as e:
+				# There are several types of VkApiError
+				# But the user defenitely must be removed. The question is: how? Is he should have been completely exterminated or just removed?
 				roster = False
 				if e.message == "User authorization failed: user revoke access for this token.":
 					roster = True
 				elif e.message == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
-				## We removing this user from the database. Why? Just in case.
 				runThread(removeUser, (self.source, roster))
 				logger.error("VK: apiError %s (jid: %s)" % (e.message, self.source))
 				self.online = False
-		return result
+			else:
+				return result
+			logger.error("VK: error %s occurred while executing method(%s) (%s) (jid: %s)" % (method, e.__class__.__name__, e.message, self.source))
+			return False
 
 	def captchaChallenge(self):
 		"""
@@ -502,11 +526,11 @@ class VK(object):
 			Poll.remove(Transport[self.source])
 		self.online = False
 		runThread(executeHandlers, ("evt06", (self,)))
-		runThread(self.method, ("account.setOffline", None, True, True)) ## Maybe this one should be started in separate thread to do not let VK freeze main thread
+		runThread(self.method, ("account.setOffline", None, True, True))
 
 	def getFriends(self, fields=None):
 		"""
-		Executes friends.get and formats it in key-values style
+		Executes friends.get and formats it in key-value style
 		Example: {1: {"name": "Pavel Durov", "online": False}
 		Parameter fields is needed to receive advanced fields which will be added in result values
 		"""
@@ -519,7 +543,7 @@ class VK(object):
 			name = escape("", str.join(chr(32), (friend["first_name"], friend["last_name"])))
 			friends[uid] = {"name": name, "online": online}
 			for key in fields:
-				if key != "screen_name": # screen_name is default
+				if key != "screen_name": # screen_name is the default
 					friends[uid][key] = friend.get(key)
 		return friends
 
@@ -588,11 +612,9 @@ class User(object):
 	"""
 	Main class contain the functions to connect xmpp & VK
 	"""
-	def __init__(self, data=(), source=""):
+	def __init__(self, source=""):
 		self.password = None
 		self.username = None
-		if data:
-			self.username, self.password = data
 		self.source = source
 		self.auth = None
 		self.token = None
@@ -606,7 +628,6 @@ class User(object):
 		self.settings = Settings(source)
 		self.last_udate = time.time()
 		self.__sync = threading._allocate_lock()
-		self.vk = VK(self.username, self.password, self.source)
 		logger.debug("initializing User (jid: %s)" % self.source)
 
 	def __eq__(self, user):
@@ -620,6 +641,7 @@ class User(object):
 		Updates db if auth() is done
 		Raises exception if raise_exc == True
 		"""
+		self.vk = VK(self.username, self.password, self.source)
 		with Database(DatabaseFile, Semaphore) as db:
 			db("select * from users where jid=?", (self.source,))
 			data = db.fetchone()
@@ -645,20 +667,19 @@ class User(object):
 			self.sendSubPresence()
 			self.vk.captchaChallenge()
 			return True
-		except api.AuthError:
+		except (api.TokenError, api.AuthError):
 			raise
 		else:
 			logger.debug("User: auth=%s (jid: %s)" % (self.auth, self.source))
 
 		if self.auth and self.vk.getToken():
 			logger.debug("User: updating database because auth done (jid: %s)" % self.source)
+			# User isn't exists so we gonna make a new record in the db
 			if not self.exists:
-				with Database(DatabaseFile, Semaphore) as db:
-					db("insert into users values (?,?,?,?,?)", (self.source, "",
-						self.vk.getToken(), self.lastMsgID, self.rosterSet))
+				runDatabaseQuery("insert into users values (?,?,?,?,?)", (self.source, "", self.vk.getToken(), self.lastMsgID, self.rosterSet))
+
 			elif self.password:
-				with Database(DatabaseFile, Semaphore) as db:
-					db("update users set token=? where jid=?", (self.vk.getToken(), self.source))
+				runDatabaseQuery("update users set token=? where jid=?", (self.vk.getToken(), self.source))
 			executeHandlers("evt07", (self,))
 			self.vk.online = True
 			self.friends = self.vk.getFriends()
@@ -733,9 +754,7 @@ class User(object):
 		sendPresence(self.source, TransportID, "subscribe", IDENTIFIER["name"])
 		if dist:
 			self.rosterSet = True
-			with Database(DatabaseFile, Semaphore) as db:
-				db("update users set rosterSet=? where jid=?",
-					(self.rosterSet, self.source))
+			runDatabaseQuery("update users set rosterSet=? where jid=?", (self.rosterSet, self.source))
 
 	def sendMessages(self, init=False):
 		"""
@@ -777,10 +796,7 @@ class User(object):
 					sendMessage(Component, self.source, fromjid, escape("", body), date)
 		if messages:
 			self.lastMsgID = messages[-1]["mid"]
-			try:
-				self.updateLastMsgID(Semaphore)
-			except sqlite3.OperationalError, e:
-				logger.error("User:sendmessages error %s occurred while updating last message id (jid: %s)" % (str(e), self.source))
+			runDatabaseQuery("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 		if not self.vk.userID:
 			self.vk.getUserID()
@@ -789,10 +805,12 @@ class User(object):
 		"""
 		Processes poll result
 		Retur codes:
-			0 mean need to reinit poll (add user to poll buffer)
-			1 mean all is fine (request again)
-			-1 mean do nothing
+			0: need to reinit poll (add user to the poll buffer)
+			1: all is fine (request again)
+			-1: just continue iteration, ignoring this user
 		"""
+		if DEBUG_POLL:
+			logger.debug("longpoll: processing result (jid: %s)" % self.source)
 		try:
 			with opener as sock:
 				data = sock.read()
@@ -811,7 +829,7 @@ class User(object):
 			return 1
 
 		if "failed" in data:
-			logger.debug("longpoll: failed. Searching for new server")
+			logger.debug("longpoll: failed. Searching for new server (jid: %s)" % self.source)
 			return 0
 
 		self.vk.pollConfig["ts"] = data["ts"]
@@ -836,9 +854,6 @@ class User(object):
 				self.typing[evt[0]] = time.time()
 		return 1
 
-	def updateLastMsgID(self, semph=Semaphore):
-		with Database(DatabaseFile, semph) as db:
-			db("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source))
 
 	def updateTypingUsers(self, cTime):
 		"""
@@ -875,7 +890,6 @@ class User(object):
 							sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
 					self.friends = friends
 
-## TODO: rename to retry
 	def tryAgain(self):
 		"""
 		Tries to execute self.initialize() again and connect() if needed
@@ -1020,6 +1034,7 @@ class Poll:
 					if not user.vk.online:
 						logger.debug("longpoll: user became offline, so removing him from the poll list (jid: %s)" % user.source)
 						cls.remove(user)
+					# In case if VK won't let us to read the socket, we're dead
 					result = execute(user.processPollResult, (opener,))
 					if result == -1:
 						continue
@@ -1124,13 +1139,12 @@ def calcStats():
 	return [countTotal, countOnline]
 
 
-def removeUser(user, roster=False, semph=Semaphore, notify=True):
+def removeUser(user, roster=False, notify=True):
 	"""
 	Removes user from database
 	Parameters:
 		user: User class object or jid without resource
 		roster: remove vk contacts from user's roster (only if User class object was in first param)
-		semph: use semaphore if required
 	"""
 	if isinstance(user, (str, unicode)): # unicode is default, but... who knows
 		source = user
@@ -1139,10 +1153,8 @@ def removeUser(user, roster=False, semph=Semaphore, notify=True):
 	user = Transport.get(source) ## here's probability it's not the User object
 	if notify:
 		sendMessage(Component, source, TransportID, _("The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
-	logger.debug("User: removing user from db (jid: %s, semph: %s)" % (source, "Semaphore" if semph else "None"))
-	with Database(DatabaseFile, semph) as db:
-		db("delete from users where jid=?", (source,))
-		db.commit()
+	logger.debug("User: removing user from db (jid: %s)" % source)
+	runDatabaseQuery("delete from users where jid=?", (source,))
 	logger.debug("User: deleted (jid: %s)" % source)
 	if roster and user:
 		friends = user.friends

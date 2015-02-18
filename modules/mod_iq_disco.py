@@ -28,7 +28,7 @@ def disco_handler(cl, iq):
 
 		result = iq.buildReply("result")
 		payload.append(xmpp.Node("identity", IDENTIFIER))
-		if source == evalJID:
+		if source in ADMIN_JIDS:
 			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
 			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID }))
 		if ns == xmpp.NS_DISCO_INFO:
@@ -43,13 +43,13 @@ def disco_handler(cl, iq):
 	elif node:
 		result = iq.buildReply("result")
 		payload = []
-		if node == "Online users" and source == evalJID:
+		if node == "Online users" and source in ADMIN_JIDS:
 			users = Transport.keys()
 			for user in users:
 				payload.append(xmpp.Node("item", { "name": user, "jid": user }))
 			result.setQueryPayload(payload)
 
-		elif node == "All users" and source == evalJID:
+		elif node == "All users" and source in ADMIN_JIDS:
 			users = getUsersList()
 			for user in users:
 				user = user[0]
@@ -57,7 +57,7 @@ def disco_handler(cl, iq):
 			result.setQueryPayload(payload)
 
 		elif node == xmpp.NS_COMMANDS:
-			if source == evalJID:
+			if source in ADMIN_JIDS:
 				for node in NODES["admin"]:
 					payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID}))
 			for node in NODES["user"]:
@@ -104,7 +104,7 @@ def commands_handler(cl, iq):
 		if node and action != "cancel":
 			if not form:
 				commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": iq.getID()}, xmpp.NS_COMMANDS)
-			if source == evalJID:
+			if source in ADMIN_JIDS:
 				if node == "Delete users":
 					if not form:
 						form = utils.buildDataForm(None, None,
