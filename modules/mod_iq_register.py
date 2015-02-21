@@ -55,7 +55,7 @@ def register_handler(cl, iq):
 				{"var": "link", "type": "text-single", "label": _("Autorization page"),
 					"desc": ("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
 						   "and then paste url to password field."), "value": URL_ACCEPT_APP},
-				{"var": "phone", "type": "text-single", "desc": _("Enter phone number in format +71234567890"), "value": "+"},
+				{"var": "phone", "type": "text-single", "label": _("Phone number"), "desc": _("Enter phone number in format +71234567890"), "value": "+"},
 				{"var": "use_password", "type": "boolean", "label": _("Get access-token automatically"), "desc": _("Tries to get access-token automatically. (NOT recommended, password required!)")},
 				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}],
 			data = [_("Type data in fields")])

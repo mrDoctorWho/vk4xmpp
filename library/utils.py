@@ -31,6 +31,8 @@ def buildDataForm(form=None, type="form", fields=[], title=None, data=[]):
 		title: form title
 		data: advanced data for form. e.g. instructions (if string in the list), look at xmpp/protocol.py:1326
 	"""
+	if title and form:
+		form.setTitle(title)
 	form = form or xmpp.DataForm(type, data, title)
 	for key in fields:
 		field = form.setField(key["var"], key.get("value"),

@@ -5,6 +5,16 @@
 # Rename it to "example.py" if you wanna test it
 # Please notice that plugins are working in globals() so names must be unique
 
+## Events (not finished yet so not sorted):
+# 01 - transport's start (threaded), no args
+# 02 - transport's shutdown (linear)
+# 03 - user deletion (linear)
+# 04 - captcha (linear)
+# 05 - user became online (threaded)
+# 06 - user became offline (linear)
+# 07 - user is logging in (linear, before the friends are received)
+## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
+## Presences: 01 incoming presence, 02 - is used to modify outgoing presence (xmpp)
 
 def evt01_handler():
 	"""

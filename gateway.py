@@ -84,13 +84,6 @@ THREAD_STACK_SIZE = 0
 USER_LIMIT = 0
 VK_ACCESS = 69638
 
-GLOBAL_USER_SETTINGS = {"groupchats": {"label": "Handle groupchats", "value": 1},
-						"keep_onlne": {"label": "Keep my status online", "value": 1},
-						"i_am_ghost": {"label": "I am a ghost", "value": 0}}
-
-TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
-												"friends when user log off", "value": 0}}
-
 # used files
 pidFile = "pidFile.txt"
 logFile = "vk4xmpp.log"
@@ -142,7 +135,17 @@ formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", 
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
 
+# Setting variables: DefLang for language id, root for translations directory
 setVars(DefLang, root)
+
+
+# Settings
+GLOBAL_USER_SETTINGS = {"keep_onlne": {"label": "Keep my status online", "value": 1},
+						"i_am_ghost": {"label": "I am a ghost", "value": 0}}
+
+TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
+												"friends when user log off", "value": 0}}
+
 
 if THREAD_STACK_SIZE:
 	threading.stack_size(THREAD_STACK_SIZE)
@@ -151,16 +154,7 @@ del formatter, loggerHandler
 OS = "{0} {2:.16} [{4}]".format(*os.uname())
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 
-## Events (not finished yet so not sorted):
-# 01 - start (threaded), no args
-# 02 - shutdown (linear)
-# 03 - user deletion (linear)
-# 04 - captcha (linear)
-# 05 - user became online (threaded)
-# 06 - user became offline (linear)
-# 07 - user is logging in (linear, before the friends are received)
-## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
-## Presences: 01 incoming presence, 02 - is used to modify outgoing presence (xmpp)
+# See extensions/.example.py for more information about handlers
 Handlers = {"msg01": [], "msg02": [],
 			"msg03": [], "evt01": [],
 			"evt02": [], "evt03": [],
@@ -313,12 +307,17 @@ class Settings(object):
 			self.settings = deepcopy(GLOBAL_USER_SETTINGS)
 		else:
 			self.settings = TRANSPORT_SETTINGS
-		self.settings.update(eval(rFile(self.filename))) ## better use json.load() instead
+		userSettings = eval(rFile(self.filename)) or {}
+		for key, values in userSettings.iteritems():
+			if key in self.settings:
+				self.settings[key]["value"] = values["value"]
+
 		self.keys = self.settings.keys
 		self.items = self.settings.items
 		self.source = source
 
 	save = lambda self: wFile(self.filename, str(self.settings))
+
 	__getitem__ = lambda self, key: self.settings[key]
 
 	def __setitem__(self, key, value):
@@ -477,6 +476,9 @@ class VK(object):
 			try:
 				result = self.engine.method(method, args, nodecode)
 			except (api.InternalServerError, api.AccessDenied) as e:
+				# To prevent returning True from checkData()
+				if force:
+					raise
 				pass
 
 			except api.NetworkNotFound as e:
@@ -573,10 +575,11 @@ class VK(object):
 		Otherwise will request method users.get
 		Default fields is ["screen_name"]
 		"""
-		user = Transport[self.source]
 		if not fields:
-			if uid in user.friends:
-				return user.friends[uid]
+			if self.source in Transport:
+				user = Transport[self.source]
+				if uid in user.friends:
+					return user.friends[uid]
 			fields = ["screen_name"]
 		data = self.method("users.get", {"fields": ",".join(fields), "user_ids": uid}) or {}
 		if not data:

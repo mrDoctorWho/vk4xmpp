@@ -128,6 +128,7 @@ class Chat(object):
 		self.raw_users = users
 		self.created = False
 		self.invited = False
+		self.xmpp_owner = None
 		self.topic = topic
 		self.errors = []
 		self.creation_date = date
@@ -368,6 +369,8 @@ def handleChatPresences(source, prs):
 						makeOutcast(source, jid, TransportID, _("Get the hell outta here!"))
 					else:
 						leaveChat(source, jid, _("I am not welcomed here")) 
+				if (prs.getRole(), prs.getAffiliation()) == ("moderator", "owner"):
+					chat.xmpp_owner = jid
 
 
 def exterminateChats(user):
@@ -383,7 +386,13 @@ def exterminateChats(user):
 
 
 if ConferenceServer:
-	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users (only active ones by default)", "value": 0}
+
+	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users", 
+		"desc": "If set, transport will show ALL users in a conference, even you", "value": 0}
+
+	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
+		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
+
 	logger.info("extension groupchats is loaded")
 	TransportFeatures.append(xmpp.NS_GROUPCHAT)
 	registerHandler("msg01", outgoingChatMessageHandler)

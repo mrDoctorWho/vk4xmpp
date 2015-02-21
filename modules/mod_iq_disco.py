@@ -3,6 +3,9 @@
 # © simpleApps, 2014 — 2015.
 
 from __main__ import *
+from __main__ import _
+from utils import buildDataForm as buildForm
+from xmpp import DataForm as getForm
 
 NODES = {"admin": ("Delete users", 
 					"Global message", 
@@ -12,6 +15,7 @@ NODES = {"admin": ("Delete users",
 					"Check an API token"), 
 		"user": ("Edit settings",)}
 
+FORM_TYPES = ("text-single", "text-multi", "jid-multi")
 
 def disco_handler(cl, iq):
 	source = iq.getFrom().getStripped()
@@ -91,6 +95,45 @@ def sendGlobalMessage(text):
 		sendMessage(Component, jid[0], TransportID, text)
 
 
+def checkAPIToken(token):
+	vk = VK()
+	try:
+		auth = vk.auth(token, True, False)
+		if not auth:    # in case if VK() won't raise an exception
+			raise api.AuthError("Auth failed")
+		else:
+			vk.online = True
+			userID = vk.getUserID()
+			name = vk.getUserData(userID)
+			data = {"auth": auth, "name": name, "id": str(userID), "friends_count": len(vk.getFriends())}
+	except Exception:
+		data = wException()
+	return data
+
+
+def dictToDataForm(_dict, _fields=None):
+	_fields = _fields or []
+	for key, value in _dict.iteritems():
+		result = {"var": key, "value": value}
+		if isinstance(value, int) and not isinstance(value, bool):
+			type = "text-signle"
+
+		elif isinstance(value, bool):
+			print key, value
+			type = "boolean"
+			value = utils.normalizeValue(value)
+			print key,value
+
+		elif isinstance(value, dict):
+			dictToDataForm(value, _fields)
+		elif isinstance(value, str):
+			type = "text-single"
+			if "\n" in value:
+				type = "text-multi"
+		_fields.append({"var": key, "label": key, "value": value, "type": type})
+	return _fields
+
+
 def commands_handler(cl, iq):
 	source = iq.getFrom().getStripped()
 	cmd = iq.getTag("command", namespace=xmpp.NS_COMMANDS)
@@ -101,31 +144,28 @@ def commands_handler(cl, iq):
 		form = cmd.getTag("x", namespace=xmpp.NS_DATA)
 		action = cmd.getAttr("action")
 		completed = False
+		simpleForm = buildForm(fields=[dict(var="FORM_TYPE", type="hidden", value=xmpp.NS_ADMIN)])
 		if node and action != "cancel":
 			if not form:
 				commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": iq.getID()}, xmpp.NS_COMMANDS)
 			if source in ADMIN_JIDS:
 				if node == "Delete users":
 					if not form:
-						form = utils.buildDataForm(None, None,
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
-								{"var": "jids", "type": "jid-multi", "label": "Jabber ID's", "required": True}],
-									"Type JabberIDs in lines to remove them from db")
-						commandTag.addChild(node=form)
+						simpleForm = buildForm(simpleForm, 
+							fields=[{"var": "jids", "type": "jid-multi", "label": _("Jabber ID's"), "required": True}])
 					else:
-						form = xmpp.DataForm(node=form).asDict()
-						if form.has_key("jids") and form["jids"]:
+						form = getForm(node=form).asDict()
+						if form.get("jids"):
 							runThread(deleteUsers, (form["jids"],))
 						completed = True
 
 				elif node == "Global message":
 					if not form:
-						form = utils.buildDataForm(None, None,
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
-								{"var": "text", "type": "text-multi", "label": "Message", "required": True}], "Type a message text" )
-						commandTag.addChild(node=form)
+						simpleForm = buildForm(simpleForm, 
+							fields=[{"var": "text", "type": "text-multi", "label": _("Message"), "required": True}], 
+							title=_("Enter the message text"))
 					else:
-						form = xmpp.DataForm(node=form).asDict()
+						form = getForm(node=form).asDict()
 						if form.has_key("text"):
 							text = "\n".join(form["text"])
 							runThread(sendGlobalMessage, (text,))
@@ -133,53 +173,72 @@ def commands_handler(cl, iq):
 
 				elif node == "Show crashlogs":
 					if not form:
-						form = utils.buildDataForm(None, None,
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
-								{"var": "filename", "type": "list-single", "label": "Filename", "options": os.listdir("crash") if os.path.exists("crash") else []}], "Choose wisely")
-						commandTag.addChild(node=form)
+						simpleForm = buildForm(simpleForm, 
+							fields=[{"var": "filename", "type": "list-single", "label": "Filename", 
+								"options": os.listdir("crash") if os.path.exists("crash") else []}], 
+							title="Choose wisely")
+
 					else:
-						form = xmpp.DataForm(node=form).asDict()
-						if form.has_key("filename") and form["filename"]:
+						form = getForm(node=form).asDict()
+						if form.get("filename"):
 							filename = "crash/%s" % form["filename"]
 							body = None
 							if os.path.exists(filename):
 								body = rFile(filename)
 							commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
-							form = utils.buildDataForm(None, None,
-								[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
-									{"var": "body", "type": "text-multi", "label": "Error body", "value": body}]
-								)
-							commandTag.addChild(node=form)
+							simpleForm = buildForm(simpleForm, 
+								fields=[{"var": "body", "type": "text-multi", "label": "Error body", "value": body}]								)
+							commandTag.addChild(node=simpleForm)
 							completed = True
 
 				elif node == "Check an API token":
-					pass
+					
+						if not form:
+							simpleForm = buildForm(simpleForm, 
+								fields=[{"var": "token", "type": "text-single", "label": "API Token"}],
+								title=_("Enter the API token"))
+						else:
+							commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
+							form = getForm(node=form).asDict()
+							if form.get("token"):
+								token = form["token"]
+								_result = checkAPIToken(token)
+							#	{'friends_count': 5, 'name': {u'uid': 218855826, 'name': u'Some User', u'screen_name': u'some_user'}, 'auth': True, 'id': 218855826}
+
+								if isinstance(_result, dict):
+									_fields = dictToDataForm(_result)
+								else:
+									_fields = [{"var": "body", "value": str(_result), "type": "text-multi" }]
+
+								simpleForm = buildForm(simpleForm, fields=_fields)
+								commandTag.addChild(node=simpleForm)
+								completed = True
 		
 				elif node == "Reload config":
 					try:
 						execfile(Config, globals())
 					except Exception:
 ##						commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
-						form = utils.buildDataForm(None, None, 
-							[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_ADMIN},
-								{"var": "body", "type": "text-multi", "label": "Error while loading the config file", "value": wException()}])
-						commandTag.addChild(node=form)
+						simpleForm = buildForm(simpleForm, 
+							fields=[{"var": "body", "type": "text-multi", "label": "Error while loading the config file", "value": wException()}])
+						
 					completed = True
 
 				elif node == "Global Transport settings":
 					config = transportSettings.settings
 					if not form:
-						form_fields = [{"var": "FORM_TYPE", "type": "hidden"}]
+						_fields = []
 						for key, values in config.items():
-							form_fields.append({"var": key, "label": values["label"], "type": values.get("type", "boolean"), "value": values["value"]}) ## todo: Add support for list-multi and others?
+							_fields.append({"var": key, "label": _(values["label"]), 
+								"type": values.get("type", "boolean"),
+								 "value": values["value"], "desc": _(values.get("desc"))})
+						simpleForm = buildForm(simpleForm, fields=_fields, title="Choose wisely")
 
-						form = utils.buildDataForm(None, None, form_fields,	"Choose wisely")
-						commandTag.addChild(node=form)
 					elif form and source in Transport:
-						form = xmpp.DataForm(node=form).asDict()
+						form = getForm(node=form).asDict()
 						for key in form.keys():
 							if key in config.keys():
-								transportSettings.settings[key] = utils.normalizeValue(form[key])
+								transportSettings.settings[key]["value"] = utils.normalizeValue(form[key])
 						completed = True
 
 			if node == "Edit settings" and source in Transport:
@@ -187,14 +246,16 @@ def commands_handler(cl, iq):
 				config = Transport[source].settings
 				if not form:
 					user = Transport[source]
-					form_fields = [{"var": "FORM_TYPE", "type": "hidden"}]
+					_fields = []
 					for key, values in config.items():
-						form_fields.append({"var": key, "label": values["label"], "type": values.get("type", "boolean"), "value": values["value"]}) ## todo: Add support for list-multi and others?
+						_fields.append({"var": key, "label": _(values["label"]), 
+							"type": values.get("type", "boolean"), 
+							"value": values["value"], "desc": _(values.get("desc"))})
 
-					form = utils.buildDataForm(None, None, form_fields,	"Choose wisely")
-					commandTag.addChild(node=form)
+					simpleForm = buildForm(simpleForm, fields=_fields, title="Choose wisely")
+
 				elif form and source in Transport:
-					form = xmpp.DataForm(node=form).asDict()
+					form = getForm(node=form).asDict()
 					for key in form.keys():
 						if key in config.keys():
 							Transport[source].settings[key] = utils.normalizeValue(form[key])
@@ -202,6 +263,8 @@ def commands_handler(cl, iq):
 			
 			if completed:
 				result.setTag("command", {"status": "completed", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
+			elif not form:
+				commandTag.addChild(node=simpleForm)
 
 		sender(cl, result)
 

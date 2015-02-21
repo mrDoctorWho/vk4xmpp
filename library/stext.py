@@ -11,12 +11,14 @@ def setVars(lang, path):
 
 
 def _(what):
-	name = "%s/locales/locale.%s" % (path, locale)
-	what = what.replace("\n", "\\n")
-	if locale != "en" and os.path.exists(name):
-		data = open(name).readlines()
-		for line in data:
-			if line.startswith(what):
-				what = line.split("=")[1].strip()
-				break
-	return what.replace("\\n", "\n")
+	if what:
+		name = "%s/locales/locale.%s" % (path, locale)
+		what = what.replace("\n", "\\n")
+		if locale != "en" and os.path.exists(name):
+			data = open(name).readlines()
+			for line in data:
+				if line.startswith(what):
+					what = line.split("=")[1].strip()
+					break
+		return what.replace("\\n", "\n")
+		

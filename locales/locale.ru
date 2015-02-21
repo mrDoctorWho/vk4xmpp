@@ -34,3 +34,13 @@ Sorry but we have failed to send this image. Seems you haven't enough permission
 Your image was successfully sent.=Ваше изображение было успешно отправлено!
 The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know.=Запись в базе данных о вас была УНИЧТОЖЕНА! Если вы этого не просили, то дайте нам знать об этом возмутительном происшествии.
 Not enough permissions to publish your status on the site. Please, register again.=Недостаточно прав для публикации статуса на сайте. Пожалуйста, зарегистрируйтесь заново.
+# groupchats, lables
+Handle groupchats=Обрабатывать сообщения из конференций
+Show all chat users=Показывать ВСЕХ пользователей в конференции
+# descs
+If set, transport would create xmpp-chatrooms for VK Multi-Dialogs=Если включено, транспорт будет создавать jabber-конференции для мультидиалогов ВКонтакте
+If set, transport will show ALL users in a conference, even you=Если включено, транспорт будет показывать всех пользователей в jabber-конференциях, даже вас
+# kernel, labels
+Keep my status online=Поддерживать статус online
+# global settings, labels
+Send unavailable from friends when user log off=Отправлять unavailable от пользователей, когда юзер отключается
