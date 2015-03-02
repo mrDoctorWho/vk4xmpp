@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.56
+# vk4xmpp gateway, v2.59
 # © simpleApps, 2013 — 2015.
 # Program published under MIT license.
 
@@ -140,7 +140,7 @@ setVars(DefLang, root)
 
 
 # Settings
-GLOBAL_USER_SETTINGS = {"keep_onlne": {"label": "Keep my status online", "value": 1},
+GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online", "value": 1},
 						"i_am_ghost": {"label": "I am a ghost", "value": 0}}
 
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
@@ -262,7 +262,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 256, 0
+	revNumber, rev = 259, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -311,6 +311,8 @@ class Settings(object):
 		for key, values in userSettings.iteritems():
 			if key in self.settings:
 				self.settings[key]["value"] = values["value"]
+			else:
+				self.settings[key] = values
 
 		self.keys = self.settings.keys
 		self.items = self.settings.items
@@ -327,9 +329,12 @@ class Settings(object):
 	def __getattr__(self, attr):
 		if attr in self.settings:
 			return self.settings[attr]["value"]
-		if not hasattr(self, attr):
+		elif not hasattr(self, attr):
 			return False
-		return object.__getattribute__(self, attr)
+		elif not self.settings.has_key(attr):
+			return False
+		else:
+			return object.__getattribute__(self, attr)
 
 	def exterminate(self):
 		"""
@@ -785,7 +790,7 @@ class User(object):
 					try:
 						result = func(self, message)
 					except Exception:
-						result = None
+						result = ""
 						crashLog("handle.%s" % func.__name__)
 					if result is None:
 						for func in iter:
@@ -876,7 +881,7 @@ class User(object):
 		"""
 		if cTime - self.last_udate > 360 and not self.vk.engine.captcha:
 			if not self.settings.i_am_ghost:
-				if self.settings.keep_onlne:
+				if self.settings.keep_online:
 					self.vk.method("account.setOnline")
 				self.last_udate = cTime
 				friends = self.vk.getFriends()

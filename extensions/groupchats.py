@@ -72,9 +72,9 @@ def outgoingChatMessageHandler(self, vkChat):
 	"""
 	Handles outging messages (VK) and sends them to XMPP
 	"""
-	if not self.settings.groupchats:
-		return None
 	if vkChat.has_key("chat_id"):
+		if not self.settings.groupchats:
+			return None
 		owner = vkChat.get("admin_id", "1")
 		fromID = vkChat["uid"]
 		chatID = vkChat["chat_id"]
@@ -381,7 +381,7 @@ def exterminateChats(user):
 	for chat in chats:
 		jid = "%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer)
 		Chat.setConfig(jid, TransportID, True)
-		if jid in user.chats:
+		if jid in getattr(user, "chats", {}):
 			del user.chats[jid]
 
 
