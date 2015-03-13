@@ -5,10 +5,11 @@ import cookielib
 import httplib
 import logging
 import mimetools
+import re
 import socket
 import ssl
 import time
-import re
+import threading
 import urllib
 import urllib2
 import webtools
@@ -108,7 +109,6 @@ class RequestProcessor(object):
 		self.cookieJar = cookielib.CookieJar()
 		cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
 		self.open = urllib2.build_opener(cookieProcessor).open
-		self.open.__func__.___defaults__ = (None, SOCKET_TIMEOUT)
 
 	def getCookie(self, name):
 		"""
@@ -204,7 +204,6 @@ class APIBinding:
 		self.lastMethod = ()
 
 		self.RIP = RequestProcessor()
-		self.attempts = 0
 		self.debug = debug or []
 
 	def loginByPassword(self):
@@ -307,7 +306,11 @@ class APIBinding:
 		self.last.append(time.time())
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) <= 1.25:
-				time.sleep(0.34)
+				time.sleep(0.37)
+
+		if method in self.debug or self.debug == "all":
+			start = time.time()
+			print "issuing method %s with values %s in thread: %s" % (method, str(values), threading.currentThread().name)
 
 		response = self.RIP.post(url, values)
 		if response and not nodecode:
@@ -318,9 +321,8 @@ class APIBinding:
 				except ValueError:
 					return {}
 #	 Debug:
-			if method in self.debug:
-				print "method %s with values %s" % (method, str(values))
-				print "response for method %s: %s" % (method, str(body))
+			if method in self.debug or self.debug == "all":
+				print "response for method %s: %s in thread: %s (%0.2fs)" % (method, str(body), threading.currentThread().name, (time.time() - start))
 
 			if "response" in body:
 				return body["response"] or {}

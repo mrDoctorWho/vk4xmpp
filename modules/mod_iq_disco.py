@@ -106,7 +106,7 @@ def checkAPIToken(token):
 			userID = vk.getUserID()
 			name = vk.getUserData(userID)
 			data = {"auth": auth, "name": name, "id": str(userID), "friends_count": len(vk.getFriends())}
-	except Exception:
+	except (api.VkApiError, Exception):
 		data = wException()
 	return data
 
@@ -203,7 +203,6 @@ def commands_handler(cl, iq):
 							if form.get("token"):
 								token = form["token"]
 								_result = checkAPIToken(token)
-							#	{'friends_count': 5, 'name': {u'uid': 218855826, 'name': u'Some User', u'screen_name': u'some_user'}, 'auth': True, 'id': 218855826}
 
 								if isinstance(_result, dict):
 									_fields = dictToDataForm(_result)
@@ -273,3 +272,9 @@ def load():
 	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
 	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
 	Component.RegisterHandler("iq", commands_handler, "set")
+
+
+def unload():
+	Component.UnregisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
+	Component.UnregisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
+	Component.UnregisterHandler("iq", commands_handler, "set")

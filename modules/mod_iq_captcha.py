@@ -9,7 +9,7 @@ Module purpose is to accept the captcha value from iq
 from __main__ import *
 import mod_msg_main as mod_msg
 
-def captcha_handler(cl, iq):
+def captcha_handler_threaded(cl, iq):
 	if iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
 		source = iq.getFrom().getStripped()
 		if source in Transport:
@@ -21,6 +21,14 @@ def captcha_handler(cl, iq):
 				value = ocrTag.getTagData("value")
 				mod_msg.acceptCaptcha(cl, value, jidTo, source)
 
+
+def captcha_handler(cl, iq):
+	runThread(captcha_handler_threaded, (cl, iq))
+
+
 def load():
 	Component.RegisterHandler("iq", captcha_handler, "set")
 
+
+def unload():
+	Component.UnregisterHandler("iq", captcha_handler, "set")

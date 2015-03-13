@@ -72,6 +72,7 @@ def outgoingChatMessageHandler(self, vkChat):
 	"""
 	Handles outging messages (VK) and sends them to XMPP
 	"""
+
 	if vkChat.has_key("chat_id"):
 		if not self.settings.groupchats:
 			return None
@@ -177,7 +178,7 @@ class Chat(object):
 		Uses two users list to prevent losing anyone
 		"""
 		all_users = vkChat["chat_active"].split(",") or []
-		all_users = [int(user) for user in all_users]
+		all_users = [int(user) for user in all_users if user]
 		if userObject.settings.show_all_chat_users:
 			users = self.getVKChat(userObject, self.id)
 			if users:
@@ -255,7 +256,8 @@ class Chat(object):
 			if userObject:
 				source = userObject.source
 			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)" % (self.jid, source))
-			runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
+			if retry:
+				runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
 
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):

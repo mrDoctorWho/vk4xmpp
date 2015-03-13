@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 from __main__ import *
 
@@ -21,3 +21,6 @@ def main_handler(cl, iq):
 def load():
 	Component.RegisterHandler("iq", main_handler, makefirst=True)
 
+
+def unload():
+	Component.UnregisterHandler("iq", main_handler)

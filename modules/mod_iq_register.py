@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014.
+# © simpleApps, 2014 — 2015.
 ## TODO: Handle set/get in separate functions.
 
 from __main__ import *
@@ -62,12 +62,12 @@ def register_handler(cl, iq):
 			result.setQueryPayload([form])
 
 		elif iType == "set" and queryChildren:
-			phone, password, use_password, token, result = False, False, False, False, False
+			phone, password, use_password, token, result = False, False, False, False, False # Why result is here?
 			query = iq.getTag("query")
 			data = query.getTag("x", namespace=xmpp.NS_DATA)
 			if data:
 				form = xmpp.DataForm(node=data).asDict()
-				phone = str(form.get("phone", ""))
+				phone = str(form.get("phone", "")).lstrip("+")
 				password = str(form.get("password", ""))
 				use_password = utils.normalizeValue(form.get("use_password", "")) ## In case here comes some unknown crap
 
@@ -115,6 +115,7 @@ def register_handler(cl, iq):
 				if source in Transport:
 					user = Transport[source]
 					removeUser(user, True, False)
+					result = iq.buildReply("result") # Is it required?
 					result.setPayload([], add = 0)
 					watcherMsg(_("User has removed registration: %s") % source)
 				else:
@@ -127,3 +128,7 @@ def register_handler(cl, iq):
 
 def load():
 	Component.RegisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)
+
+
+def unload():
+	Component.UnregisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)

@@ -9,6 +9,7 @@ Module purpose is to receive and handle messages
 from __main__ import *
 from __main__ import _
 
+
 def reportReceived(msg, jidFrom, jidTo):
 	"""
 	Reports if message is received
@@ -54,7 +55,7 @@ def acceptCaptcha(cl, args, jidTo, source):
 			sendMessage(cl, source, jidTo, answer)
 
 
-def message_handler(cl, msg):
+def message_handler_threaded(cl, msg):
 	body = msg.getBody()
 	jidTo = msg.getTo()
 	destination = jidTo.getStripped()
@@ -101,5 +102,11 @@ def message_handler(cl, msg):
 				sender(cl, answer)
 	executeHandlers("msg02", (msg,))
 
+def message_handler(cl, msg):
+	runThread(message_handler_threaded, (cl, msg))
+
 def load():
 	Component.RegisterHandler("message", message_handler)
+
+def unload():
+	Component.UnregisterHandler("message", message_handler)

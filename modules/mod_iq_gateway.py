@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014.
+# © simpleApps, 2014 — 2015.
 
 from __main__ import *
 
@@ -35,3 +35,6 @@ def gateway_handler(cl, iq):
 
 def load():
 	Component.RegisterHandler("iq", gateway_handler, "", xmpp.NS_GATEWAY)
+
+def unload():
+	Component.UnregisterHandler("iq", gateway_handler, "", xmpp.NS_GATEWAY)

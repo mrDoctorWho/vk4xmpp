@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014.
+# © simpleApps, 2014 — 2015.
 
 from __main__ import *
 
@@ -17,3 +17,7 @@ def version_handler(cl, iq):
 
 def load():
 	Component.RegisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)
+
+
+def unload():
+	Component.UnregisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)

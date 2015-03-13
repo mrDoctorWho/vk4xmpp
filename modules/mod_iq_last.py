@@ -1,11 +1,11 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 from __main__ import *
 
 
-def last_handler(cl, iq):
+def last_handler_threaded(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
 	source = jidFrom.getStripped()
@@ -26,6 +26,11 @@ def last_handler(cl, iq):
 	result.setTagData("query", name)
 	sender(cl, result)
 
+def last_handler(cl, iq):
+	runThread(last_handler_threaded, (cl, iq))
 
 def load():
 	Component.RegisterHandler("iq", last_handler, "get", xmpp.NS_LAST)
+
+def unload():
+	Component.UnregisterHandler("iq", last_handler, "get", xmpp.NS_LAST)

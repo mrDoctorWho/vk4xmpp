@@ -31,10 +31,15 @@ def sendPhoto(user, data, type, address, mType):
 					user.vk.engine.RIP.multipart("photo", str(name), str(type), data),
 					urlencode = False)[0])
 
-			id = user.vk.method("photos.saveMessagesPhoto", response)[0].get("id", 0)
-			user.vk.sendMessage("", address, mType, {"attachment": id})
-			logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
-			answer = _("Your image was successfully sent.")
+			id = user.vk.method("photos.saveMessagesPhoto", response)
+			if id:
+				id = id[0].get("id", 0)
+				user.vk.sendMessage("", address, mType, {"attachment": id})
+				logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
+				answer = _("Your image was successfully sent.")
+			else:
+				answer = _("Sorry but we have failed to send this image."
+					" Seems you haven't enough permissions. Your token should be updated, register again.")	
 		else:
 			answer = _("Sorry but we have failed to send this image."
 					" Seems you haven't enough permissions. Your token should be updated, register again.")

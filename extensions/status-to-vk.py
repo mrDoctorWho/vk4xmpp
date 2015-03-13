@@ -1,16 +1,16 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014 (30.08.14 08:08AM GMT)
+# © simpleApps, 2014 (30.08.14 08:08AM GMT) — 2015.
 
 """
-This plugin allows user to publish their status in VK_ACCESS
+This plugin allows users to publish their status in VK_ACCESS
 """
 
 VK_ACCESS += 1024
 
 GLOBAL_USER_SETTINGS["status_to_vk"] = {"label": "Publish my status in VK", "value": 0}
 
-def statustovk_prs01(source, prs, retry=5):
+def statustovk_prs01(source, prs, retry=3):
 	if source in Transport and prs.getType() in ("available", None):
 		if prs.getTo() == TransportID:
 			user = Transport[source]
@@ -30,6 +30,7 @@ def statustovk_prs01(source, prs, retry=5):
 					user.last_status = status
 				else:
 					logger.debug("we didn't receive application permissions, so starting a timer (jid: %s)" % source)
-					runThread(statustovk_prs01, (source, prs, (retry -1)), delay=10)
+					if retry:
+						runThread(statustovk_prs01, (source, prs, (retry -1)), delay=10)
 
 registerHandler("prs01", statustovk_prs01)

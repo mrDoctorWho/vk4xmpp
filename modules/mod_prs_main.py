@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 """
 Module purpose is to receive and handle presences
@@ -101,3 +101,7 @@ def presence_handler(cl, prs):
 
 def load():
 	Component.RegisterHandler("presence", presence_handler)
+
+
+def unload():
+	Component.UnregisterHandler("presence", presence_handler)

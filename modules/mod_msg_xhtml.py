@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 # This module depends on mod_xhtml.
 
 from __main__ import *
@@ -23,3 +23,7 @@ def xhtml_handler(cl, msg):
 
 def load():
 	Component.RegisterHandler("message", xhtml_handler, "chat")
+
+
+def unload():
+	Component.UnregisterHandler("message", xhtml_handler, "chat")
