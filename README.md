@@ -108,11 +108,11 @@ VK4XMPP представляет собой легковесный трансп�
 
 Настройка jabber-серверов: Ejabberd ([1](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) | [2](http://nixman.info/?p=2315)) | [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody) | [Openfire](http://ky0uraku.livejournal.com/79921.html) | [Generic](http://dsy.name/?q=vk4xmpp)
 
-Регистрация: [Psi+](http://is.gd/ujPeZ8) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/q8ZfFP) | [QIP](http://is.gd/eLAt27) | [jTalk](http://is.gd/XkkdIl) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/) | [Pidgin](http://xmppserv.ru/pidgin/) | [VacuumIM](http://xmppserv.ru/vacuum/) | [Kopete](http://xmppserv.ru/kopete/)
+Регистрация: [Psi+](http://is.gd/VwlK5R) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/5dAduL) | [QIP](http://is.gd/xrjvfF) | [jTalk](http://is.gd/pZt5gz) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/) | [Pidgin](http://xmppserv.ru/pidgin/) | [VacuumIM](http://xmppserv.ru/vacuum/) | [Kopete](http://xmppserv.ru/kopete/) | [Talkonaut](http://is.gd/OxJdMK)
 
 Обсуждения: [На 4pda](http://is.gd/t10ZIc) | [На форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041) | [На форуме Debian](http://debianforum.r/uindex.php?topic=6037)
 
-Другое: [FAQ](http://is.gd/zgOMp9) | [Группа во ВКонтакте](https://vk.com/vk4xmpp) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
+Другое: [FAQ](http://is.gd/qqCI81) | [Группа во ВКонтакте](https://vk.com/vk4xmpp) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
 
 Также рекомендуется заглянуть в [Wiki](https://github.com/mrDoctorWho/vk4xmpp/wiki/).
 
