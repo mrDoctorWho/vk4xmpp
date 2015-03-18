@@ -36,6 +36,7 @@ VK4XMPP представляет собой легковесный трансп�
 * XEP-0012 (Last Activity)
 * XEP-0030 (Service Discovery)
 * XEP-0039 (Statistics Gathering)
+* XEP-0045 (Multi-User Chat)
 * XEP-0050 (Ad-Hoc Commands)
 * XEP-0054 (vcard-temp)
 * XEP-0071 (XHTML-IM)
