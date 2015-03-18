@@ -79,7 +79,7 @@ VK4XMPP представляет собой легковесный трансп�
 3. Вы — пользователь, которому просто нравится проект и/или определённый запущенный сервис. Транспорты, впрочем как и сервера (в основном), запущены энтузиастами на некоммерческой основе, люди оплачивают их из своего кармана. Сделайте пожертвование своему серверу! *(администраторам: в файле конфигурации для этого есть поле AdditionalAbout)*
 
 
-**Список серверов, где установлен VK4XMPP**:
+<a name="servers"></a>**Список серверов, где установлен VK4XMPP**:
 * vk.jabberik.ru
 * vkontakte.jabberon.ru
 * vk.beerseller.org
@@ -91,7 +91,7 @@ VK4XMPP представляет собой легковесный трансп�
 Полный список можно посмотреть [здесь](http://xmppserv.ru/xmpp-monitor).
 
 
-**Благодарности**:
+<a name="thanks"></a>**Благодарности**:
 * Alexey-cv (donate, продвижение посредством создания тем на 4pda, содание FAQ, написание большинства инструкций, тесты)
 * alkorgun (предложения по лучшей реализации некоторых алгоритмов, код)
 * Armageddon (сервера, тестирование, идеи, donate)
@@ -103,16 +103,48 @@ VK4XMPP представляет собой легковесный трансп�
 
 А также всем, кто как-либо участвовал в разработке или тестировании. Без этих людей не было бы транспорта таким, какой он есть.
 
-Установка (для серверов): [Arch](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody) | [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) | [Gentoo](http://blog.stv-fian.ru/?p=375)
+Установка (для серверов): 
+
+* [Arch Linux](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody)
+* [Gentoo](http://blog.stv-fian.ru/?p=375)
+* [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) 
 
 
-Настройка jabber-серверов: Ejabberd ([1](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)) | [2](http://nixman.info/?p=2315)) | [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody) | [Openfire](http://ky0uraku.livejournal.com/79921.html) | [Generic](http://dsy.name/?q=vk4xmpp)
+<a name="configure"></a>Настройка jabber-серверов: 
 
-Регистрация: [Psi+](http://is.gd/VwlK5R) | [Tkabber](http://dsy.name/?q=vk4xmpp) | [Gajim](http://xmppserv.ru/gajim/) | [Miranda](http://is.gd/5dAduL) | [QIP](http://is.gd/xrjvfF) | [jTalk](http://is.gd/pZt5gz) | [Jimm](http://xmppserv.ru/jimm/) | [JasmineIM](http://xmppserv.ru/jasmine/) | [Pidgin](http://xmppserv.ru/pidgin/) | [VacuumIM](http://xmppserv.ru/vacuum/) | [Kopete](http://xmppserv.ru/kopete/) | [Talkonaut](http://is.gd/OxJdMK)
+* Ejabberd: [раз](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)), [два](http://nixman.info/?p=2315)
+* [Openfire](http://ky0uraku.livejournal.com/79921.html)
+* [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody)
+* [Generic](http://dsy.name/?q=vk4xmpp)
 
-Обсуждения: [На 4pda](http://is.gd/t10ZIc) | [На форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041) | [На форуме Debian](http://debianforum.r/uindex.php?topic=6037)
 
-Другое: [FAQ](http://is.gd/qqCI81) | [Группа во ВКонтакте](https://vk.com/vk4xmpp) | [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
+<a name="register"></a>Регистрация:
+
+* [Gajim](http://xmppserv.ru/gajim/)
+* [JasmineIM](http://xmppserv.ru/jasmine/)
+* [Jimm](http://xmppserv.ru/jimm/)
+* [jTalk](http://is.gd/pZt5gz)
+* [Kopete](http://xmppserv.ru/kopete/)
+* [Miranda](http://is.gd/5dAduL)
+* [Pidgin](http://xmppserv.ru/pidgin/)
+* [Psi+](http://is.gd/VwlK5R)
+* [QIP](http://is.gd/xrjvfF)
+* [Talkonaut](http://is.gd/OxJdMK)
+* [Tkabber](http://dsy.name/?q=vk4xmpp)
+* [VacuumIM](http://xmppserv.ru/vacuum/)
+
+
+<a name="talk"></a>Обсуждения: 
+
+* [На 4pda](http://is.gd/t10ZIc)
+* [На форуме Debian](http://debianforum.r/uindex.php?topic=6037)
+* [На форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041)
+
+
+<a name="other"></a>Другое:
+* [FAQ](http://is.gd/qqCI81)
+* [Группа во ВКонтакте](https://vk.com/vk4xmpp)
+* [Страница на JaWiki](http://jawiki.ru/Vk4xmpp)
 
 Также рекомендуется заглянуть в [Wiki](https://github.com/mrDoctorWho/vk4xmpp/wiki/).
 
@@ -127,6 +159,6 @@ python ./gateway.py
 
 2. XMPP (Jabber) — Расширяемый протокол мгновенного обмена сообщениями ([Wikipedia/XMPP](https://wikipedia.org/wiki/XMPP)).
 
-3. К сожалению, нет нормальной инструкции см. [simpleApps/AdHoc](http://simpleapps.ru/publ/4-1-0-4) и [JaWiki/AdHoc](http://jawiki.ru/Adhoc)).
+3. К сожалению, нет нормальной инструкции; см. [simpleApps/AdHoc](http://simpleapps.ru/publ/4-1-0-4) и [JaWiki/AdHoc](http://jawiki.ru/Adhoc).
 
 © simpleApps, 2013 — 2015.
