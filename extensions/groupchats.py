@@ -130,7 +130,7 @@ class Chat(object):
 		self.created = False
 		self.invited = False
 		self.exists = False
-		self.xmpp_owner = None
+		self.owner_nickname = None
 		self.topic = topic
 		self.errors = []
 		self.creation_date = date
@@ -260,7 +260,7 @@ class Chat(object):
 			body += parseForwardedMessages(user, vkChat)
 			if body:
 				date = 0
-				if user.settings.force_vk_date:
+				if user.settings.force_vk_date_group:
 					date = vkChat["date"]
 				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, date)
 		else:
@@ -317,6 +317,7 @@ def incomingChatMessageHandler(msg):
 	if msg.getType() == "groupchat":
 		body = msg.getBody()
 		destination = msg.getTo().getStripped()
+		nick = msg.getFrom().getResource()
 		source = msg.getFrom().getStripped()
 		if mod_xhtml:
 			html = msg.getTag("html")
@@ -330,7 +331,14 @@ def incomingChatMessageHandler(msg):
 		if not msg.getTimestamp() and body and destination == TransportID:
 			user = Chat.getUserObject(source)
 			creator, id, domain = Chat.getParts(source)
-			if user:
+			if user and source in getattr(user, "chats", {}):
+				chat = user.chats[source]
+				# None of “normal” clients will send messages with timestamp
+				# If we do (as we set in force_vk_date_group), then the message received from a user
+				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
+				send = ((nick == chat.owner_nickname and user.settings.tie_chat_to_nickname)
+						or user.settings.force_vk_date_group)
+
 				if html and html.getTag("body"): ## XHTML-IM!
 					logger.debug("groupchats: fetched xhtml image (jid: %s)" % source)
 					try:
@@ -340,8 +348,15 @@ def incomingChatMessageHandler(msg):
 					if xhtml:
 						# Don't send a message if there's an image
 						raise xmpp.NodeProcessed()
-				user.vk.sendMessage(body, id, "chat_id")
-				runDatabaseQuery("update groupchats where jid=? set last_used=?", (source, time.time()))
+				if send:
+					user.vk.sendMessage(body, id, "chat_id")
+					runDatabaseQuery("update groupchats set last_used=? where jid=?", (source, time.time()))
+					raise xmpp.NodeProcessed()
+
+			elif user:
+				chatMessage(source, 
+					_("The message wasn't delivered. You probably need to wait until you get a message from the chat.")
+					, TransportID, timestamp=1)
 
 
 def handleChatErrors(source, prs):
@@ -354,6 +369,7 @@ def handleChatErrors(source, prs):
 	error = prs.getErrorCode()
 	status = prs.getStatusCode()
 	nick = prs.getFrom().getResource()
+	jid = prs.getJid()
 	user = None
 	if status or prs.getType() == "error":
 		user = Chat.getUserObject(source)
@@ -368,8 +384,13 @@ def handleChatErrors(source, prs):
 						chat.create(user)
 					else:
 						joinChat(source, nick, destination)
-		logger.debug("groupchats: presence error (error #%s, status #%s) \
-			from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
+
+			if status == "303":
+				if jid == user.source:
+					chat.owner_nickname = prs.getNick()
+
+		logger.debug("groupchats: presence error (error #%s, status #%s)" \
+			"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
 
 
 def handleChatPresences(source, prs):
@@ -387,11 +408,18 @@ def handleChatPresences(source, prs):
 					if (time.gmtime().tm_mon, time.gmtime().tm_mday) == (4, 1):
 						makeOutcast(source, jid, TransportID, _("Get the hell outta here!"))
 					else:
-						leaveChat(source, jid, _("I am not welcomed here")) 
+						leaveChat(source, jid, _("I am not welcomed here"))
+
 				if (prs.getRole(), prs.getAffiliation()) == ("moderator", "owner"):
 					if jid != TransportID:
-						runDatabaseQuery("update groupchats where jid=? set owner=?", (source, jid), set=True, semph=None)
-						chat.xmpp_owner = jid
+						runDatabaseQuery("update groupchats set owner=? where jid=?", (source, jid), set=True, semph=None)
+
+			if jid.split("/")[0] == user.source:
+				chat.owner_nickname = prs.getFrom().getResource()
+
+			if prs.getType() == "unavailable" and jid == user.source:
+				if transportSettings.destroy_on_leave:
+					exterminateChats(chats=[source])
 
 
 def exterminateChats(user=None, chats=[]):
@@ -406,10 +434,11 @@ def exterminateChats(user=None, chats=[]):
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)" % (chat, jid))
-			runDatabaseQuery("detele from groupchats where jid=?", (jid,), set=True, semph=None)
+			runDatabaseQuery("delete from groupchats where jid=?", (chat,), set=True, semph=None)
 		else:
-			logger.debug("groupchats: explain! Explain! \
-				The chat wasn't exterminated well! target:%s (jid: %s)" % (chat, jid))
+			logger.debug("groupchats: explain! Explain! " \
+				"The chat wasn't exterminated well! target:%s (jid: %s)" % (chat, jid))
+			logger.error("groupchats: got stanza: %s (jid: %s)" % (str(stanza), jid))
 
 	if user:
 		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), sepmh=False)
@@ -423,13 +452,14 @@ def exterminateChats(user=None, chats=[]):
 		Chat.setConfig(jid, owner, True, exterminated, {"jid": jid})
 
 
-def initGroupchatsTable():
+def initChatsTable():
 	"""
 	Initializes database if it doesn't exist
 	"""
-	runDatabaseQuery("create table if not exists groupchats \
-		(jid text, owner text, \
-		 user text, last_used integer)", set=True, semph=None)
+	runDatabaseQuery("create table if not exists groupchats " \
+		"(jid text, owner text," \
+		"user text, last_used integer)", set=True, semph=Semaphore)
+	return True
 
 
 CHAT_LIFETIME_LIMIT = 10 # in seconds
@@ -442,15 +472,30 @@ def cleanTheChatsUp():
 			result.append((jid, owner, user))
 	if result:
 		exterminateChats(chats=result)
+	runThread(cleanTheChatsUp, delay=(60*60*24))
+
+
+def initChatExtension():
+	if initChatsTable():
+		cleanTheChatsUp()
 
 
 if ConferenceServer:
-	initGroupchatsTable()
+	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
+		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
+
 	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users", 
 		"desc": "If set, transport will show ALL users in a conference, even you", "value": 0}
 
-	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
-		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
+	GLOBAL_USER_SETTINGS["tie_chat_to_nickname"] = {"label": "Tie chat to my nickname (tip: enable timestamp for groupchats)",
+		"desc": "If set, your messages will be sent only from your nickname "\
+		"(there is no way to determine whether a message was sent from you or from the transport, so this setting might help, but"\
+		"it will bring one bug: you wont be able to send any message if chat is not initialized. "
+		"Chat initializes when first message received after transport's boot", "value": 1}
+
+	GLOBAL_USER_SETTINGS["force_vk_date_group"] = {"label": "Force VK timestamp for groupchat messages", "value": 1}
+
+	TRANSPORT_SETTINGS["destroy_on_leave"] = {"label": "Destroy groupchat if user leaves it", "value": 0}
 
 	logger.info("extension groupchats is loaded")
 	TransportFeatures.add(xmpp.NS_GROUPCHAT)
@@ -458,6 +503,7 @@ if ConferenceServer:
 	registerHandler("msg02", incomingChatMessageHandler)
 	registerHandler("prs01", handleChatErrors)
 	registerHandler("prs01", handleChatPresences)
+	registerHandler("evt01", initChatExtension)
 	registerHandler("evt03", exterminateChats)
 
 else:

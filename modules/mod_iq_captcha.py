@@ -27,8 +27,10 @@ def captcha_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_CAPTCHA)
 	Component.RegisterHandler("iq", captcha_handler, "set")
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_CAPTCHA)
 	Component.UnregisterHandler("iq", captcha_handler, "set")

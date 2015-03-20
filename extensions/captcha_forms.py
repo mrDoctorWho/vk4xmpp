@@ -4,6 +4,11 @@
 
 from hashlib import sha1
 
+TransportFeatures.add(xmpp.NS_CAPTCHA)
+TransportFeatures.add(xmpp.NS_OOB)
+TransportFeatures.add(xmpp.NS_MEDIA)
+TransportFeatures.add(xmpp.NS_URN_OOB)
+
 def sendCaptcha(self):
 	logger.debug("VKLogin: sending message with captcha to %s" % self.source)
 	body = _("WARNING: VK sent captcha to you."

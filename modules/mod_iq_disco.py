@@ -271,6 +271,7 @@ def commands_handler(cl, iq):
 		sender(cl, result)
 
 
+
 def load():
 	TransportFeatures.add(xmpp.NS_COMMANDS)
 	TransportFeatures.add(xmpp.NS_DISCO_INFO)

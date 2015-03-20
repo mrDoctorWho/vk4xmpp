@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.65
+# vk4xmpp gateway, v2.66
 # © simpleApps, 2013 — 2015.
 # Program published under the MIT license.
 
@@ -134,9 +134,9 @@ setVars(DefLang, root)
 # Settings
 GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online", "value": 1},
 						"i_am_ghost": {"label": "I am a ghost", "value": 0},
-						"force_vk_date": {"label": "Force VK timestamp for messages", "value": 0}}
+						"force_vk_date": {"label": "Force VK timestamp for private messages", "value": 0}}
 
-TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
+TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from " \
 												"friends when user log off", "value": 0}}
 
 
@@ -184,9 +184,9 @@ def initDatabase(filename):
 	Initializes database if it doesn't exist
 	"""
 	if not os.path.exists(filename):
-		runDatabaseQuery("create table users \
-			(jid text, username text, token text, \
-			lastMsgID integer, rosterSet bool)", set=True, semph=None)
+		runDatabaseQuery("create table users " \
+			"(jid text, username text, token text, " \
+			"lastMsgID integer, rosterSet bool)", set=True, semph=None)
 	return True
 
 
@@ -257,7 +257,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 261, 0
+	revNumber, rev = 266, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -1151,7 +1151,7 @@ def removeUser(user, roster=False, notify=True):
 		source = user.source
 	user = Transport.get(source) ## here's probability it's not the User object
 	if notify:
-		sendMessage(Component, source, TransportID, _("The record in database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
+		sendMessage(Component, source, TransportID, _("The record in the database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
 	logger.debug("User: removing user from db (jid: %s)" % source)
 	runDatabaseQuery("delete from users where jid=?", (source,), True)
 	logger.debug("User: deleted (jid: %s)" % source)
@@ -1225,15 +1225,17 @@ class ModuleLoader:
 	"""
 
 	loaded = set([])
-	def register(self, module):
+	@classmethod
+	def __register(cls, module):
 		if hasattr(module, "load"):
 			module.load()
-		loaded.add(module)
+		ModuleLoader.loaded.add(module)
 
-	def unregister(self, module):
+	@classmethod
+	def __unregister(self, module):
 		if hasattr(module, "unload"):
 			module.unload()
-		loaded.remove(module)
+		ModuleLoader.loaded.remove(module)
 
 	@classmethod
 	def load(cls, list=[]):
@@ -1245,7 +1247,7 @@ class ModuleLoader:
 				crashlog("module_loader")
 			else:
 				result.append(name)
-				cls.register(module)
+				cls.__register(module)
 		return result
 
 	@classmethod
@@ -1253,7 +1255,7 @@ class ModuleLoader:
 		result = []
 		for name in list:
 			if name in sys.modules:
-				cls.unregister(sys.modules[name])
+				cls.__unregister(sys.modules[name])
 				del sys.modules[name]
 				result.append(name)
 		return result
@@ -1264,9 +1266,9 @@ class ModuleLoader:
 		for name in list:
 			if name in sys.modules:
 				module = sys.modules[name]
-				cls.unregister(module)
+				cls.__unregister(module)
 				try:
-					cls.register(reload(module))
+					cls.__register(reload(module))
 				except Exception:
 					crashlog("module_loader")
 				else:

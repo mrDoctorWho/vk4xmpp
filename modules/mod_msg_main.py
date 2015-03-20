@@ -8,6 +8,7 @@ Module purpose is to receive and handle messages
 
 from __main__ import *
 from __main__ import _
+import __main__
 
 
 def reportReceived(msg, jidFrom, jidTo):
@@ -79,20 +80,7 @@ def message_handler_threaded(cl, msg):
 					if text == "!captcha" and args:
 						acceptCaptcha(cl, args, jidTo, source)
 						answer = reportReceived(msg, jidFrom, jidTo)
-					elif text == "!eval" and args and source in ADMIN_JIDS:
-						try:
-							result = unicode(eval(args))
-						except Exception:
-							result = returnExc()
-						sendMessage(cl, source, jidTo, result)
-					elif text == "!exec" and args and source in ADMIN_JIDS:
-						try:
-							exec(unicode(args + "\n"), __main__.__builtins__.globals())
-						except Exception:
-							result = returnExc()
-						else:
-							result = "Done."
-						sendMessage(cl, source, jidTo, result)
+
 			else:
 				uID = jidTo.getNode()
 				vkMessage = user.vk.sendMessage(body, uID)
