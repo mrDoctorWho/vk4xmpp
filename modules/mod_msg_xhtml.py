@@ -22,8 +22,10 @@ def xhtml_handler(cl, msg):
 				raise xmpp.NodeProcessed()
 
 def load():
+	TransportFeatures.add(xmpp.NS_XHTML_IM)
 	Component.RegisterHandler("message", xhtml_handler, "chat")
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_XHTML_IM)
 	Component.UnregisterHandler("message", xhtml_handler, "chat")

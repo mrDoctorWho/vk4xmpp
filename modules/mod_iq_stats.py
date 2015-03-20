@@ -8,8 +8,8 @@ from __main__ import *
 STAT_FIELDS = {
 			"users/total": "users",
 			"users/online": "users",
-			"memory/virtual": "KB",
-			"memory/real": "KB",
+			"memory/virtual": "MB",
+			"memory/real": "MB",
 			"cpu/percent": "percent",
 			"cpu/time": "seconds",
 			"thread/active": "threads",
@@ -27,14 +27,15 @@ def stats_handler(cl, iq):
 		if not iqChildren:
 			keys = sorted(STAT_FIELDS.keys(), reverse=True)
 			for key in keys:
-				Node = xmpp.Node("stat", {"name": key})
-				queryPayload.append(Node)
+				node = xmpp.Node("stat", {"name": key})
+				queryPayload.append(node)
 		else:
 			users = calcStats()
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			virt, real, percent, time = shell[1].split()
+			virt, real = int(virt)/1024.0, int(real)/1024.0
 			stats = {"users": users,
-					"KB": [virt, real],
+					"MB": [virt, real],
 					"percent": [percent],
 					"seconds": [time],
 					"threads": [threading.activeCount()],
@@ -55,8 +56,10 @@ def stats_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_STATS)
 	Component.RegisterHandler("iq", stats_handler, "get", xmpp.NS_STATS)
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_STATS)
 	Component.UnregisterHandler("iq", stats_handler, "get", xmpp.NS_STATS)

@@ -30,7 +30,11 @@ def last_handler(cl, iq):
 	runThread(last_handler_threaded, (cl, iq))
 
 def load():
+	TransportFeatures.add(xmpp.NS_LAST)
+	UserFeatures.add(xmpp.NS_LAST)
 	Component.RegisterHandler("iq", last_handler, "get", xmpp.NS_LAST)
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_LAST)
+	UserFeatures.remove(xmpp.NS_LAST)
 	Component.UnregisterHandler("iq", last_handler, "get", xmpp.NS_LAST)

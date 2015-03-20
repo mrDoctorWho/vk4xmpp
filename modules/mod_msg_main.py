@@ -87,7 +87,7 @@ def message_handler_threaded(cl, msg):
 						sendMessage(cl, source, jidTo, result)
 					elif text == "!exec" and args and source in ADMIN_JIDS:
 						try:
-							exec(unicode(args + "\n"), globals())
+							exec(unicode(args + "\n"), __main__.__builtins__.globals())
 						except Exception:
 							result = returnExc()
 						else:
@@ -102,11 +102,16 @@ def message_handler_threaded(cl, msg):
 				sender(cl, answer)
 	executeHandlers("msg02", (msg,))
 
+
 def message_handler(cl, msg):
 	runThread(message_handler_threaded, (cl, msg))
 
+
 def load():
+	TransportFeatures.add(xmpp.NS_RECEIPTS)
 	Component.RegisterHandler("message", message_handler)
 
+
 def unload():
+	TransportFeatures.remove(xmpp.NS_RECEIPTS)
 	Component.UnregisterHandler("message", message_handler)

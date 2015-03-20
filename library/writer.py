@@ -25,7 +25,7 @@ def wFile(filename, data, mode = "w"):
 
 def rFile(filename):
 	"""
-	Reads file and returns data
+	Reads a file and returns the data
 	"""
 	if not os.path.exists(filename):
 		return "{}"
@@ -33,7 +33,7 @@ def rFile(filename):
 		return file.read()
 
 
-def crashLog(name, fixme_ = True):
+def crashLog(name, fixme_=True):
 	"""
 	Writes crashlog, ignoring duplicates
 	Parameters:

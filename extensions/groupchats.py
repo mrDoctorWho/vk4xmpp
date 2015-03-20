@@ -129,6 +129,7 @@ class Chat(object):
 		self.raw_users = users
 		self.created = False
 		self.invited = False
+		self.exists = False
 		self.xmpp_owner = None
 		self.topic = topic
 		self.errors = []
@@ -139,6 +140,15 @@ class Chat(object):
 		Creates a chat, joins it and sets the config
 		"""
 		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" % (self.jid, self.raw_users, self.owner, user.source))
+		
+		exists = runDatabaseQuery("select user from groupchats where jid=?", (self.jid,), many=True)
+		if exists:
+			self.exists = True
+			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" % (self.jid, user.source))
+		else:
+			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" % (self.jid, user.source))
+			runDatabaseQuery("insert into groupchats values (?,?,?,?)", (self.jid, TransportID, user.source, time.time()), True, semph=None)
+
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 		joinChat(self.jid, name, TransportID) ## we're joining to chat with the room owner's name to set the topic. That's why we have so many lines of code right here
@@ -245,17 +255,21 @@ class Chat(object):
 	def handleMessage(self, user, vkChat, retry=10):
 		if self.created:
 			self.update(user, vkChat)
-			body = escape("", uHTML(vkChat["body"]))
+			body = escape("", uhtml(vkChat["body"]))
 			body += parseAttachments(user, vkChat)
 			body += parseForwardedMessages(user, vkChat)
 			if body:
-				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, vkChat["date"])
+				date = 0
+				if user.settings.force_vk_date:
+					date = vkChat["date"]
+				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, date)
 		else:
 			source = "unknown"
 			userObject = self.getUserObject(self.jid)
 			if userObject:
 				source = userObject.source
 			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)" % (self.jid, source))
+			logger.warning("groupchats: is there any groupchat limit on the server?")
 			if retry:
 				runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
 
@@ -309,7 +323,7 @@ def incomingChatMessageHandler(msg):
 		else:
 			html = None
 
-		x = msg.getTag("x", {"xmlns": "http://jabber.org/protocol/muc#user"})
+		x = msg.getTag("x", {"xmlns": xmpp.NS_MUC_USER})
 		if x and x.getTagAttr("status", "code") == "100":
 			raise xmpp.NodeProcessed()
 
@@ -324,8 +338,10 @@ def incomingChatMessageHandler(msg):
 					except Exception:
 						xhtml = False
 					if xhtml:
+						# Don't send a message if there's an image
 						raise xmpp.NodeProcessed()
 				user.vk.sendMessage(body, id, "chat_id")
+				runDatabaseQuery("update groupchats where jid=? set last_used=?", (source, time.time()))
 
 
 def handleChatErrors(source, prs):
@@ -352,7 +368,8 @@ def handleChatErrors(source, prs):
 						chat.create(user)
 					else:
 						joinChat(source, nick, destination)
-		logger.debug("groupchats: presence error (error #%s, status #%s) from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
+		logger.debug("groupchats: presence error (error #%s, status #%s) \
+			from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
 
 
 def handleChatPresences(source, prs):
@@ -372,23 +389,63 @@ def handleChatPresences(source, prs):
 					else:
 						leaveChat(source, jid, _("I am not welcomed here")) 
 				if (prs.getRole(), prs.getAffiliation()) == ("moderator", "owner"):
-					chat.xmpp_owner = jid
+					if jid != TransportID:
+						runDatabaseQuery("update groupchats where jid=? set owner=?", (source, jid), set=True, semph=None)
+						chat.xmpp_owner = jid
 
 
-def exterminateChats(user):
+def exterminateChats(user=None, chats=[]):
 	"""
 	Calls a Dalek for exterminate the chat
+	The chats argument must be a list of tuples
 	"""
-	chats = user.vk.method("execute.getChats")
-	for chat in chats:
-		jid = "%s_chat#%s@%s" % (user.vk.userID, chat["chat_id"], ConferenceServer)
-		Chat.setConfig(jid, TransportID, True)
-		if jid in getattr(user, "chats", {}):
-			del user.chats[jid]
+	def exterminated(cl, stanza, jid):
+		"""
+		Our Dalek is happy now!
+		"""
+		chat = stanza.getFrom().getStripped()
+		if xmpp.isResultNode(stanza):
+			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)" % (chat, jid))
+			runDatabaseQuery("detele from groupchats where jid=?", (jid,), set=True, semph=None)
+		else:
+			logger.debug("groupchats: explain! Explain! \
+				The chat wasn't exterminated well! target:%s (jid: %s)" % (chat, jid))
+
+	if user:
+		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), sepmh=False)
+		source = user.source
+		userChats = getattr(user, "chats", {})
+		if jid in userChats:
+			del userChats[jid]
+
+	for (jid, owner, source) in chats:
+		logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)" % (jid, owner, source))
+		Chat.setConfig(jid, owner, True, exterminated, {"jid": jid})
+
+
+def initGroupchatsTable():
+	"""
+	Initializes database if it doesn't exist
+	"""
+	runDatabaseQuery("create table if not exists groupchats \
+		(jid text, owner text, \
+		 user text, last_used integer)", set=True, semph=None)
+
+
+CHAT_LIFETIME_LIMIT = 10 # in seconds
+
+def cleanTheChatsUp():
+	chats = runDatabaseQuery("select jid, owner, last_used, user from groupchats")
+	result = []
+	for (jid, owner, last_used, user) in chats:
+		if (time.time() - last_used) > CHAT_LIFETIME_LIMIT:
+			result.append((jid, owner, user))
+	if result:
+		exterminateChats(chats=result)
 
 
 if ConferenceServer:
-
+	initGroupchatsTable()
 	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users", 
 		"desc": "If set, transport will show ALL users in a conference, even you", "value": 0}
 
@@ -396,7 +453,7 @@ if ConferenceServer:
 		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
 
 	logger.info("extension groupchats is loaded")
-	TransportFeatures.append(xmpp.NS_GROUPCHAT)
+	TransportFeatures.add(xmpp.NS_GROUPCHAT)
 	registerHandler("msg01", outgoingChatMessageHandler)
 	registerHandler("msg02", incomingChatMessageHandler)
 	registerHandler("prs01", handleChatErrors)
@@ -406,4 +463,4 @@ if ConferenceServer:
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
-		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats
+		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, initGroupchatsTable, cleanTheChatsUp

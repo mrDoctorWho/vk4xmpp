@@ -19,8 +19,10 @@ def main_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_PING)
 	Component.RegisterHandler("iq", main_handler, makefirst=True)
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_PING)
 	Component.UnregisterHandler("iq", main_handler)

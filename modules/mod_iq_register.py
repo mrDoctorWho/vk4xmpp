@@ -27,7 +27,7 @@ def initializeUser(user, cl, iq):
 				crashLog("user.init")
 				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 			else:
-				watcherMsg(_("New user registered: %s") % source)
+				executeHandlers("evt08", (source,))
 		else:
 			logger.error("user connection failed (jid: %s)" % source)
 			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
@@ -51,12 +51,18 @@ def register_handler(cl, iq):
 	if destination == TransportID:
 		if iType == "get" and not queryChildren:
 			logger.debug("Send registration form to user (jid: %s)" % source)
+			# Something is really messed up down here
 			form = utils.buildDataForm(fields = [
+				# Auth page input
 				{"var": "link", "type": "text-single", "label": _("Autorization page"),
 					"desc": ("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
-						   "and then paste url to password field."), "value": URL_ACCEPT_APP},
+						   "and then paste url to password field."), 
+				"value": URL_ACCEPT_APP},
+				# Phone input
 				{"var": "phone", "type": "text-single", "label": _("Phone number"), "desc": _("Enter phone number in format +71234567890"), "value": "+"},
+				# Password checkbox
 				{"var": "use_password", "type": "boolean", "label": _("Get access-token automatically"), "desc": _("Tries to get access-token automatically. (NOT recommended, password required!)")},
+				# Password input
 				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}],
 			data = [_("Type data in fields")])
 			result.setQueryPayload([form])
@@ -116,8 +122,8 @@ def register_handler(cl, iq):
 					user = Transport[source]
 					removeUser(user, True, False)
 					result = iq.buildReply("result") # Is it required?
-					result.setPayload([], add = 0)
-					watcherMsg(_("User has removed registration: %s") % source)
+					result.setPayload([], add=False)
+					executeHandlers("evt09", (source,))
 				else:
 					logger.debug("... but he don't know that he was removed already!")
 
@@ -127,8 +133,12 @@ def register_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_REGISTER)
+	TransportFeatures.add(xmpp.NS_DATA)
 	Component.RegisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_REGISTER)
+	TransportFeatures.remove(xmpp.NS_DATA)
 	Component.UnregisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)

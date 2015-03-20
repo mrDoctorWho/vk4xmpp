@@ -16,8 +16,10 @@ def version_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_VERSION)
 	Component.RegisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_VERSION)
 	Component.UnregisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)

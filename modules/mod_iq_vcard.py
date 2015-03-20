@@ -68,8 +68,10 @@ def vcard_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_VCARD)
 	Component.RegisterHandler("iq", vcard_handler, "get", xmpp.NS_VCARD)
 
 
 def unload():
+	TransportFeautres.remove(xmpp.NS_VCARD)
 	Component.UnregisterHandler("iq", vcard_handler, "get", xmpp.NS_VCARD)

@@ -55,7 +55,7 @@ You're invited by user «%s»=Вас приглашает «%s»
 # plugin status-from-vk.py
 Show my friends status messages=Отображать статусные сообщения моих друзей
 # plugin status-to-vk.py
-Publish my status in VK=Публиковать мой статус в VK
+Publish my status in VK=Публиковать текст статуса в VK
 # plugin typing_reader.py
 Mark my messages as read when I compose message=Отмечать мои сообщения прочитанными, когда я печатаю сообщение
 User removed his registration=Пользователь удалил регистрацию

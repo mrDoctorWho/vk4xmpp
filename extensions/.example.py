@@ -8,11 +8,13 @@
 ## Events (not finished yet so not sorted):
 # 01 - transport's start (threaded), no args
 # 02 - transport's shutdown (linear)
-# 03 - user deletion (linear)
-# 04 - captcha (linear)
-# 05 - user became online (threaded)
-# 06 - user became offline (linear)
-# 07 - user is logging in (linear, before the friends are received)
+# 03 - user deletion (linear), args: User object
+# 04 - captcha (linear), args: VK object
+# 05 - user became online (threaded), args: User object
+# 06 - user became offline (linear), args: VK object (don't ask me why, i have no idea)
+# 07 - user is logging in (linear, before the friends list wes received), args: User object
+# 08 - new user registered, args: user's jid
+# 09 - user unregistered, args: user's jid
 ## Messages: 01 outgoing (vk->xmpp), 02 incoming (xmpp), 03 is used to modify message (xmpp)
 ## Presences: 01 incoming presence, 02 - is used to modify outgoing presence (xmpp)
 
@@ -81,6 +83,25 @@ def evt06_handler(vk):
 	print "We've lost this guy: %s" % vk.source ## yes VK class object too have source attribute
 
 registerHandler("evt06", evt06_handler)
+
+
+def evt08_handler(source):
+	"""
+	Linear handler
+	Called when a new user registered
+	"""
+
+registerHandler("evt08", watch_registered)
+
+
+def evt09_handler(source):
+	"""
+	Linear handler
+	Called when a user has unregistered
+	"""
+
+registerHandler("evt09", watch_unregistered)
+
 
 def evt07_handler(user):
 	"""

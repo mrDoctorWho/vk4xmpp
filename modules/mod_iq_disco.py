@@ -74,11 +74,7 @@ def disco_handler(cl, iq):
 	sender(cl, result)
 
 
-def getUsersList():
-	with Database(DatabaseFile) as db:
-		db("select jid from users")
-		result = db.fetchall()
-	return result
+getUsersList = lambda: runDatabaseQuery("select jid from users", many=True)
 
 
 def deleteUsers(jids):
@@ -96,6 +92,9 @@ def sendGlobalMessage(text):
 
 
 def checkAPIToken(token):
+	"""
+	Checks API token, returns dict or error
+	"""
 	vk = VK()
 	try:
 		auth = vk.auth(token, True, False)
@@ -112,6 +111,11 @@ def checkAPIToken(token):
 
 
 def dictToDataForm(_dict, _fields=None):
+	"""
+	Makes a buildForm()-compatible dict from a random key-value dict
+	converts boolean types to a boolean field,
+	converts multiline string to a text-multi field and so on.
+	"""
 	_fields = _fields or []
 	for key, value in _dict.iteritems():
 		result = {"var": key, "value": value}
@@ -119,13 +123,12 @@ def dictToDataForm(_dict, _fields=None):
 			type = "text-signle"
 
 		elif isinstance(value, bool):
-			print key, value
 			type = "boolean"
 			value = utils.normalizeValue(value)
-			print key,value
 
 		elif isinstance(value, dict):
 			dictToDataForm(value, _fields)
+
 		elif isinstance(value, str):
 			type = "text-single"
 			if "\n" in value:
@@ -269,12 +272,20 @@ def commands_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_COMMANDS)
+	TransportFeatures.add(xmpp.NS_DISCO_INFO)
+	TransportFeatures.add(xmpp.NS_DISCO_ITEMS)
+	TransportFeatures.add(xmpp.NS_DATA)
 	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
 	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
 	Component.RegisterHandler("iq", commands_handler, "set")
 
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_COMMANDS)
+	TransportFeatures.remove(xmpp.NS_DISCO_INFO)
+	TransportFeatures.remove(xmpp.NS_DISCO_ITEMS)
+	TransportFeatures.remove(xmpp.NS_DATA)
 	Component.UnregisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
 	Component.UnregisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
 	Component.UnregisterHandler("iq", commands_handler, "set")

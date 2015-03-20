@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.61
+# vk4xmpp gateway, v2.65
 # © simpleApps, 2013 — 2015.
 # Program published under the MIT license.
 
@@ -48,22 +48,12 @@ WatcherList = []
 WhiteList = []
 ADMIN_JIDS = []
 
-TransportFeatures = [xmpp.NS_DISCO_ITEMS,
-					xmpp.NS_DISCO_INFO,
-					xmpp.NS_RECEIPTS,
-					xmpp.NS_REGISTER,
-					xmpp.NS_COMMANDS,
-					xmpp.NS_GATEWAY,
-					xmpp.NS_VERSION,
-					xmpp.NS_CAPTCHA,
-					xmpp.NS_STATS,
-					xmpp.NS_VCARD,
-					xmpp.NS_DELAY,
-					xmpp.NS_PING,
-					xmpp.NS_LAST]
+# The features transport will advertise
+TransportFeatures = set([xmpp.NS_DELAY])
 
-UserFeatures = [xmpp.NS_CHATSTATES,
-				xmpp.NS_LAST]
+# The features transport's users will advertise
+UserFeatures = set([xmpp.NS_CHATSTATES,
+					xmpp.NS_LAST])
 
 IDENTIFIER = {"type": "vk",
 			"category": "gateway",
@@ -143,7 +133,8 @@ setVars(DefLang, root)
 
 # Settings
 GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online", "value": 1},
-						"i_am_ghost": {"label": "I am a ghost", "value": 0}}
+						"i_am_ghost": {"label": "I am a ghost", "value": 0},
+						"force_vk_date": {"label": "Force VK timestamp for messages", "value": 0}}
 
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "\
 												"friends when user log off", "value": 0}}
@@ -162,7 +153,8 @@ Handlers = {"msg01": [], "msg02": [],
 			"evt02": [], "evt03": [],
 			"evt04": [], "evt05": [],
 			"evt06": [], "evt07": [],
-			"prs01": [], "prs02": []}
+			"prs01": [], "prs02": [],
+			"evt08": [], "evt09": []}
 
 Stats = {"msgin": 0, ## from vk
 		 "msgout": 0, ## to vk
@@ -171,14 +163,30 @@ Stats = {"msgin": 0, ## from vk
 DESC = "© simpleApps, 2013 — 2015."
 
 
+def runDatabaseQuery(query, args=(), set=False, many=True, semph=Semaphore):
+	"""
+	Executes sql to the database
+	"""
+	with Database(DatabaseFile, semph) as db:
+		db(query, args)
+		if set:
+			db.commit()
+			result = None
+		elif many:
+			result = db.fetchall()
+		else:
+			result = db.fetchone()
+	return result
+
+
 def initDatabase(filename):
 	"""
-	Initializes database if it doesn't exists
+	Initializes database if it doesn't exist
 	"""
 	if not os.path.exists(filename):
-		with Database(filename) as db:
-			db("create table users (jid text, username text, token text, lastMsgID integer, rosterSet bool)")
-			db.commit()
+		runDatabaseQuery("create table users \
+			(jid text, username text, token text, \
+			lastMsgID integer, rosterSet bool)", set=True, semph=None)
 	return True
 
 
@@ -197,6 +205,15 @@ def execute(handler, list=()):
 	return result
 
 
+def executeHandlers(type, list=()):
+	"""
+	Executes all handlers by type with list as list of args
+	"""
+	handlers = Handlers[type]
+	for handler in handlers:
+		execute(handler, list)
+
+
 def registerHandler(type, func):
 	"""
 	Registers handlers and remove if the same is already exists
@@ -208,26 +225,15 @@ def registerHandler(type, func):
 	Handlers[type].append(func)
 
 
-def executeHandlers(type, list=()):
-	"""
-	Executes all handlers by type with list as list of args
-	"""
-	handlers = Handlers[type]
-	logger.debug("executing handlers of type %s: %s" % (type, str([x.func_name for x in handlers])))
-	for handler in handlers:
-		execute(handler, list)
-	logger.debug("%d handlers were successfully executed (type: %s, args: %s)" % (len(handlers), type, str(list)))
-
-
 def runThread(func, args=(), name=None, att=3, delay=0):
 	"""
 	Runs a thread with custom args and name
 	Needed to reduce code
 	Parameters:
-		func: function needed to be run in thread
+		func: function you need to be running in a thread
 		args: function arguments
 		name: thread name
-		att: a number of attempts
+		att: number of attempts
 		delay: if set, then threading.Timer will be started, not threading.Thread
 
 	"""
@@ -247,14 +253,6 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 		crashLog("runThread.%s" % name)
 
 
-def runDatabaseQuery(query, args, set=False):
-	with Database(DatabaseFile, Semaphore) as db:
-		db(query, args)
-		if set: 
-			db.commit()
-	return db
-
-
 def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
@@ -268,6 +266,7 @@ def getGatewayRev():
 
 def vk2xmpp(id):
 	"""
+	Converts vk ids to jabber ids and vice versa
 	Returns id@TransportID if parameter "id" is int or str(int)
 	Returns id if parameter "id" is id@TransportID
 	Returns TransportID if "id" is TransportID
@@ -309,7 +308,7 @@ class Settings(object):
 			if key in self.settings:
 				self.settings[key]["value"] = values["value"]
 			else:
-				self.settings[key] = values ## is it correct?
+				self.settings[key] = values
 
 		self.keys = self.settings.keys
 		self.items = self.settings.items
@@ -465,7 +464,7 @@ class VK(object):
 			nodecode: decode flag (make json.loads or not)
 			force: says that method will be executed even the captcha and not online
 		See library/vkapi.py for more information about exceptions
-		Returns method result
+		Returns method execition result
 		"""
 		args = args or {}
 		result = {}
@@ -644,9 +643,7 @@ class User(object):
 		Raises exception if raise_exc == True
 		"""
 		self.vk = VK(self.username, self.password, self.source)
-		with Database(DatabaseFile, Semaphore) as db:
-			db("select * from users where jid=?", (self.source,))
-			data = db.fetchone()
+		data = runDatabaseQuery("select * from users where jid=?", (self.source,), many=False)
 		if data:
 			if not self.token and not self.password:
 				logger.debug("User exists in database. Using his information (jid: %s)" % self.source)
@@ -780,7 +777,7 @@ class User(object):
 				if not message["out"]:
 					Stats["msgin"] += 1
 					fromjid = vk2xmpp(message["uid"])
-					body = uHTML(message["body"])
+					body = uhtml(message["body"])
 					iter = Handlers["msg01"].__iter__()
 					for func in iter:
 						try:
@@ -796,7 +793,7 @@ class User(object):
 						else:
 							body += result
 					else:
-						if init:
+						if self.settings.force_vk_date:
 							date = message["date"]
 						sendMessage(Component, self.source, fromjid, escape("", body), date)
 		if messages:
@@ -874,7 +871,7 @@ class User(object):
 		Sends subscribe presences if new friends found
 		Sends unsubscribe presences if some friends disappeared
 		"""
-		if cTime - self.last_udate > 360 and not self.vk.engine.captcha:
+		if (cTime - self.last_udate) > 360 and not self.vk.engine.captcha:
 			if not self.settings.i_am_ghost:
 				if self.settings.keep_online:
 					self.vk.method("account.setOnline")
@@ -1028,7 +1025,6 @@ class Poll:
 					## We need to check if the user hasn't left yet
 					if not user.vk.online:
 						continue
-					# In case if VK won't let us to read the socket, we're dead
 					runThread(cls.processResult, (user, opener), "poll.processResult-%s" % user.source)
 
 			with cls.__lock:
@@ -1041,16 +1037,23 @@ class Poll:
 							pass
 
 	@classmethod
-	def processResult(self, user, opener):
+	def processResult(cls, user, opener):
+		"""
+		Processes the select result (see above)
+		Handles answers from user.processPollResult()
+		Decides neiter if need to add user to poll or not
+		"""
 		result = execute(user.processPollResult, (opener,))
-		## debug
 		if DEBUG_POLL:
 			logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
 		if result == -1:
 			return None
+		# if mark user.vk.Pollinitialized as False
+		# then there will be an exception
+		# after that, user will be reinitialized
 		if not result:
 			user.vk.pollInitialzed = False
-		self.add(user)
+		cls.add(user)
 
 
 def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None, show=None):
@@ -1114,14 +1117,6 @@ def sender(cl, stanza, cb=None, args={}):
 			disconnectHandler(True)
 
 
-def watcherMsg(text):
-	"""
-	Send message to jids in watchers list
-	"""
-	for jid in WatcherList:
-		sendMessage(Component, jid, TransportID, text)
-
-
 def updateCron():
 	"""
 	Calls the functions to update friends and typing users list
@@ -1138,11 +1133,8 @@ def calcStats():
 	"""
 	Returns count(*) from users database
 	"""
-	countTotal = 0
 	countOnline = len(Transport)
-	with Database(DatabaseFile, Semaphore) as db:
-		db("select count(*) from users")
-		countTotal = db.fetchone()[0]
+	countTotal = runDatabaseQuery("select count(*) from users", many=False)[0]
 	return [countTotal, countOnline]
 
 
@@ -1222,37 +1214,64 @@ def getModulesList():
 	return modules
 
 
-def loadModules(reload_=False, modules=[]):
-	"""
-	Loading modules from list made by getModulesList()
-	Parameter "reload_" is needed to reload the modules
-	"""
-	modules = modules or getModulesList()
+class ModuleLoader:
 
-	def _register(module):
+	"""
+	A complete proxy for modules. You can easy load, reload and unload any module using this.
+	Modules are different from extensions.
+	While extensions works in main globals() and have their callbacks,
+	modules works in their own globals() and they're not affect to the core.
+	Unfortunately, most of modules are not protected from harm and they may have affect on the connection
+	"""
+
+	loaded = set([])
+	def register(self, module):
 		if hasattr(module, "load"):
 			module.load()
+		loaded.add(module)
 
-	def _load(name):
-		module = __import__(name, globals, locals())
-		_register(module)
+	def unregister(self, module):
+		if hasattr(module, "unload"):
+			module.unload()
+		loaded.remove(module)
 
-	def _reload(name):
-		if name in sys.modules:
-			module = sys.modules[name]
-			if hasattr(module, "unload"):
-				module.unload()
-			module = reload(module)
-			_register(module)
-
-	for name in modules:
-		try:
-			if reload_:
-				_reload(name)
+	@classmethod
+	def load(cls, list=[]):
+		result =[]
+		for name in list:
+			try:
+				module = __import__(name, globals(), locals())
+			except Exception:
+				crashlog("module_loader")
 			else:
-				_load(name)
-		except Exception:
-			crashLog("loadmodules")
+				result.append(name)
+				cls.register(module)
+		return result
+
+	@classmethod
+	def unload(cls, list=[]):
+		result = []
+		for name in list:
+			if name in sys.modules:
+				cls.unregister(sys.modules[name])
+				del sys.modules[name]
+				result.append(name)
+		return result
+
+	@classmethod
+	def reload(cls, list=[]):
+		result = []
+		for name in list:
+			if name in sys.modules:
+				module = sys.modules[name]
+				cls.unregister(module)
+				try:
+					cls.register(reload(module))
+				except Exception:
+					crashlog("module_loader")
+				else:
+					result.append(name)
+		return result
 
 
 def connect():
@@ -1284,11 +1303,10 @@ def initializeUsers():
 	Initializes users by sending them "probe" presence
 	"""
 	Print("#-# Initializing users", False)
-	with Database(DatabaseFile) as db:
-		users = db("select jid from users").fetchall()
-		for user in users:
-			Print(".", False)
-			sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
+	users = runDatabaseQuery("select jid from users", semph=None)
+	for user in users:
+		Print(".", False)
+		sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
 	Print("\n#-# Finished.")
 
 
@@ -1302,7 +1320,7 @@ def runMainActions():
 		runThread(event, (), "extension-%d" % num)
 	runThread(Poll.process, (), "longPoll")
 	runThread(updateCron, (), "updateCron")
-	loadModules()
+	ModuleLoader.load(getModulesList())
 
 
 def main():
@@ -1356,10 +1374,10 @@ def makeMeKnown():
 	You can check out the source of The VK4XMPP Monitor utilty over there: https://github.com/aawray/xmpp-monitor
 	"""
 	if WhiteList:
-		WhiteList.append("anon.xmppserv.ru")
+		WhiteList.append(VK4XMPP_MONITOR_SERVER)
 	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
-		RIP.post("http://xmppserv.ru/xmpp-monitor/hosts.php", {"add": TransportID})
+		RIP.post(VK4XMPP_MONITOR_URL, {"add": TransportID})
 		Print("#! Information about this transport has been successfully published.")
 
 

@@ -103,3 +103,12 @@ DEBUG_POLL = False
 
 ## Debug api requests. It should contain a list of methods which you would like to debug or "all" if you like to debug all methods.
 DEBUG_API = []
+
+
+## VK4XMPP Monitor settings
+## The server where the requests will come from
+VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
+
+## The URL where transport should send POST requests with it's name
+## See https://github.com/aawray/xmpp-monitor
+VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"

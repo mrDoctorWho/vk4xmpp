@@ -7,10 +7,13 @@ import urllib
 VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
 
 def parseAttachments(self, msg, spacer=""):
+	"""
+	This function “parses” attachments from json to a string
+	"""
 	result = ""
 	if msg.has_key("attachments"):
 
-## Add new line and "Attachments"
+		# Add new line and "Attachments" if there some text added
 		if msg["body"]:
 			result += chr(10) + spacer + _("Attachments:") + chr(10)
 
@@ -37,7 +40,7 @@ def parseAttachments(self, msg, spacer=""):
 			elif typ == "audio":
 				for key in ("performer", "title"):
 					if att[typ].has_key(key):
-						att[typ][key] = uHTML(att[typ][key])
+						att[typ][key] = uhtml(att[typ][key])
 
 				url = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % att[typ]))
 				att[typ]["url"] = url

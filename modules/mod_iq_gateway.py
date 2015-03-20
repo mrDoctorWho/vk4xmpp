@@ -4,7 +4,6 @@
 
 from __main__ import *
 
-
 def gateway_handler(cl, iq):
 	jidTo = iq.getTo()
 	itype = iq.getType()
@@ -34,7 +33,9 @@ def gateway_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_GATEWAY)
 	Component.RegisterHandler("iq", gateway_handler, "", xmpp.NS_GATEWAY)
 
 def unload():
+	TransportFeatures.remove(xmpp.NS_GATEWAY)
 	Component.UnregisterHandler("iq", gateway_handler, "", xmpp.NS_GATEWAY)
