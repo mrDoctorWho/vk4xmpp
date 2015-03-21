@@ -510,7 +510,7 @@ if isdef("ConferenceServer") and ConferenceServer:
 	GLOBAL_USER_SETTINGS["tie_chat_to_nickname"] = {"label": "Tie chat to my nickname (tip: enable timestamp for groupchats)",
 		"desc": "If set, your messages will be sent only from your nickname\n"\
 		"(there is no way to determine whether a message was sent\nfrom you or from the transport, so this setting might help,\nbut"\
-		" it will bring one bug: you wont be able to send any message if chat is not initialized. "
+		" it will bring one bug: you wont be able to send any message if chat is not initialized). "
 		"\nChat initializes when first message received after transport's boot", "value": 1}
 
 	GLOBAL_USER_SETTINGS["force_vk_date_group"] = {"label": "Force VK timestamp for groupchat messages", "value": 1}
