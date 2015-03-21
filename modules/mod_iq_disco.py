@@ -137,6 +137,8 @@ def dictToDataForm(_dict, _fields=None):
 	return _fields
 
 
+## a feature to query the database
+
 def commands_handler(cl, iq):
 	source = iq.getFrom().getStripped()
 	cmd = iq.getTag("command", namespace=xmpp.NS_COMMANDS)
@@ -210,7 +212,7 @@ def commands_handler(cl, iq):
 								if isinstance(_result, dict):
 									_fields = dictToDataForm(_result)
 								else:
-									_fields = [{"var": "body", "value": str(_result), "type": "text-multi" }]
+									_fields = [{"var": "body", "value": str(_result), "type": "text-multi"}]
 
 								simpleForm = buildForm(simpleForm, fields=_fields)
 								commandTag.addChild(node=simpleForm)
@@ -236,7 +238,7 @@ def commands_handler(cl, iq):
 								 "value": values["value"], "desc": _(values.get("desc"))})
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Choose wisely")
 
-					elif form and source in Transport:
+					elif form:
 						form = getForm(node=form).asDict()
 						for key in form.keys():
 							if key in config.keys():
@@ -244,7 +246,7 @@ def commands_handler(cl, iq):
 						completed = True
 
 			if node == "Edit settings" and source in Transport:
-				logger.info("user want to edit his settings (jid: %s)" % source)
+				logger.info("user want to edit their settings (jid: %s)" % source)
 				config = Transport[source].settings
 				if not form:
 					user = Transport[source]
@@ -256,7 +258,7 @@ def commands_handler(cl, iq):
 
 					simpleForm = buildForm(simpleForm, fields=_fields, title="Choose wisely")
 
-				elif form and source in Transport:
+				elif form:
 					form = getForm(node=form).asDict()
 					for key in form.keys():
 						if key in config.keys():

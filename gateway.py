@@ -1309,7 +1309,7 @@ def initializeUsers():
 	for user in users:
 		Print(".", False)
 		sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
-	Print("\n#-# Finished.")
+	Print("\n#-# Transport %s initialized well." % TransportID)
 
 
 def runMainActions():

@@ -82,3 +82,18 @@ def getLinkData(url, encode=True):
 	if data and encode:
 		data = data.encode("base64")
 	return data
+
+
+TIME_VALUES = {"s": 60, "m": 360, "d": 86400, "M": 2592000, "y": 31536000}
+
+def TimeMachine(text):
+	"""
+	TARDIS Prototype
+	"""
+	time = 0
+	for i in xrange(0, len(text) - 1, 3):
+		current = text[i:i+3]
+		x = current[-1]
+		if x in TIME_VALUES:
+			time += int(current[:-1]) * TIME_VALUES[x]
+	return time

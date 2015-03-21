@@ -4,17 +4,13 @@
 
 from hashlib import sha1
 
-TransportFeatures.add(xmpp.NS_CAPTCHA)
-TransportFeatures.add(xmpp.NS_OOB)
-TransportFeatures.add(xmpp.NS_MEDIA)
-TransportFeatures.add(xmpp.NS_URN_OOB)
 
 def sendCaptcha(self):
 	logger.debug("VKLogin: sending message with captcha to %s" % self.source)
 	body = _("WARNING: VK sent captcha to you."
 			 " Please, go to %s and enter text from image to chat."
 			 " Example: !captcha my_captcha_key. Tnx") % self.engine.captcha["img"]
-	msg = xmpp.Message(self.source, body, "chat", frm = TransportID)
+	msg = xmpp.Message(self.source, body, "chat", frm=TransportID)
 	x = msg.setTag("x", namespace=xmpp.NS_OOB)
 	x.setTagData("url", self.engine.captcha["img"])
 	captcha = msg.setTag("captcha", namespace=xmpp.NS_CAPTCHA)
@@ -44,5 +40,10 @@ def sendCaptcha(self):
 	Presence = xmpp.protocol.Presence(self.source, show="xa", status=body, frm=TransportID)
 	sender(Component, Presence)
 
+
+TransportFeatures.add(xmpp.NS_CAPTCHA)
+TransportFeatures.add(xmpp.NS_OOB)
+TransportFeatures.add(xmpp.NS_MEDIA)
+TransportFeatures.add(xmpp.NS_URN_OOB)
 
 registerHandler("evt04", sendCaptcha)

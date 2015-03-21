@@ -4,17 +4,32 @@
 # File contains parts of code from 
 # BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
 
+## Installation:
+# The extension requires up to 2 fields in the main config:
+# 1. ConferenceServer - the address of your (or not yours?) conference server
+# Bear in mind that there can be limits on the jabber server for conference per jid. Read the wiki for more details.
+# 2. CHAT_LIFETIME_LIMIT - the limit of the time after that user considered inactive and will be removed. 
+# Time must be formatted as text and contain the time variable measurement.
+# For example: CHAT_LIFETIME_LIMIT = "28y09M21d" means chat will be removed after 28 years 9 Months 21 days from now
+# You can wheter ignore or use any of these chars: smdMy.
+# Used chars: s for seconds, m for minutes, d for days, M for months, y for years. The number MUST contain 2 digits as well.
+# Note: if you won't set the field, plugin won't remove any chat, but still will be gathering statistics.
+
+
 """
-This plugin handles Multi-Dialogs by VK
+Handles VK Multi-Dialogs
 """
 
 if not require("attachments") or not require("forwarded_messages"):
-	raise AssertionError("'groupchats' requires 'forwarded_messages'")
+	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
 
 try:
 	import mod_xhtml
 except ImportError:
 	mod_xhtml = None
+
+
+isdef = lambda var: var in globals()
 
 
 def sendIQ(chat, attr, data, afrls, role, jidFrom, reason=None, cb=None, args={}):
@@ -462,14 +477,16 @@ def initChatsTable():
 	return True
 
 
-CHAT_LIFETIME_LIMIT = 10 # in seconds
-
 def cleanTheChatsUp():
+	"""
+	Calls Dalek(s) to exterminate inactive users or their chats, whatever they catch
+	"""
 	chats = runDatabaseQuery("select jid, owner, last_used, user from groupchats")
 	result = []
 	for (jid, owner, last_used, user) in chats:
-		if (time.time() - last_used) > CHAT_LIFETIME_LIMIT:
+		if (time.time() - last_used) >= utils.TimeMachine(CHAT_LIFETIME_LIMIT):
 			result.append((jid, owner, user))
+			logger.debug("groupchats: time for %s expired (jid: %s)" % (jid, user))
 	if result:
 		exterminateChats(chats=result)
 	runThread(cleanTheChatsUp, delay=(60*60*24))
@@ -477,10 +494,13 @@ def cleanTheChatsUp():
 
 def initChatExtension():
 	if initChatsTable():
-		cleanTheChatsUp()
+		if isdef("CHAT_LIFETIME_LIMIT"):
+			cleanTheChatsUp()
+		else:
+			logger.warning("not starting chats cleaner because CHAT_LIFETIME_LIMIT is not set")
 
 
-if ConferenceServer:
+if isdef("ConferenceServer") and ConferenceServer:
 	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
 		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
 
@@ -509,4 +529,4 @@ if ConferenceServer:
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
-		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, initGroupchatsTable, cleanTheChatsUp
+		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, initGroupchatsTable, cleanTheChatsUp, initChatExtension
