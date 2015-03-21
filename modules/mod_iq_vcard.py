@@ -73,5 +73,5 @@ def load():
 
 
 def unload():
-	TransportFeautres.remove(xmpp.NS_VCARD)
+	TransportFeatures.remove(xmpp.NS_VCARD)
 	Component.UnregisterHandler("iq", vcard_handler, "get", xmpp.NS_VCARD)

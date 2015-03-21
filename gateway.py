@@ -92,7 +92,7 @@ Config = args.config
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
-formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(name)s %(message)s", "[%d.%m.%Y %H:%M:%S]")
+formatter = logging.Formatter("%(asctime)s %(levelname)s: %(name)s: %(message)s"), "%d.%m.%Y %H:%M:%S")
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
 
@@ -1202,18 +1202,6 @@ def loadExtensions(dir):
 			execfile("%s/%s" % (dir, file), globals())
 
 
-def getModulesList():
-	"""
-	Makes a list of modules could be found in modules folder
-	"""
-	modules = []
-	for file in os.listdir("modules"):
-		name, ext = os.path.splitext(file)
-		if ext == ".py":
-			modules.append(name)
-	return modules
-
-
 class ModuleLoader:
 
 	"""
@@ -1229,26 +1217,51 @@ class ModuleLoader:
 	def __register(cls, module):
 		if hasattr(module, "load"):
 			module.load()
-		ModuleLoader.loaded.add(module)
+		ModuleLoader.loaded.add(module.__name__)
 
 	@classmethod
 	def __unregister(self, module):
 		if hasattr(module, "unload"):
 			module.unload()
-		ModuleLoader.loaded.remove(module)
+		ModuleLoader.loaded.remove(module.__name__)
+
+	@classmethod
+	def list(cls):
+		modules = []
+		for file in os.listdir("modules"):
+			name, ext = os.path.splitext(file)
+			if ext == ".py":
+				modules.append(name)
+		return modules
+
+	@classmethod
+	def reload(cls, name):
+		if name in sys.modules:
+			module = sys.modules[name]
+			cls.__unregister(module)
+			reload(module)
+			return module
+
 
 	@classmethod
 	def load(cls, list=[]):
-		result =[]
+		result = []
+		errors = []
 		for name in list:
-			try:
-				module = __import__(name, globals(), locals())
-			except Exception:
-				crashlog("module_loader")
+			if name in cls.loaded:
+				try: module = cls.reload(name)
+				except Exception: errors.append(name); continue
 			else:
-				result.append(name)
-				cls.__register(module)
-		return result
+				try:
+					module = __import__(name, globals(), locals())
+				except Exception:
+					crashLog("module_loader")
+					errors.append(name)
+					continue
+
+			result.append(name)
+			cls.__register(module)
+		return (result, errors)
 
 	@classmethod
 	def unload(cls, list=[]):
@@ -1258,21 +1271,6 @@ class ModuleLoader:
 				cls.__unregister(sys.modules[name])
 				del sys.modules[name]
 				result.append(name)
-		return result
-
-	@classmethod
-	def reload(cls, list=[]):
-		result = []
-		for name in list:
-			if name in sys.modules:
-				module = sys.modules[name]
-				cls.__unregister(module)
-				try:
-					cls.__register(reload(module))
-				except Exception:
-					crashlog("module_loader")
-				else:
-					result.append(name)
 		return result
 
 
@@ -1322,7 +1320,7 @@ def runMainActions():
 		runThread(event, (), "extension-%d" % num)
 	runThread(Poll.process, (), "longPoll")
 	runThread(updateCron, (), "updateCron")
-	ModuleLoader.load(getModulesList())
+	ModuleLoader.load(ModuleLoader.list())
 
 
 def main():

@@ -508,16 +508,15 @@ if isdef("ConferenceServer") and ConferenceServer:
 		"desc": "If set, transport will show ALL users in a conference, even you", "value": 0}
 
 	GLOBAL_USER_SETTINGS["tie_chat_to_nickname"] = {"label": "Tie chat to my nickname (tip: enable timestamp for groupchats)",
-		"desc": "If set, your messages will be sent only from your nickname "\
-		"(there is no way to determine whether a message was sent from you or from the transport, so this setting might help, but"\
-		"it will bring one bug: you wont be able to send any message if chat is not initialized. "
-		"Chat initializes when first message received after transport's boot", "value": 1}
+		"desc": "If set, your messages will be sent only from your nickname\n"\
+		"(there is no way to determine whether a message was sent\nfrom you or from the transport, so this setting might help,\nbut"\
+		" it will bring one bug: you wont be able to send any message if chat is not initialized. "
+		"\nChat initializes when first message received after transport's boot", "value": 1}
 
 	GLOBAL_USER_SETTINGS["force_vk_date_group"] = {"label": "Force VK timestamp for groupchat messages", "value": 1}
 
 	TRANSPORT_SETTINGS["destroy_on_leave"] = {"label": "Destroy groupchat if user leaves it", "value": 0}
 
-	logger.info("extension groupchats is loaded")
 	TransportFeatures.add(xmpp.NS_GROUPCHAT)
 	registerHandler("msg01", outgoingChatMessageHandler)
 	registerHandler("msg02", incomingChatMessageHandler)
@@ -525,6 +524,7 @@ if isdef("ConferenceServer") and ConferenceServer:
 	registerHandler("prs01", handleChatPresences)
 	registerHandler("evt01", initChatExtension)
 	registerHandler("evt03", exterminateChats)
+	logger.info("extension groupchats is loaded")
 
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \

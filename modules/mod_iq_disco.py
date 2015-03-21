@@ -1,6 +1,8 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2014 — 2015.
+# Warning: This module contains non-optimal and really bad code.
+
 
 from __main__ import *
 from __main__ import _
@@ -12,7 +14,10 @@ NODES = {"admin": ("Delete users",
 					"Show crashlogs", 
 					"Reload config", 
 					"Global Transport settings", 
-					"Check an API token"), 
+					"Check an API token",
+					"Unload modules",
+					"(Re)load modules",
+					"Reload extensions"), 
 		"user": ("Edit settings",)}
 
 FORM_TYPES = ("text-single", "text-multi", "jid-multi")
@@ -22,7 +27,6 @@ def disco_handler(cl, iq):
 	destination = iq.getTo().getStripped()
 	ns = iq.getQueryNS()
 	node = iq.getTagAttr("query", "node")
-
 	if not node:
 		payload = []
 		if destination == TransportID:
@@ -149,10 +153,9 @@ def commands_handler(cl, iq):
 		form = cmd.getTag("x", namespace=xmpp.NS_DATA)
 		action = cmd.getAttr("action")
 		completed = False
+		note = None
 		simpleForm = buildForm(fields=[dict(var="FORM_TYPE", type="hidden", value=xmpp.NS_ADMIN)])
 		if node and action != "cancel":
-			if not form:
-				commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": iq.getID()}, xmpp.NS_COMMANDS)
 			if source in ADMIN_JIDS:
 				if node == "Delete users":
 					if not form:
@@ -162,6 +165,7 @@ def commands_handler(cl, iq):
 						form = getForm(node=form).asDict()
 						if form.get("jids"):
 							runThread(deleteUsers, (form["jids"],))
+						simpleForm = None
 						completed = True
 
 				elif node == "Global message":
@@ -174,6 +178,8 @@ def commands_handler(cl, iq):
 						if form.has_key("text"):
 							text = "\n".join(form["text"])
 							runThread(sendGlobalMessage, (text,))
+						note = "The message was sent."
+						simpleForm = None
 						completed = True
 
 				elif node == "Show crashlogs":
@@ -190,43 +196,46 @@ def commands_handler(cl, iq):
 							body = None
 							if os.path.exists(filename):
 								body = rFile(filename)
-							commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
 							simpleForm = buildForm(simpleForm, 
-								fields=[{"var": "body", "type": "text-multi", "label": "Error body", "value": body}]								)
-							commandTag.addChild(node=simpleForm)
+								fields=[{"var": "body", "type": "text-multi", "label": "Error body", "value": body}])
 							completed = True
 
 				elif node == "Check an API token":
-					
-						if not form:
-							simpleForm = buildForm(simpleForm, 
-								fields=[{"var": "token", "type": "text-single", "label": "API Token"}],
-								title=_("Enter the API token"))
-						else:
-							commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
-							form = getForm(node=form).asDict()
-							if form.get("token"):
-								token = form["token"]
-								_result = checkAPIToken(token)
+					if not form:
+						simpleForm = buildForm(simpleForm, 
+							fields=[{"var": "token", "type": "text-single", "label": "API Token"}],
+							title=_("Enter the API token"))
+					else:
+						form = getForm(node=form).asDict()
+						if form.get("token"):
+							token = form["token"]
+							_result = checkAPIToken(token)
 
-								if isinstance(_result, dict):
-									_fields = dictToDataForm(_result)
-								else:
-									_fields = [{"var": "body", "value": str(_result), "type": "text-multi"}]
+							if isinstance(_result, dict):
+								_fields = dictToDataForm(_result)
+							else:
+								_fields = [{"var": "body", "value": str(_result), "type": "text-multi"}]
 
-								simpleForm = buildForm(simpleForm, fields=_fields)
-								commandTag.addChild(node=simpleForm)
-								completed = True
-		
+							simpleForm = buildForm(simpleForm, fields=_fields)
+							completed = True
+	
 				elif node == "Reload config":
+					simpleForm = None
+					completed = True
 					try:
 						execfile(Config, globals())
+						note = "Reloaded well."
 					except Exception:
-##						commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, xmpp.NS_COMMANDS)
-						simpleForm = buildForm(simpleForm, 
-							fields=[{"var": "body", "type": "text-multi", "label": "Error while loading the config file", "value": wException()}])
-						
+						note = wException()
+
+				elif node == "Reload extensions":
+					simpleForm = None
 					completed = True
+					try:
+						loadExtensions("extensions")
+						note = "Reloaded well."
+					except Exception:
+						note = wException()
 
 				elif node == "Global Transport settings":
 					config = transportSettings.settings
@@ -243,7 +252,54 @@ def commands_handler(cl, iq):
 						for key in form.keys():
 							if key in config.keys():
 								transportSettings.settings[key]["value"] = utils.normalizeValue(form[key])
+						note = "The settings were changed."
+						simpleForm = None
 						completed = True
+
+				elif node == "(Re)load modules":
+					modules = ModuleLoader.list()
+					if not form:
+						_fields = dictToDataForm(dict(map(lambda mod: (mod, mod in ModuleLoader.loaded), modules)))
+						simpleForm = buildForm(simpleForm, fields=_fields, title="(Re)load modules", 
+							data=[_("Modules can be loaded or reloaded if they already loaded")])
+
+					elif form:
+						form = getForm(node=form).asDict()
+						keys = []
+						for key in form.keys():
+							if key in modules and utils.normalizeValue(form[key]):
+								keys.append(key)
+
+						loaded, errors = ModuleLoader.load(list=keys)
+						_fields = []
+						if loaded:
+							_fields.append({"var": "loaded", "label": "loaded", "type": "text-multi", "value": str.join("\n", loaded)})
+						if errors:
+							_fields.append({"var": "errors", "label": "errors", "type": "text-multi", "value": str.join("\n", errors)})
+
+						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
+						completed = True
+
+				elif node == "Unload modules":
+					modules = ModuleLoader.loaded.copy()
+					modules.remove("mod_iq_disco")
+					if not form:
+						_fields = dictToDataForm(dict(map(lambda mod: (mod, False), modules)))
+						simpleForm = buildForm(simpleForm, fields=_fields, title="Unload modules")
+
+					elif form:
+						form = getForm(node=form).asDict()
+						keys = []
+						for key in form.keys():
+							if key in ModuleLoader.loaded and utils.normalizeValue(form[key]):
+								keys.append(key)
+
+						unload = ModuleLoader.unload(list=keys)
+						_fields = [{"var": "loaded", "label": "unloaded", "type": "text-multi", "value": str.join("\n", unload)}]
+
+						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
+						completed = True
+
 
 			if node == "Edit settings" and source in Transport:
 				logger.info("user want to edit their settings (jid: %s)" % source)
@@ -263,13 +319,21 @@ def commands_handler(cl, iq):
 					for key in form.keys():
 						if key in config.keys():
 							Transport[source].settings[key] = utils.normalizeValue(form[key])
+					note = "The settings were changed."
+					simpleForm = None
 					completed = True
 			
 			if completed:
-				result.setTag("command", {"status": "completed", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
-			elif not form:
-				commandTag.addChild(node=simpleForm)
+				commandTag = result.setTag("command", {"status": "completed", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
+				if simpleForm:
+					commandTag.addChild(node=simpleForm)
+				if note:
+					commandTag.setTag("note", {"type": "info"})
+					commandTag.setTagData("note", note)
 
+			elif not form and simpleForm:
+				commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
+				commandTag.addChild(node=simpleForm)
 		sender(cl, result)
 
 
