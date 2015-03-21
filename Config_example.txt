@@ -106,7 +106,7 @@ DEBUG_API = []
 
 
 ## VK4XMPP Monitor settings
-## The server where the requests will come from
+## The server where the stats requests will come from
 VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
 
 ## The URL where transport should send POST requests with it's name

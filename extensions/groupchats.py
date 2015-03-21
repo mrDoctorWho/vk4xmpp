@@ -529,4 +529,4 @@ if isdef("ConferenceServer") and ConferenceServer:
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
-		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, initGroupchatsTable, cleanTheChatsUp, initChatExtension
+		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, cleanTheChatsUp, initChatExtension

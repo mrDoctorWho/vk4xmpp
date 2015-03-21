@@ -106,6 +106,8 @@ evalJID = ""
 AdditionalAbout = ""
 ConferenceServer = ""
 URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"
+VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
+VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
 allowBePublic = True
 
 startTime = int(time.time())
