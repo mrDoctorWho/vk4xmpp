@@ -40,6 +40,7 @@ Show all chat users=Отображать ВСЕХ пользователей в 
 # descs
 If set, transport would create xmpp-chatrooms for VK Multi-Dialogs=Если включено, транспорт будет создавать jabber-конференции для мультидиалогов ВКонтакте
 If set, transport will show ALL users in a conference, even you=Если включено, транспорт будет показывать всех пользователей в jabber-конференциях, даже вас
+If set, your messages will be sent only from your nickname\n(there is no way to determine whether a message was sent\nfrom you or from the transport, so this setting might help,\nbut it will bring one bug: you wont be able to send any message if chat is not initialized). \nChat initializes when first message received after transport's boot=Если включено, ваши сообщения будут отправляться только от вашего ника\n(Нет никакого способа определить, было ли сообщение отправлено\n от вас или от транспорта, поэтому данный параметр может помочь,\nно это приведёт к багу: вы не сможете отправить сообщения, если чат не инициализируется). \nЧат инициализируется когда транспорт получает первое сообщение после своей перезагрузки
 # kernel, labels
 Keep my status online=Поддерживать статус online
 # global settings, labels
@@ -61,3 +62,7 @@ Mark my messages as read when I compose message=Отмечать мои сооб
 User removed his registration=Пользователь удалил регистрацию
 Something went wrong. We are so sorry.=Что-то пошло не так.
 Please, register again=Зарегистрируйтесь заново.
+Your last activity was more than %s ago. Relogin or you'll be exterminated=Ваша последняя активность была более %s назад. Авторизуйтесь снова или ваши данные будут удалены. 
+Force VK timestamp for groupchat messages=Принудительно использовать метки времени из ВКонтакте для конференций
+Tie chat to my nickname (tip: enable timestamp for groupchats)=Связать чат с моим ником (совет: включите временные метки для конференций)
+Force VK timestamp for private messages=Принудительно использовать метки времени из ВКонтакте для личных сообщений
