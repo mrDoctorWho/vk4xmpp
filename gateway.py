@@ -92,7 +92,7 @@ Config = args.config
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
-formatter = logging.Formatter("%(asctime)s %(levelname)s: %(name)s: %(message)s"), "%d.%m.%Y %H:%M:%S")
+formatter = logging.Formatter("%(asctime)s %(levelname)s: %(name)s: %(message)s", "%d.%m.%Y %H:%M:%S")
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
 
