@@ -828,7 +828,10 @@ class User(object):
 			logger.error("longpoll: no data. Will request again")
 			return 1
 
-		data = json.loads(data)
+		try:
+			data = json.loads(data)
+		except ValueError:
+			return 1
 
 		if "failed" in data:
 			logger.debug("longpoll: failed. Searching for new server (jid: %s)" % self.source)
@@ -921,7 +924,6 @@ class Poll:
 		Adds user in self.__list if no errors
 		"""
 		try:
-			# Getting socket for polling it by select()
 			opener = user.vk.makePoll()
 		except Exception as e:
 			if not isinstance(e, api.LongPollError):
@@ -972,13 +974,16 @@ class Poll:
 					if user in cls.__buff:
 						cls.__buff.remove(user)
 				return None
+
 			if Transport[user.source].vk.initPoll():
 				with cls.__lock:
 					logger.debug("longpoll: successfully initialized longpoll (jid: %s)" % user.source)
 					if user not in cls.__buff:
 						return None
 					cls.__buff.remove(user)
-					cls.__add(Transport[user.source])
+					# Check if user still in transport when we finally came down here
+					if user.source in Transport:
+						cls.__add(Transport[user.source])
 					break
 			time.sleep(10)
 		else:
