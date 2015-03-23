@@ -795,7 +795,7 @@ class User(object):
 						else:
 							body += result
 					else:
-						if self.settings.force_vk_date:
+						if self.settings.force_vk_date or init:
 							date = message["date"]
 						sendMessage(Component, self.source, fromjid, escape("", body), date)
 		if messages:
