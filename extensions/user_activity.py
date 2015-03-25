@@ -21,6 +21,9 @@ def user_activity_evt01():
 		user_activity_remove()
 	else:
 		logger.warning("not starting inactive users remover because USER_LIFETIME_LIMIT is not set")
+	import mod_iq_stats
+	mod_iq_stats.STAT_FIELDS["users/seen"] = "users"
+	mod_iq_stats.calcStats = calcStats
 
 
 def user_activity_evt05(user):
@@ -36,19 +39,30 @@ def user_activity_remove():
 	users = runDatabaseQuery("select * from last_activity", many=True)
 	LA = utils.TimeMachine(USER_LIFETIME_LIMIT)
 	for (jid, date) in users:
-		if (time.time() - date) >= LA and not jid in Transport:
-			import shutil
-			runDatabaseQuery("delete from users where jid=?", (jid,), set=True)
-			runDatabaseQuery("delete from last_activity where jid=?", (jid,))
-			try:
-				shutil.rmtree("%s/%s" % (settingsDir, jid))
-			except Exception:
-				crashLog("remove_inactive")
-			logger.info("user_activity: user has been removed from " \
-			"the database because of inactivity more than %s (jid: %s)" % (LA, jid))
-		elif jid in Transport:
-			sendMessage(Component, jid, TransportID, _("Your last activity was more than %s ago. Relogin or you'll be exterminated.", -1))
+		if (time.time() - date) >= LA:
+			if jid not in Transport:
+				import shutil
+				runDatabaseQuery("delete from users where jid=?", (jid,), set=True)
+				runDatabaseQuery("delete from last_activity where jid=?", (jid,))
+				try:
+					shutil.rmtree("%s/%s" % (settingsDir, jid))
+				except Exception:
+					crashLog("remove_inactive")
+				logger.info("user_activity: user has been removed from " \
+				"the database because of inactivity more than %s (jid: %s)" % (LA, jid))
+			else:
+				sendMessage(Component, jid, TransportID, _("Your last activity was more than %s seconds ago. Relogin or you'll be exterminated.") % LA, LA)			
 	runThread(user_activity_remove, delay=(60*60*24))
+
+# A dirty hack to add seen users in stats
+def calcStats():
+	"""
+	Returns count(*) from users database
+	"""
+	countOnline = len(Transport)
+	countTotal = runDatabaseQuery("select count(*) from users", many=False)[0]
+	countSeen = runDatabaseQuery("select count(*) from last_activity where date >=?", (startTime,), many=False)[0]
+	return [countTotal, countSeen, countOnline]
 
 
 registerHandler("evt01", user_activity_evt01)

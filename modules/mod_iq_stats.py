@@ -33,7 +33,7 @@ def stats_handler(cl, iq):
 			users = calcStats()
 			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
 			virt, real, percent, time = shell[1].split()
-			virt, real = int(virt)/1024.0, int(real)/1024.0
+			virt, real = "%0.2f" % int(virt)/1024.0, "%0.2f" % int(real)/1024.0
 			stats = {"users": users,
 					"MB": [virt, real],
 					"percent": [percent],

@@ -68,7 +68,8 @@ def message_handler_threaded(cl, msg):
 		if msg.getTag("composing"):
 			target = vk2xmpp(destination)
 			if target != TransportID:
-				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
+				with user.sync:
+					user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
 
 		if body:
 			answer = None
@@ -83,9 +84,9 @@ def message_handler_threaded(cl, msg):
 
 			else:
 				uID = jidTo.getNode()
-				vkMessage = user.vk.sendMessage(body, uID)
-				if vkMessage:
-					answer = reportReceived(msg, jidFrom, jidTo)
+				with user.sync:
+					if user.vk.sendMessage(body, uID):
+						answer = reportReceived(msg, jidFrom, jidTo)
 			if answer:
 				sender(cl, answer)
 	executeHandlers("msg02", (msg,))

@@ -364,7 +364,8 @@ def incomingChatMessageHandler(msg):
 						# Don't send a message if there's an image
 						raise xmpp.NodeProcessed()
 				if send:
-					user.vk.sendMessage(body, id, "chat_id")
+					with user.sync:
+						user.vk.sendMessage(body, id, "chat_id")
 					runDatabaseQuery("update groupchats set last_used=? where jid=?", (source, time.time()))
 					raise xmpp.NodeProcessed()
 
@@ -456,7 +457,7 @@ def exterminateChats(user=None, chats=[]):
 			logger.error("groupchats: got stanza: %s (jid: %s)" % (str(stanza), jid))
 
 	if user:
-		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), sepmh=False)
+		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), semph=False)
 		source = user.source
 		userChats = getattr(user, "chats", {})
 		if jid in userChats:
