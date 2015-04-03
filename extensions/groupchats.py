@@ -59,8 +59,8 @@ def inviteUser(chat, jidTo, jidFrom, name):
 	sender(Component, invite)
 
 
-def joinChat(chat, name, jidFrom):
-	prs = xmpp.Presence("%s/%s" % (chat, name), frm=jidFrom)
+def joinChat(chat, name, jidFrom, status=None):
+	prs = xmpp.Presence("%s/%s" % (chat, name), frm=jidFrom, status=status)
 	prs.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
 	sender(Component, prs)
 
@@ -172,7 +172,7 @@ class Chat(object):
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 		## We join to the chat with the room owner's name to set the room topic from their name.
-		joinChat(self.jid, name, TransportID)
+		joinChat(self.jid, name, TransportID, "Lost in time.")
 		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user})
 
 	def initialize(self, user, chat):
@@ -201,7 +201,7 @@ class Chat(object):
 			self.invited = True
 		logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, user.source))
 		chatMessage(chat, self.topic, TransportID, True, self.creation_date)
-		joinChat(chat, name, TransportID) ## let's rename ourself
+		joinChat(chat, name, TransportID, "Lost in time.") ## let's rename ourself
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
 	def update(self, userObject, vkChat):
@@ -333,7 +333,9 @@ class Chat(object):
 				jid = jidToID[creator]
 		if not jid:
 			jid  = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False, semph=None)
-		if jid:
+			if jid:
+				jid = jid[0]
+		if jid and jid in Transport:
 			user = Transport[jid]
 		return user
 
@@ -360,12 +362,13 @@ def incomingChatMessageHandler(msg):
 			user = Chat.getUserObject(source)
 			creator, id, domain = Chat.getParts(source)
 			send = False
+			owner_nickname = None
 			if user: 
 				if source in getattr(user, "chats", {}):
 					owner_nickname = user.chats[source].owner_nickname
-				else:
+				if not owner_nickname:
 					owner_nickname = runDatabaseQuery("select nick from groupchats where jid=?",\
-													(source,), many=False, semph=None)
+													(source,), many=False)[0]
 				# None of “normal” clients will send messages with timestamp
 				# If we do (as we set in force_vk_date_group), then the message received from a user
 				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
@@ -384,13 +387,8 @@ def incomingChatMessageHandler(msg):
 				if send:
 					with user.sync:
 						user.vk.sendMessage(body, id, "chat_id")
-					runDatabaseQuery("update groupchats set last_used=? where jid=?", (source, time.time()))
+					runDatabaseQuery("update groupchats set last_used=? where jid=?", (time.time(), source), set=True)
 					raise xmpp.NodeProcessed()
-
-			if not send:
-				chatMessage(source, 
-					_("The message wasn't delivered. You probably need to wait until you get a message from the chat.")
-					, TransportID, timestamp=1)
 
 
 def handleChatErrors(source, prs):
@@ -432,6 +430,9 @@ def handleChatErrors(source, prs):
 def handleChatPresences(source, prs):
 	"""
 	Makes old users leave
+	Parameters:
+		* source: stanza source
+		* prs: xmpp.Presence object
 	"""
 	jid = prs.getJid()
 	if jid and "@" in jid:
@@ -452,7 +453,7 @@ def handleChatPresences(source, prs):
 
 			if jid.split("/")[0] == user.source:
 				chat.owner_nickname = prs.getFrom().getResource()
-				runDatabaseQuery("update groupchats where jid=? set nick=?", (source, nick), set=True, semph=Nnoe)
+				runDatabaseQuery("update groupchats set nick=? where jid=? ", (chat.owner_nickname, source), set=True, semph=None)
 
 			if prs.getType() == "unavailable" and jid == user.source:
 				if transportSettings.destroy_on_leave:
@@ -485,7 +486,7 @@ def exterminateChats(user=None, chats=[]):
 		userChats = []
 
 	for (jid, owner, source) in chats:
-		joinChat(chat, "Dalek", owner)
+		joinChat(jid, "Dalek", owner)
 		logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)" % (jid, owner, source))
 		Chat.setConfig(jid, owner, True, exterminated, {"jid": jid})
 		if jid in userChats:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.66
+# vk4xmpp gateway, v2.77
 # © simpleApps, 2013 — 2015.
 # Program published under the MIT license.
 
