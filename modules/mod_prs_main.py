@@ -16,9 +16,7 @@ def initializeUser(source, resource, prs):
 	Initializes user for a first time after he have registered
 	"""
 	logger.debug("User not in the transport, but presence received. Searching in database (jid: %s)" % source)
-	with Database(DatabaseFile, Semaphore) as db:
-		db("select jid,username from users where jid=?", (source,))
-		data = db.fetchone()
+	data = runDatabaseQuery("select jid,username from users where jid=?", (source,), many=False)
 	if data:
 		sendPresence(source, TransportID, None, IDENTIFIER["name"], caps=True, reason=_("You are being initialized, please wait..."), show="xa")
 		logger.debug("User has been found in database (jid: %s)" % source)

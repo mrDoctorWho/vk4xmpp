@@ -154,20 +154,26 @@ class Chat(object):
 		"""
 		Creates a chat, joins it and sets the config
 		"""
-		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" % (self.jid, self.raw_users, self.owner, user.source))
+		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" %\
+			 		(self.jid, self.raw_users, self.owner, user.source))
 		
 		exists = runDatabaseQuery("select user from groupchats where jid=?", (self.jid,), many=True)
 		if exists:
 			self.exists = True
-			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" % (self.jid, user.source))
+			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" %\
+						(self.jid, user.source))
+
 		else:
-			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" % (self.jid, user.source))
-			runDatabaseQuery("insert into groupchats values (?,?,?,?)", (self.jid, TransportID, user.source, time.time()), True, semph=None)
+			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" %\
+			 			(self.jid, user.source))
+			runDatabaseQuery("insert into groupchats (jid, owner, user, last_used) values (?,?,?,?)", 
+							(self.jid, TransportID, user.source, time.time()), True)
 
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
-		joinChat(self.jid, name, TransportID) ## we're joining to chat with the room owner's name to set the topic. That's why we have so many lines of code right here
-		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user}) ## executehandler?
+		## We join to the chat with the room owner's name to set the room topic from their name.
+		joinChat(self.jid, name, TransportID)
+		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user})
 
 	def initialize(self, user, chat):
 		"""
@@ -182,7 +188,8 @@ class Chat(object):
 		if not self.raw_users:
 			vkChat = self.getVKChat(user, self.id)
 			if not vkChat and not self.invited:
-				logger.error("groupchats: damn vk didn't answer to chat list request, starting timer to try again (jid: %s)" % user.source)
+				logger.error("groupchats: damn vk didn't answer to chat list"\
+							"request, starting timer to try again (jid: %s)" % user.source)
 				runThread(self.initialize, (user, chat), delay=10)
 				return False
 			self.raw_users = vkChat.get("users")
@@ -222,11 +229,13 @@ class Chat(object):
 		for user in self.users.keys():
 			## checking if there are old users we have to remove
 			if not user in all_users and user != TransportID:
-				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" % (user, self.jid, userObject.source))
+				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" %\
+							(user, self.jid, userObject.source))
 				leaveChat(self.jid, vk2xmpp(user))
 				del self.users[user]
 				if user == userObject.vk.userID:
-					logger.warning("groupchats: user %s has left the chat %s, so the chat would be EXTERMINATED (jid: %s)" % (user, self.jid, userObject.source))
+					logger.warning("groupchats: user %s has left the chat %s, so the chat would be EXTERMINATED (jid: %s)" %\
+								 	(user, self.jid, userObject.source))
 					self.setConfig(self.jid, TransportID, exterminate=True) ## exterminate the chats when user leave conference or just go offline?
 					del userObject.chats[self.jid]
 
@@ -260,7 +269,8 @@ class Chat(object):
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			self.created = True
-			logger.debug("groupchats: stanza \"result\" received from %s, continuing initialization (jid: %s)" % (chat, user.source))
+			logger.debug("groupchats: stanza \"result\" received from %s,"\
+			 			 "continuing initialization (jid: %s)" % (chat, user.source))
 			execute(self.initialize, (user, chat)) ## i don't trust VK so it's better to execute it
 		else:
 			logger.error("groupchats: couldn't set room %s config, the answer is: %s (jid: %s)" % (chat, str(stanza), user.source))
@@ -316,12 +326,15 @@ class Chat(object):
 		Gets user object by chat jid
 		"""
 		user = None
+		jid = None
 		creator, id, domain = cls.getParts(source)
 		if domain == ConferenceServer and creator: ## we will ignore zero-id
 			if creator in jidToID:
 				jid = jidToID[creator]
-				if jid in Transport:
-					user = Transport[jid]
+		if not jid:
+			jid  = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False, semph=None)
+		if jid:
+			user = Transport[jid]
 		return user
 
 
@@ -346,12 +359,17 @@ def incomingChatMessageHandler(msg):
 		if not msg.getTimestamp() and body and destination == TransportID:
 			user = Chat.getUserObject(source)
 			creator, id, domain = Chat.getParts(source)
-			if user and source in getattr(user, "chats", {}):
-				chat = user.chats[source]
+			send = False
+			if user: 
+				if source in getattr(user, "chats", {}):
+					owner_nickname = user.chats[source].owner_nickname
+				else:
+					owner_nickname = runDatabaseQuery("select nick from groupchats where jid=?",\
+													(source,), many=False, semph=None)
 				# None of “normal” clients will send messages with timestamp
 				# If we do (as we set in force_vk_date_group), then the message received from a user
 				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
-				send = ((nick == chat.owner_nickname and user.settings.tie_chat_to_nickname)
+				send = ((nick == owner_nickname and user.settings.tie_chat_to_nickname)
 						or user.settings.force_vk_date_group)
 
 				if html and html.getTag("body"): ## XHTML-IM!
@@ -369,7 +387,7 @@ def incomingChatMessageHandler(msg):
 					runDatabaseQuery("update groupchats set last_used=? where jid=?", (source, time.time()))
 					raise xmpp.NodeProcessed()
 
-			elif user:
+			if not send:
 				chatMessage(source, 
 					_("The message wasn't delivered. You probably need to wait until you get a message from the chat.")
 					, TransportID, timestamp=1)
@@ -404,6 +422,8 @@ def handleChatErrors(source, prs):
 			if status == "303":
 				if jid == user.source:
 					chat.owner_nickname = prs.getNick()
+					runDatabaseQuery("update groupchats where jid=? set nick=?",
+									(source, nick), set=True, semph=None)
 
 		logger.debug("groupchats: presence error (error #%s, status #%s)" \
 			"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
@@ -432,6 +452,7 @@ def handleChatPresences(source, prs):
 
 			if jid.split("/")[0] == user.source:
 				chat.owner_nickname = prs.getFrom().getResource()
+				runDatabaseQuery("update groupchats where jid=? set nick=?", (source, nick), set=True, semph=Nnoe)
 
 			if prs.getType() == "unavailable" and jid == user.source:
 				if transportSettings.destroy_on_leave:
@@ -457,24 +478,35 @@ def exterminateChats(user=None, chats=[]):
 			logger.error("groupchats: got stanza: %s (jid: %s)" % (str(stanza), jid))
 
 	if user:
-		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), semph=False)
+		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), semph=None)
 		source = user.source
 		userChats = getattr(user, "chats", {})
-		if jid in userChats:
-			del userChats[jid]
+	else:
+		userChats = []
 
 	for (jid, owner, source) in chats:
+		joinChat(chat, "Dalek", owner)
 		logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)" % (jid, owner, source))
 		Chat.setConfig(jid, owner, True, exterminated, {"jid": jid})
+		if jid in userChats:
+			del userChats[jid]
 
 
 def initChatsTable():
 	"""
 	Initializes database if it doesn't exist
 	"""
+	def checkColumns():
+		info = runDatabaseQuery("pragma table_info(groupchats)", semph=Semaphore)
+		names = [col[1] for col in info]
+		if not "nick" in names:
+			logger.warning("groupchats: adding \"nick\" column to groupchats table")
+			runDatabaseQuery("alter table groupchats add column nick text", set=True, semph=Semaphore)
+
 	runDatabaseQuery("create table if not exists groupchats " \
 		"(jid text, owner text," \
-		"user text, last_used integer)", set=True, semph=Semaphore)
+		"user text, last_used integer, nick text)", set=True, semph=Semaphore)
+	checkColumns()
 	return True
 
 

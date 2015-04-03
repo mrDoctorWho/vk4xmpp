@@ -40,6 +40,7 @@ from itypes import Database
 from stext import *
 from stext import _
 from webtools import *
+from printer import *
 
 Transport = {}
 jidToID = {}
@@ -88,18 +89,7 @@ args = argParser.parse_args()
 Daemon = args.daemon
 Config = args.config
 
-# logger
-logger = logging.getLogger("vk4xmpp")
-logger.setLevel(LOG_LEVEL)
-loggerHandler = logging.FileHandler(logFile)
-formatter = logging.Formatter("%(asctime)s %(levelname)s: %(name)s: %(message)s", "%d.%m.%Y %H:%M:%S")
-loggerHandler.setFormatter(formatter)
-logger.addHandler(loggerHandler)
-
-# now writer can be imported
-from writer import *
-
-# config variables
+# default config variables
 PhotoSize = "photo_100"
 DefLang = "ru"
 evalJID = ""
@@ -112,13 +102,19 @@ allowBePublic = True
 
 startTime = int(time.time())
 
-try:
-	execfile(Config)
-	Print("#-# Config loaded successfully.")
-except Exception:
-	Print("#! Error loading config file:")
-	wException()
-	exit()
+execfile(Config)
+Print("#-# Config loaded successfully.")
+
+# logger
+logger = logging.getLogger("vk4xmpp")
+logger.setLevel(LOG_LEVEL)
+loggerHandler = logging.FileHandler(logFile)
+formatter = logging.Formatter("%(asctime)s %(levelname)s: %(name)s: %(message)s", "%d.%m.%Y %H:%M:%S")
+loggerHandler.setFormatter(formatter)
+logger.addHandler(loggerHandler)
+
+# now writer can be imported
+from writer import *
 
 # Compatibility with old config files
 if not ADMIN_JIDS:
@@ -139,7 +135,7 @@ GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online", "value
 						"force_vk_date": {"label": "Force VK timestamp for private messages", "value": 0}}
 
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from " \
-												"friends when user log off", "value": 0}}
+												"friends when user logs off", "value": 0}}
 
 
 if THREAD_STACK_SIZE:
@@ -259,7 +255,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 266, 0
+	revNumber, rev = 276, 0
 	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
 	if shell:
 		revNumber, rev = len(shell), shell[0]
@@ -1012,7 +1008,7 @@ class Poll:
 
 			for sock in error:
 				with cls.__lock:
-					# We will just re-add the user to poll in case if anything wrong happen to socket
+					# We will just re-add the user to poll in case if anything weird happen to socket
 					try:
 						cls.__add(cls.__list.pop(sock)[0])
 					except KeyError:

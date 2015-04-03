@@ -174,7 +174,7 @@ class RequestProcessor(object):
 		return (body, resp)
 
 ## todo: move getOpener the hell out of here
-	@attemptTo(REQUEST_RETRIES, tuple, socket.gaierror, socket.timeout, socket.error)
+	@attemptTo(REQUEST_RETRIES, None, socket.gaierror, socket.timeout, socket.error)
 	def getOpener(self, url, query={}):
 		"""
 		Opens a connection to url and returns AsyncHTTPRequest() object

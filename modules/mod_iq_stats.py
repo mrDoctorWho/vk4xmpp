@@ -31,9 +31,14 @@ def stats_handler(cl, iq):
 				queryPayload.append(node)
 		else:
 			users = calcStats()
-			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
-			virt, real, percent, time = shell[1].split()
-			virt, real = "%0.2f" % int(virt)/1024.0, "%0.2f" % int(real)/1024.0
+			try:
+				shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
+				virt, real, percent, time = shell[1].split()
+			except IndexError:
+				logger.error("IndexError during trying to execute `ps`")
+				raise xmpp.NodeProcessed()
+
+			virt, real = "%0.2f" % (int(virt)/1024.0), "%0.2f" % (int(real)/1024.0)
 			stats = {"users": users,
 					"MB": [virt, real],
 					"percent": [percent],
