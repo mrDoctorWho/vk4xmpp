@@ -132,7 +132,8 @@ setVars(DefLang, root)
 # Settings
 GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online", "value": 1},
 						"i_am_ghost": {"label": "I am a ghost", "value": 0},
-						"force_vk_date": {"label": "Force VK timestamp for private messages", "value": 0}}
+						"force_vk_date": {"label": "Force VK timestamp for private messages", "value": 0},
+						"use_nicknames": {"label": "Use nicknames instead of real names", "value": 0}}
 
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from " \
 												"friends when user logs off", "value": 0}}
@@ -536,8 +537,7 @@ class VK(object):
 			name = escape("", str.join(chr(32), (friend["first_name"], friend["last_name"])))
 			friends[uid] = {"name": name, "online": online}
 			for key in fields:
-				if key != "screen_name": # screen_name is the default
-					friends[uid][key] = friend.get(key)
+				friends[uid][key] = friend.get(key)
 		return friends
 
 	def getMessages(self, count=5, mid=0):
@@ -564,7 +564,7 @@ class VK(object):
 		Gets user data. Such as name, photo, etc
 		If user exists in friends and if no advanced fields issued will return friends[uid]
 		Otherwise will request method users.get
-		Default fields is ["screen_name"]
+		Default fields are ["screen_name"]
 		"""
 		if not fields:
 			if self.source in Transport:
@@ -719,9 +719,12 @@ class User(object):
 				self.friends = self.vk.getFriends()
 			count = len(self.friends)
 			logger.debug("User: sending init presence (friends count: %s) (jid %s)" % (count, self.source))
+			key = "name"
+			if self.settings.use_nicknames:
+				key = "screen_name"
 			for uid, value in self.friends.iteritems():
 				if value["online"]:
-					sendPresence(self.source, vk2xmpp(uid), None, value["name"], caps=True)
+					sendPresence(self.source, vk2xmpp(uid), None, value.get(key, "Unknown"), caps=True)
 		if not self.vk.engine.captcha:
 			sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
@@ -843,7 +846,10 @@ class User(object):
 			elif typ == 8: # user has joined
 				if not self.settings.i_am_ghost:
 					uid = abs(evt[0])
-					sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)["name"], caps=True)
+					key = "name"
+					if self.settings.use_nicknames:
+						key = "screen_name"
+					sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)[key], caps=True)
 
 			elif typ == 9: # user has left
 				uid = abs(evt[0])

@@ -47,7 +47,10 @@ def vcard_handler_threaded(cl, iq):
 				if user.friends.has_key(id):
 					args.append(PhotoSize)
 				json = user.vk.getUserData(id, args)
-				values = {"NICKNAME": json.get("name", str(json)),
+				name = json.get("name", str(json))
+				screen_name = json.get("screen_name", str(json))
+				values = {"NICKNAME": screen_name,
+						"FN": name,
 						"URL": "http://vk.com/id%s" % id,
 						"DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC
 						}

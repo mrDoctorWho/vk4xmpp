@@ -421,7 +421,7 @@ def handleChatErrors(source, prs):
 				if jid == user.source:
 					chat.owner_nickname = prs.getNick()
 					runDatabaseQuery("update groupchats where jid=? set nick=?",
-									(source, nick), set=True, semph=None)
+									(source, chat.owner_nickname), set=True, semph=None)
 
 		logger.debug("groupchats: presence error (error #%s, status #%s)" \
 			"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
