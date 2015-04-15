@@ -64,7 +64,7 @@ THREAD_STACK_SIZE = 0
 MAXIMUM_FORWARD_DEPTH = 20
 
 ## Image that will be used if the transport can't recieve image from VK.
-URL_VCARD_NO_IMAGE = "http://simpleapps.ru/vk4xmpp.png"
+URL_VCARD_NO_IMAGE = "https://raw.githubusercontent.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png"
 
 ## Eval JID (JID for "!eval" command and admin-features in adhoc).
 ADMIN_JIDS = []

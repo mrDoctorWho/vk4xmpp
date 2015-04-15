@@ -18,6 +18,7 @@ def makePhotoHash(user, list=None):
 	Parameters:
 		list is a list of user ids to make hash from
 	"""
+	list = list or []
 	if user.settings.avatar_hash:
 		photos = []
 		if not list:

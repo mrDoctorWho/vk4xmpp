@@ -451,7 +451,10 @@ class VK(object):
 		"""
 		if not self.pollInitialzed:
 			raise api.LongPollError("The Poll wasn't initialized yet")
-		return self.engine.RIP.getOpener(self.pollServer, self.pollConfig)
+		opener = self.engine.RIP.getOpener(self.pollServer, self.pollConfig)
+		if not opener:
+			raise api.LongPollError("Poll request failed")
+		return opener
 
 	def method(self, method, args=None, nodecode=False, force=False):
 		"""
@@ -1189,7 +1192,7 @@ def getPid():
 	if os.path.exists(pidFile):
 		oldPid = rFile(pidFile)
 		if oldPid:
-			Print("#-# Killing old transport instance: ", False)
+			Print("#-# Killing the previous instance: ", False)
 			oldPid = int(oldPid)
 			if pid != oldPid:
 				try:
@@ -1248,8 +1251,7 @@ class ModuleLoader:
 		if name in sys.modules:
 			module = sys.modules[name]
 			cls.__unregister(module)
-			reload(module)
-			return module
+			return reload(module)
 
 
 	@classmethod
