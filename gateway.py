@@ -1,9 +1,13 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v2.77
+# vk4xmpp gateway, v3.0
 # © simpleApps, 2013 — 2015.
 # Program published under the MIT license.
+
+__author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
+__license__ = "MIT"
+__version__ = "3.0"
 
 import gc
 import httplib
@@ -18,7 +22,11 @@ import sys
 import threading
 import time
 from argparse import ArgumentParser
-from copy import deepcopy
+
+try:
+	import ujson as json
+except ImportError:
+	import json
 
 core = getattr(sys.modules["__main__"], "__file__", None)
 root = "."
@@ -32,73 +40,26 @@ sys.path.insert(0, "library")
 sys.path.insert(1, "modules")
 reload(sys).setdefaultencoding("utf-8")
 
-## Now we can import our own modules
-import utils
-import vkapi as api
+# Now we can import our own modules
 import xmpp
 from itypes import Database
-from stext import *
-from stext import _
-from webtools import *
+from stext import setVars, _
+from defaults import *
 from printer import *
+from webtools import *
 
 Transport = {}
-jidToID = {}
-
-WatcherList = []
-WhiteList = []
-ADMIN_JIDS = []
-
-# The features transport will advertise
-TransportFeatures = set([xmpp.NS_DELAY])
-
-# The features transport's users will advertise
-UserFeatures = set([xmpp.NS_CHATSTATES,
-					xmpp.NS_LAST])
-
-IDENTIFIER = {"type": "vk",
-			"category": "gateway",
-			"name": "VK4XMPP Transport"}
-
 Semaphore = threading.Semaphore()
 
-ALIVE = True
-
-# config vairables
-DEBUG_XMPPPY = False
-DEBUG_POLL = False
-DEBUG_API = False
-LOG_LEVEL = logging.DEBUG
-MAXIMUM_FORWARD_DEPTH = 10 ## We need to go deeper.
-STANZA_SEND_INTERVAL = 0.03125
-THREAD_STACK_SIZE = 0
-USER_LIMIT = 0
-VK_ACCESS = 69638
-
-# used files
-pidFile = "pidFile.txt"
-logFile = "vk4xmpp.log"
-crashDir = "crash"
-settingsDir = "settings"
-
-# cmd args
+# command line arguments
 argParser = ArgumentParser()
-argParser.add_argument("-c", "--config", help="set the general config file destination", default="Config.txt")
-argParser.add_argument("-d", "--daemon", help="run in daemon mode (no auto-restart)", action="store_true")
+argParser.add_argument("-c", "--config",
+	help="set the general config file destination", default="Config.txt")
+argParser.add_argument("-d", "--daemon",
+	help="run in daemon mode (no auto-restart)", action="store_true")
 args = argParser.parse_args()
 Daemon = args.daemon
 Config = args.config
-
-# default config variables
-PhotoSize = "photo_100"
-DefLang = "ru"
-evalJID = ""
-AdditionalAbout = ""
-ConferenceServer = ""
-URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"
-VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
-VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
-allowBePublic = True
 
 startTime = int(time.time())
 
@@ -109,35 +70,25 @@ Print("#-# Config loaded successfully.")
 logger = logging.getLogger("vk4xmpp")
 logger.setLevel(LOG_LEVEL)
 loggerHandler = logging.FileHandler(logFile)
-formatter = logging.Formatter("%(asctime)s %(levelname)s: %(name)s: %(message)s", "%d.%m.%Y %H:%M:%S")
+formatter = logging.Formatter("%(asctime)s %(levelname)s:"
+	"%(name)s: %(message)s", "%d.%m.%Y %H:%M:%S")
 loggerHandler.setFormatter(formatter)
 logger.addHandler(loggerHandler)
 
-# now writer can be imported
+# now we can import the last modules
 from writer import *
+from longpoll import *
+from settings import *
+import vkapi as api
+import utils
 
 # Compatibility with old config files
 if not ADMIN_JIDS:
 	ADMIN_JIDS = [evalJID]
 
-## Trying to use faster library usjon instead of simplejson
-try:
-	import ujson as json
-except ImportError:
-	import json
-
-# Setting variables: DefLang for language id, root for the translations directory
+# Setting variables
+# DefLang for language id, root for the translations directory
 setVars(DefLang, root)
-
-# Settings
-GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online", "value": 1},
-						"i_am_ghost": {"label": "I am a ghost", "value": 0},
-						"force_vk_date": {"label": "Force VK timestamp for private messages", "value": 0},
-						"use_nicknames": {"label": "Use nicknames instead of real names", "value": 0}}
-
-TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from " \
-												"friends when user logs off", "value": 0}}
-
 
 if THREAD_STACK_SIZE:
 	threading.stack_size(THREAD_STACK_SIZE)
@@ -155,11 +106,9 @@ Handlers = {"msg01": [], "msg02": [],
 			"prs01": [], "prs02": [],
 			"evt08": [], "evt09": []}
 
-Stats = {"msgin": 0, ## from vk
-		 "msgout": 0, ## to vk
-		 "method": 0}
-
-DESC = "© simpleApps, 2013 — 2015."
+Stats = {"msgin": 0,  # from vk
+		"msgout": 0,  # to vk
+		"method": 0}
 
 
 def runDatabaseQuery(query, args=(), set=False, many=True, semph=Semaphore):
@@ -183,25 +132,10 @@ def initDatabase(filename):
 	Initializes database if it doesn't exist
 	"""
 	if not os.path.exists(filename):
-		runDatabaseQuery("create table users " \
-			"(jid text, username text, token text, " \
-			"lastMsgID integer, rosterSet bool)", set=True, semph=None)
+		runDatabaseQuery("create table users "
+			"(jid text, username text, token text, "
+				"lastMsgID integer, rosterSet bool)", set=True, semph=None)
 	return True
-
-
-def execute(handler, list=()):
-	"""
-	Just executes handler(*list) safely
-	If weird error is happened writes a crashlog
-	"""
-	try:
-		result = handler(*list)
-	except (SystemExit, xmpp.NodeProcessed):
-		result = 1
-	except Exception:
-		result = -1
-		crashLog(handler.func_name)
-	return result
 
 
 def executeHandlers(type, list=()):
@@ -210,57 +144,30 @@ def executeHandlers(type, list=()):
 	"""
 	handlers = Handlers[type]
 	for handler in handlers:
-		execute(handler, list)
+		utils.execute(handler, list)
 
 
 def registerHandler(type, func):
 	"""
 	Registers handlers and remove if the same is already exists
 	"""
-	logger.info("main: add \"%s\" to handle type %s" % (func.func_name, type))
+	logger.info("main: add \"%s\" to handle type %s", func.func_name, type)
 	for handler in Handlers[type]:
 		if handler.func_name == func.func_name:
 			Handlers[type].remove(handler)
 	Handlers[type].append(func)
 
 
-def runThread(func, args=(), name=None, att=3, delay=0):
-	"""
-	Runs a thread with custom args and name
-	Needed to reduce code
-	Parameters:
-		func: function you need to be running in a thread
-		args: function arguments
-		name: thread name
-		att: number of attempts
-		delay: if set, then threading.Timer will be started, not threading.Thread
-
-	"""
-	if delay:
-		logger.debug("threading: starting timer for %s%s, name:%s, delay:%s" % (func.func_name, str(args), name, delay))
-		thr = threading.Timer(delay, execute, (func, args))
-	else:
-		thr = threading.Thread(target=execute, args=(func, args))
-	name = name or func.__name__
-	name = str(name) + "-" + str(time.time())
-	thr.name = name
-	try:
-		thr.start()
-	except (threading.ThreadError):
-		if att:
-			return runThread(func, args, name, (att - 1), delay)
-		crashLog("runThread.%s" % name)
-
-
 def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	revNumber, rev = 276, 0
-	shell = os.popen("git describe --always && git log --pretty=format:''").readlines()
+	number, hash = 300, 0
+	shell = os.popen("git describe --always &"
+		"& git log --pretty=format:''").readlines()
 	if shell:
-		revNumber, rev = len(shell), shell[0]
-	return "#%s-%s" % (revNumber, rev)
+		number, hash = len(shell), shell[0]
+	return "#%s-%s" % (number, hash)
 
 
 def vk2xmpp(id):
@@ -279,73 +186,22 @@ def vk2xmpp(id):
 	return id
 
 
-Revision = getGatewayRev()
+REVISION = getGatewayRev()
 
-## Escape xmpp non-allowed chars
+# Escape xmpp non-allowed chars
 badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
-escape = re.compile("|".join(unichr(x) for x in badChars), re.IGNORECASE | re.UNICODE | re.DOTALL).sub
-sortMsg = lambda msgOne, msgTwo: msgOne.get("mid", 0) - msgTwo.get("mid", 0)
+escape = re.compile("|".join(unichr(x) for x in badChars),
+	re.IGNORECASE | re.UNICODE | re.DOTALL).sub
+
+sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
-
-
-class Settings(object):
-	"""
-	This class is needed to store users settings
-	"""
-	def __init__(self, source, user=True):
-		"""
-		Uses GLOBAL_USER_SETTINGS variable as default user's settings
-		and updates it using settings read from the file
-		"""
-		self.filename = "%s/%s/settings.txt" % (settingsDir, source)
-		if user:
-			self.settings = deepcopy(GLOBAL_USER_SETTINGS)
-		else:
-			self.settings = TRANSPORT_SETTINGS
-		userSettings = eval(rFile(self.filename)) or {}
-		for key, values in userSettings.iteritems():
-			if key in self.settings:
-				self.settings[key]["value"] = values["value"]
-			else:
-				self.settings[key] = values
-
-		self.keys = self.settings.keys
-		self.items = self.settings.items
-		self.source = source
-
-	save = lambda self: wFile(self.filename, str(self.settings))
-
-	__getitem__ = lambda self, key: self.settings[key]
-
-	def __setitem__(self, key, value):
-		self.settings[key]["value"] = value
-		self.save()
-
-	def __getattr__(self, attr):
-		if attr in self.settings:
-			return self.settings[attr]["value"]
-		elif not hasattr(self, attr):
-			return False
-		elif not self.settings.has_key(attr):
-			return False
-		else:
-			return object.__getattribute__(self, attr)
-
-	def exterminate(self):
-		"""
-		Deletes user configuration file
-		"""
-		import shutil
-		try:
-			shutil.rmtree(os.path.dirname(self.filename))
-		except (IOError, OSError):
-			pass
-		del shutil
+isdef = lambda var: var in globals()
 
 
 class VK(object):
 	"""
-	The base class containts the functions which directly works with VK
+	A base class for VK
+	Contain functions which directly work with VK
 	"""
 	def __init__(self, number=None, password=None, source=None):
 		self.number = number
@@ -357,7 +213,7 @@ class VK(object):
 		self.online = False
 		self.userID = 0
 		self.friends_fields = set(["screen_name"])
-		logger.debug("VK.__init__ with number:%s from jid:%s" % (number, source))
+		logger.debug("VK.__init__ with number:%s from jid:%s", number, source)
 
 	getToken = lambda self: self.engine.token
 
@@ -367,24 +223,25 @@ class VK(object):
 		Raises api.TokenError if token is invalid or missed in hell
 		Raises api.VkApiError if phone/password is invalid
 		"""
-		logger.debug("VK: checking data (jid: %s)" % self.source)
+		logger.debug("VK: checking data (jid: %s)", self.source)
 		if not self.engine.token and self.password:
 			logger.debug("VK.checkData: trying to login via password")
-			self.engine.loginByPassword()
-			self.engine.confirmThisApp()
+			passwordLogin = api.PasswordLogin(self.number, self.password)
+			self.engine.token = passwordLogin.login()
 			if not self.checkToken():
 				raise api.VkApiError("Incorrect phone or password")
 
 		elif self.engine.token:
 			logger.debug("VK.checkData: trying to use token")
 			if not self.checkToken():
-				logger.error("VK.checkData: token invalid: %s" % self.engine.token)
-				raise api.TokenError("Token is invalid: %s (jid: %s)" % (self.engine.token, self.source))
+				logger.error("VK.checkData: token invalid: %s", self.engine.token)
+				raise api.TokenError("Token is invalid: %s (jid: %s)"
+					% (self.engine.token, self.source))
 		else:
-			logger.error("VK.checkData: no token and no password (jid: %s)" % self.source)
+			logger.error("VK.checkData: no token and no password (jid: %s)",
+				self.source)
 			raise api.TokenError("%s, Where the hell is your token?" % self.source)
 
-	## TODO: this function must be rewritten. We have dict from self.method, so trying make int using dict is bad idea.
 	def checkToken(self):
 		"""
 		Checks the api token
@@ -400,14 +257,16 @@ class VK(object):
 		Initializes self.engine object
 		Calls self.checkData() and initializes longPoll if all is ok
 		"""
-		logger.debug("VK.auth %s token (jid: %s)" % ("with" if token else "without", self.source))
-		self.engine = api.APIBinding(self.number, self.password, token=token, debug=DEBUG_API)
+		logger.debug("VK.auth %s token (jid: %s)",
+			"with" if token else "without", self.source)
+		self.engine = api.APIBinding(token, debug=DEBUG_API)
 		try:
 			self.checkData()
 		except api.CaptchaNeeded:
 			raise
 		except api.AuthError as e:
-			logger.error("VK.auth failed with error %s (jid: %s)" % (e.message, self.source))
+			logger.error("VK.auth failed with error %s (jid: %s)",
+				e.message, self.source)
 			if raise_exc:
 				raise
 			return False
@@ -421,7 +280,7 @@ class VK(object):
 		logger.debug("VK.auth completed")
 		if initpoll:
 			self.online = True
-			runThread(self.initPoll, (), "__initPoll-%s" % self.source)
+			utils.runThread(self.initPoll, (), "__initPoll-%s" % self.source)
 		return True
 
 	def initPoll(self):
@@ -430,7 +289,7 @@ class VK(object):
 		Returns False if error occurred
 		"""
 		self.pollInitialzed = False
-		logger.debug("longpoll: requesting server address (jid: %s)" % self.source)
+		logger.debug("longpoll: requesting server address (jid: %s)", self.source)
 		try:
 			response = self.method("messages.getLongPollServer")
 		except Exception:
@@ -440,7 +299,8 @@ class VK(object):
 			return False
 		self.pollServer = "http://%s" % response.pop("server")
 		self.pollConfig.update(response)
-		logger.debug("longpoll: server: %s (jid: %s)" % (self.pollServer, self.source))
+		logger.debug("longpoll: server: %s (jid: %s)",
+			self.pollServer, self.source)
 		self.pollInitialzed = True
 		return True
 
@@ -451,12 +311,12 @@ class VK(object):
 		"""
 		if not self.pollInitialzed:
 			raise api.LongPollError("The Poll wasn't initialized yet")
-		opener = self.engine.RIP.getOpener(self.pollServer, self.pollConfig)
+		opener = api.AsyncHTTPRequest.getOpener(self.pollServer, self.pollConfig)
 		if not opener:
 			raise api.LongPollError("Poll request failed")
 		return opener
 
-	def method(self, method, args=None, nodecode=False, force=False):
+	def method(self, method, args=None, force=False):
 		"""
 		This is a duplicate function of self.engine.method
 		Needed to handle errors properly exactly in __main__
@@ -473,7 +333,7 @@ class VK(object):
 		Stats["method"] += 1
 		if not self.engine.captcha and (self.online or force):
 			try:
-				result = self.engine.method(method, args, nodecode)
+				result = self.engine.method(method, args)
 			except (api.InternalServerError, api.AccessDenied) as e:
 				# To prevent returning True from checkData()
 				if force:
@@ -483,28 +343,36 @@ class VK(object):
 				self.online = False
 
 			except api.CaptchaNeeded as e:
-				logger.error("VK: running captcha challenge (jid: %s)" % self.source)
+				logger.error("VK: running captcha challenge (jid: %s)", self.source)
 				self.captchaChallenge()
-				result = 0 ## why?
 
 			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
-					sendMessage(Component, self.source, vk2xmpp(args.get("user_id", TransportID)), _("You're not allowed to perform this action."))
+					sendMessage(Component, self.source,
+						vk2xmpp(args.get("user_id", TransportID)),
+						_("You're not allowed to perform this action."))
 
 			except api.VkApiError as e:
 				# There are several types of VkApiError
-				# But the user defenitely must be removed. The question is: how? Is he should have been completely exterminated or just removed?
+				# But the user defenitely must be removed.
+				# The question is: how?
+				# Are they should be completely exterminated or just removed?
 				roster = False
-				if e.message == "User authorization failed: user revoke access for this token.":
+				m = e.message
+				# Probably should be done in vkapi.py by status codes
+				if m == "User authorization failed: user revoke access for this token.":
 					roster = True
-				elif e.message == "User authorization failed: invalid access_token.":
-					sendMessage(Component, self.source, TransportID, _(e.message + " Please, register again"))
-				runThread(removeUser, (self.source, roster))
-				logger.error("VK: apiError %s (jid: %s)" % (e.message, self.source))
+				elif m == "User authorization failed: invalid access_token.":
+					sendMessage(Component, self.source, TransportID,
+								_(m + " Please, register again"))
+				utils.runThread(removeUser, (self.source, roster))
+				logger.error("VK: apiError %s (jid: %s)", m, self.source)
 				self.online = False
 			else:
 				return result
-			logger.error("VK: error %s occurred while executing method(%s) (%s) (jid: %s)" % (e.__class__.__name__, method, e.message, self.source))
+			logger.error("VK: error %s occurred while executing"
+				" method(%s) (%s) (jid: %s)",
+				e.__class__.__name__, method, e.message, self.source)
 			return False
 
 	def captchaChallenge(self):
@@ -520,16 +388,17 @@ class VK(object):
 		"""
 		Stops all user handlers and removes himself from Poll
 		"""
-		logger.debug("VK: user %s has left" % self.source)
+		logger.debug("VK: user %s has left", self.source)
 		self.online = False
-		runThread(executeHandlers, ("evt06", (self,)))
-		runThread(self.method, ("account.setOffline", None, True, True))
+		utils.runThread(executeHandlers, ("evt06", (self,)))
+		utils.runThread(self.method, ("account.setOffline", None, True, True))
 
 	def getFriends(self, fields=None):
 		"""
 		Executes friends.get and formats it in key-value style
 		Example: {1: {"name": "Pavel Durov", "online": False}
-		Parameter fields is needed to receive advanced fields which will be added in result values
+		Parameter fields is needed to receive advanced fields
+		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
 		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)}) or ()
@@ -537,7 +406,8 @@ class VK(object):
 		for friend in raw:
 			uid = friend["uid"]
 			online = friend["online"]
-			name = escape("", str.join(chr(32), (friend["first_name"], friend["last_name"])))
+			name = escape("", str.join(chr(32), (friend["first_name"],
+				friend["last_name"])))
 			friends[uid] = {"name": name, "online": online}
 			for key in fields:
 				friends[uid][key] = friend.get(key)
@@ -555,17 +425,16 @@ class VK(object):
 
 	def getUserID(self):
 		"""
-		Gets user id and adds his id into jidToID
+		Gets user id
 		"""
 		self.userID = self.method("execute.getUserID")
-		if self.userID:
-			jidToID[self.userID] = self.source
 		return self.userID
 
 	def getUserData(self, uid, fields=None):
 		"""
 		Gets user data. Such as name, photo, etc
-		If user exists in friends and if no advanced fields issued will return friends[uid]
+		If the user exist in friends list,
+		And if no advanced fields issued will return friends[uid]
 		Otherwise will request method users.get
 		Default fields are ["screen_name"]
 		"""
@@ -575,14 +444,16 @@ class VK(object):
 				if uid in user.friends:
 					return user.friends[uid]
 			fields = ["screen_name"]
-		data = self.method("users.get", {"fields": ",".join(fields), "user_ids": uid}) or {}
-		if not data:
+		data = self.method("users.get",
+			{"fields": str.join(chr(44), fields), "user_ids": uid}) or {}
+		if data:
+			data = data.pop()
+			data["name"] = escape("", str.join(chr(32),
+				(data.pop("first_name"), data.pop("last_name"))))
+		else:
 			data = {"name": "None"}
 			for key in fields:
 				data[key] = "None"
-		else:
-			data = data.pop()
-			data["name"] = escape("", str.join(chr(32), (data.pop("first_name"), data.pop("last_name"))))
 		return data
 
 	def sendMessage(self, body, id, mType="user_id", more={}):
@@ -597,45 +468,41 @@ class VK(object):
 		Stats["msgout"] += 1
 		values = {mType: id, "message": body, "type": 0}
 		values.update(more)
-		result = None
 		try:
 			result = self.method("messages.send", values)
 		except api.VkApiError:
 			crashLog("messages.send")
+			result = False
 		return result
 
 
 class User(object):
 	"""
-	Main class contains the functions to connect xmpp & VK
+	Main class.
+	Makes a “bridge” between VK & XMPP.
+
 	"""
 	def __init__(self, source=""):
-		
+
 		self.auth = None
 		self.exists = None
 
 		self.friends = {}
-		self.hashes = {}
-		
+
 		self.lastMsgID = 0
 		self.password = None
 		self.rosterSet = None
-		
+
 		self.source = source
 		self.token = None
 		self.typing = {}
 		self.username = None
-	
+
 		self.resources = set([])
 		self.settings = Settings(source)
 		self.last_udate = time.time()
 		self.sync = threading._allocate_lock()
-		logger.debug("initializing User (jid: %s)" % self.source)
-
-	def __eq__(self, user):
-		if isinstance(user, User):
-			return user.source == self.source
-		return self.source == user
+		logger.debug("initializing User (jid: %s)", self.source)
 
 	def connect(self, raise_exc=False):
 		"""
@@ -644,20 +511,24 @@ class User(object):
 		Raises exception if raise_exc == True
 		"""
 		self.vk = VK(self.username, self.password, self.source)
-		data = runDatabaseQuery("select * from users where jid=?", (self.source,), many=False)
+		data = runDatabaseQuery("select * from users where jid=?",
+			(self.source,), many=False)
 		if data:
 			if not self.token and not self.password:
-				logger.debug("User exists in database. Using his information (jid: %s)" % self.source)
+				logger.debug("User exists in the database."
+					" Using their information (jid: %s)", self.source)
 				self.exists = True
-				self.source, self.username, self.token, self.lastMsgID, self.rosterSet = data
+				self.source, self.username,\
+					self.token, self.lastMsgID, self.rosterSet = data
 			elif self.password or self.token:
-				logger.debug("User: %s exists in database. The record will be deleted." % self.source)
-				runThread(removeUser, (self,))
+				logger.debug("User: %s exists in the database."
+					" The record will be deleted.", self.source)
+				utils.runThread(removeUser, (self,))
 
-		logger.debug("User: connecting (jid: %s)" % self.source)
+		logger.debug("User: connecting (jid: %s)", self.source)
 		self.auth = None
-		## TODO: Check the code below
-		## what the hell is going on down here?
+		# TODO: Check the code below
+		# what the hell is going on down here?
 		if self.username and self.password:
 			self.vk.username = self.username
 			self.vk.password = self.password
@@ -672,16 +543,26 @@ class User(object):
 				raise
 			return False
 		else:
-			logger.debug("User: auth=%s (jid: %s)" % (self.auth, self.source))
+			logger.debug("User: auth=%s (jid: %s)", self.auth, self.source)
 
 		if self.auth and self.vk.getToken():
-			logger.debug("User: updating database because auth done (jid: %s)" % self.source)
+			logger.debug("User: updating database because auth done (jid: %s)",
+				self.source)
 			# User isn't exists so we gonna make a new record in the db
 			if not self.exists:
-				runDatabaseQuery("insert into users values (?,?,?,?,?)", (self.source, "", self.vk.getToken(), self.lastMsgID, self.rosterSet), True)
+				runDatabaseQuery("insert into users values (?,?,?,?,?)",
+					(self.source,
+						"",
+						self.vk.getToken(),
+						self.lastMsgID,
+						self.rosterSet),
+					True)
 
 			elif self.password:
-				runDatabaseQuery("update users set token=? where jid=?", (self.vk.getToken(), self.source), True)
+				runDatabaseQuery("update users set token=? where jid=?",
+					(self.vk.getToken(),
+						self.source),
+					True)
 			executeHandlers("evt07", (self,))
 			self.vk.online = True
 			self.friends = self.vk.getFriends()
@@ -691,27 +572,31 @@ class User(object):
 		"""
 		Initializes user after self.connect() is done:
 			1. Receives friends list and set 'em to self.friends
-			2. If #1 is done and roster is not yet set (self.rosterSet) then sends subscribe presence
+			2. If #1 is done and roster is not yet set (self.rosterSet)
+				then sends a subscription presence
 			3. Calls sendInitPresnece() if parameter send is True
 			4. Adds resource if resource parameter exists
 		Parameters:
-			force: force sending subscribe presence
+			force: force sending subscription presence
 			send: needed to know if need to send init presence or not
 			resource: add resource in self.resources to prevent unneeded stanza sending
 		"""
-		logger.debug("User: called init for user %s" % self.source)
+		logger.debug("User: called init for user %s", self.source)
 		Transport[self.source] = self
 		if not self.friends:
 			self.friends = self.vk.getFriends()
 		if self.friends and not self.rosterSet or force:
-			logger.debug("User: sending subscribe presence with force:%s (jid: %s)" % (force, self.source))
+			logger.debug("User: sending subscription presence with force:%s (jid: %s)",
+				force, self.source)
 			self.sendSubPresence(self.friends)
-		if send: self.sendInitPresence()
-		if resource: self.resources.add(resource)
-		runThread(self.vk.getUserID)
+		if send:
+			self.sendInitPresence()
+		if resource:
+			self.resources.add(resource)
+		utils.runThread(self.vk.getUserID)
 		Poll.add(self)
 		self.sendMessages(True)
-		runThread(executeHandlers, ("evt05", (self,)))
+		utils.runThread(executeHandlers, ("evt05", (self,)))
 
 	def sendInitPresence(self):
 		"""
@@ -721,13 +606,15 @@ class User(object):
 			if not self.friends:
 				self.friends = self.vk.getFriends()
 			count = len(self.friends)
-			logger.debug("User: sending init presence (friends count: %s) (jid %s)" % (count, self.source))
+			logger.debug("User: sending init presence (friends count: %s) (jid %s)",
+				count, self.source)
 			key = "name"
 			if self.settings.use_nicknames:
 				key = "screen_name"
 			for uid, value in self.friends.iteritems():
 				if value["online"]:
-					sendPresence(self.source, vk2xmpp(uid), None, value.get(key, "Unknown"), caps=True)
+					sendPresence(self.source, vk2xmpp(uid), None,
+						value.get(key, "Unknown"), caps=True)
 		if not self.vk.engine.captcha:
 			sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
@@ -739,7 +626,7 @@ class User(object):
 			reason: offline status message
 			all: send an unavailable from all friends or only the ones who's online
 		"""
-		logger.debug("User: sending out presence to %s" % self.source)
+		logger.debug("User: sending out presence to %s", self.source)
 		friends = self.friends.keys()
 		if not all and friends:
 			friends = filter(lambda key: self.friends[key]["online"], friends)
@@ -759,7 +646,8 @@ class User(object):
 		sendPresence(self.source, TransportID, "subscribe", IDENTIFIER["name"])
 		if dist:
 			self.rosterSet = True
-			runDatabaseQuery("update users set rosterSet=? where jid=?", (self.rosterSet, self.source), True)
+			runDatabaseQuery("update users set rosterSet=? where jid=?",
+				(self.rosterSet, self.source), True)
 
 	def sendMessages(self, init=False):
 		"""
@@ -767,8 +655,10 @@ class User(object):
 		Paramteres:
 			init: needed to know if function called at init (add time or not)
 		Plugins notice (msg01):
-			If plugin returs None then message will not be sent by transport's core, it shall be sent by plugin itself
-			Otherwise, if plugin returns string, the message will be sent by transport's core
+			If plugin returs None then message will not be sent by transport's core,
+				it shall be sent by plugin itself
+			Otherwise, if plugin returns string,
+				the message will be sent by transport's core
 		"""
 		with self.sync:
 			date = 0
@@ -792,7 +682,7 @@ class User(object):
 
 						if result is None:
 							for func in iter:
-								utils.apply(func, (self, message))
+								utils.execute(func, (self, message))
 							break
 						else:
 							body += result
@@ -802,7 +692,8 @@ class User(object):
 						sendMessage(Component, self.source, fromjid, escape("", body), date)
 		if messages:
 			self.lastMsgID = messages[-1]["mid"]
-			runDatabaseQuery("update users set lastMsgID=? where jid=?", (self.lastMsgID, self.source), True)
+			runDatabaseQuery("update users set lastMsgID=? where jid=?",
+				(self.lastMsgID, self.source), True)
 
 		if not self.vk.userID:
 			self.vk.getUserID()
@@ -813,30 +704,29 @@ class User(object):
 		Retur codes:
 			0: need to reinit poll (add user to the poll buffer)
 			1: all is fine (request again)
-			-1: just continue iteration, ignoring this user (user won't be added for the next iteration)
+			-1: just continue iteration, ignoring this user
+				(user won't be added for the next iteration)
 		"""
 		if DEBUG_POLL:
-			logger.debug("longpoll: processing result (jid: %s)" % self.source)
+			logger.debug("longpoll: processing result (jid: %s)", self.source)
 
 		if self.vk.engine.captcha:
 			return -1
 
+		data = None
 		try:
 			data = opener.read()
-		except (httplib.BadStatusLine, socket.error):
+			data = json.loads(data)
+		except (ValueError, httplib.BadStatusLine, socket.error):
 			return 1
 
 		if not data:
-			logger.error("longpoll: no data. Will request again")
-			return 1
-
-		try:
-			data = json.loads(data)
-		except ValueError:
+			logger.error("longpoll: no data. Gonna request again")
 			return 1
 
 		if "failed" in data:
-			logger.debug("longpoll: failed. Searching for new server (jid: %s)" % self.source)
+			logger.debug("longpoll: failed. Searching for new server(jid: %s)",
+				self.source)
 			return 0
 
 		self.vk.pollConfig["ts"] = data["ts"]
@@ -844,31 +734,31 @@ class User(object):
 			typ = evt.pop(0)
 
 			if typ == 4:  # new message
-				runThread(self.sendMessages, name="sendMessages-%s" % self.source)
+				utils.runThread(self.sendMessages, name="sendMessages-%s" % self.source)
 
-			elif typ == 8: # user has joined
+			elif typ == 8:  # user has joined
 				if not self.settings.i_am_ghost:
 					uid = abs(evt[0])
 					key = "name"
 					if self.settings.use_nicknames:
 						key = "screen_name"
-					sendPresence(self.source, vk2xmpp(uid), nick=self.vk.getUserData(uid)[key], caps=True)
+					sendPresence(self.source, vk2xmpp(uid),
+						nick=self.vk.getUserData(uid)[key], caps=True)
 
-			elif typ == 9: # user has left
+			elif typ == 9:  # user has left
 				uid = abs(evt[0])
 				sendPresence(self.source, vk2xmpp(uid), "unavailable")
 
-			elif typ == 61: # user is typing
+			elif typ == 61:  # user is typing
 				if evt[0] not in self.typing:
 					sendMessage(Component, self.source, vk2xmpp(evt[0]), typ="composing")
 				self.typing[evt[0]] = time.time()
 		return 1
 
-
 	def updateTypingUsers(self, cTime):
 		"""
 		Sends "paused" message event to stop user from composing a message
-		Sends only if last typing activity in VK was >10 secs ago
+		Sends only if last typing activity in VK was more than 10 seconds ago
 		"""
 		for user, last in self.typing.items():
 			if cTime - last > 10:
@@ -888,187 +778,34 @@ class User(object):
 				self.last_udate = cTime
 				friends = self.vk.getFriends()
 				if not friends:
-					logger.error("updateFriends: no friends received (jid: %s)." % self.source)
+					logger.error("updateFriends: no friends received (jid: %s).",
+						self.source)
 					return None
-				if friends:
-					for uid in friends:
-						if uid not in self.friends:
-							self.sendSubPresence({uid: friends[uid]})
-					for uid in self.friends:
-						if uid not in friends:
-							sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
-							sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
-					self.friends = friends
+				for uid in friends:
+					if uid not in self.friends:
+						self.sendSubPresence({uid: friends[uid]})
+				for uid in self.friends:
+					if uid not in friends:
+						sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
+						sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
+				self.friends = friends
 
 	def tryAgain(self):
 		"""
 		Tries to execute self.initialize() again and connect() if needed
 		Usually needed after captcha challenge is done
 		"""
-		logger.debug("calling reauth for user %s" % self.source)
+		logger.debug("calling reauth for user %s", self.source)
 		if not self.vk.online:
-			self.token = None # we reset the token to prevent user deletion from the database
+			# Reset the token variable
+			# In order to prevent user deletion from the database
+			self.token = None
 			self.connect()
 		self.initialize(True)
 
 
-class Poll:
-	"""
-	Class used to handle longpoll
-	"""
-	__list = {}
-	__buff = set()
-	__lock = threading._allocate_lock()
-
-
-	@classmethod
-	def __add(cls, user):
-		"""
-		Issues readable socket to use it in select()
-		Adds user in buffer on error occurred
-		Adds user in self.__list if no errors
-		"""
-		try:
-			opener = user.vk.makePoll()
-		except Exception as e:
-			if not isinstance(e, api.LongPollError):
-				crashLog("poll.add")
-			logger.error("longpoll: failed to make poll (jid: %s)" % user.source)
-			cls.__addToBuff(user)
-			return False
-		else:
-			cls.__list[opener.sock] = (user, opener)
-		return opener
-
-	@classmethod
-	def __addToBuff(cls, user):
-		"""
-		Adds user to the list of "bad" users
-		The list is mostly contain users whose poll request was failed for some reasons
-		"""
-		cls.__buff.add(user)
-		logger.debug("longpoll: adding user to watcher (jid: %s)" % user.source)
-		runThread(cls.__initPoll, (user,), "__initPoll-%s" % user.source)
-
-	@classmethod
-	def add(cls, some_user):
-		"""
-		Adds the User class object to poll
-		"""
-		with cls.__lock:
-			if some_user in cls.__buff:
-				return None
-			for sock, (user, opener) in cls.__list.iteritems():
-				if some_user == user:
-					break
-			else:
-				cls.__add(some_user)
-
-	clear = staticmethod(__list.clear)
-
-	@classmethod
-	def __initPoll(cls, user):
-		"""
-		Tries to reinitialize poll if needed in 10 times (each 10 seconds)
-		As soon as poll initialized user will be removed from buffer
-		"""
-		for x in xrange(10):
-			if user.source not in Transport:
-				logger.debug("longpoll: while we wasted our time, user has left (jid: %s)" % user.source)
-				with cls.__lock:
-					if user in cls.__buff:
-						cls.__buff.remove(user)
-				return None
-
-			if Transport[user.source].vk.initPoll():
-				with cls.__lock:
-					logger.debug("longpoll: successfully initialized longpoll (jid: %s)" % user.source)
-					if user not in cls.__buff:
-						return None
-					cls.__buff.remove(user)
-					# Check if user still in transport when we finally came down here
-					if user.source in Transport:
-						cls.__add(Transport[user.source])
-					break
-			time.sleep(10)
-		else:
-			with cls.__lock:
-				if user not in cls.__buff:
-					return None
-				cls.__buff.remove(user)
-			logger.error("longpoll: failed to add user to poll in 10 retries (jid: %s)" % user.source)
-
-	@classmethod
-	def process(cls):
-		"""
-		Processes poll sockets by select.select()
-		As soon as socket will be ready to be read, will be called user.processPollResult()
-		Read processPollResult.__doc__ to learn more about status codes
-		"""
-		while ALIVE:
-			socks = cls.__list.keys()
-			if not socks:
-				time.sleep(0.02)
-				continue
-			try:
-				ready, error = select.select(socks, [], socks, 2)[::2]
-			except (select.error, socket.error) as e:
-				logger.error("longpoll: %s" % (e.message)) ## debug?
-
-			for sock in error:
-				with cls.__lock:
-					# We will just re-add the user to poll in case if anything weird happen to socket
-					try:
-						cls.__add(cls.__list.pop(sock)[0])
-					except KeyError:
-						continue
-
-			for sock in ready:
-				# We need to handle all synchronously
-				with cls.__lock:
-					try:
-						user, opener = cls.__list.pop(sock)
-					except KeyError:
-						continue
-
-					user = Transport.get(user.source) # WHAT?
-					if not user:
-						continue
-					## We need to check if the user hasn't left yet
-					if not user.vk.online:
-						continue
-					runThread(cls.processResult, (user, opener), "poll.processResult-%s" % user.source)
-
-			with cls.__lock:
-				for sock, (user, opener) in cls.__list.items():
-					if not user.vk.online:
-						logger.debug("longpoll: user is not online, so removing their from poll (jid: %s)" % user.source)
-						try:
-							del cls.__list[sock]
-						except KeyError:
-							pass
-
-	@classmethod
-	def processResult(cls, user, opener):
-		"""
-		Processes the select result (see above)
-		Handles answers from user.processPollResult()
-		Decides neiter if need to add user to poll or not
-		"""
-		result = execute(user.processPollResult, (opener,))
-		if DEBUG_POLL:
-			logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
-		if result == -1:
-			return None
-		# if mark user.vk.Pollinitialized as False
-		# then there will be an exception
-		# after that, user will be reinitialized
-		if not result:
-			user.vk.pollInitialzed = False
-		cls.add(user)
-
-
-def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=None, show=None):
+def sendPresence(destination, source, pType=None, nick=None,
+	reason=None, caps=None, show=None):
 	"""
 	Sends presence to destination from source
 	Parameters:
@@ -1080,12 +817,15 @@ def sendPresence(destination, source, pType=None, nick=None, reason=None, caps=N
 		caps: add caps into stanza or not
 		show: add status show
 	"""
-	presence = xmpp.Presence(destination, pType, frm=source, status=reason, show=show)
+	presence = xmpp.Presence(destination, pType,
+		frm=source, status=reason, show=show)
 	if nick:
 		presence.setTag("nick", namespace=xmpp.NS_NICK)
 		presence.setTagData("nick", nick)
 	if caps:
-		presence.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
+		presence.setTag("c",
+			{"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": REVISION},
+			xmpp.NS_CAPS)
 	executeHandlers("prs02", (presence, destination, source))
 	sender(Component, presence)
 
@@ -1155,25 +895,31 @@ def removeUser(user, roster=False, notify=True):
 	Removes user from database
 	Parameters:
 		user: User class object or jid without resource
-		roster: remove vk contacts from user's roster (only if User class object was in first param)
+		roster: remove vk contacts from user's roster
+			(only if User class object was in the first param)
 	"""
-	if isinstance(user, (str, unicode)): # unicode is default, but... who knows
+	if isinstance(user, (str, unicode)):  # unicode is default, but... who knows
 		source = user
-	else:
+	elif user:
 		source = user.source
-	user = Transport.get(source) ## here's probability it's not the User object
+	else:
+		raise ValueError("No user or token was given")
+	user = Transport.get(source)  # here's probability it's not the User object
 	if notify:
-		sendMessage(Component, source, TransportID, _("The record in the database about you was EXTERMINATED! If you weren't asked for it, then let us know."), -1) ## Will russians understand this joke?
+		# Would russians understand the joke?
+		sendMessage(Component, source, TransportID,
+			_("Your record was EXTERMINATED from the database."
+				" Let us know if you feel exploited."), -1)
 	logger.debug("User: removing user from db (jid: %s)" % source)
 	runDatabaseQuery("delete from users where jid=?", (source,), True)
-	logger.debug("User: deleted (jid: %s)" % source)
+	logger.debug("User: deleted (jid: %s)", source)
 	if source in Transport:
 		del Transport[source]
 	if roster and user:
 		friends = user.friends
-		user.exists = False ## Make the Daleks happy
+		user.exists = False  # Make the Daleks happy
 		if friends:
-			logger.debug("User: removing myself from roster (jid: %s)" % source)
+			logger.debug("User: removing myself from roster (jid: %s)", source)
 			for id in friends.keys() + [TransportID]:
 				jid = vk2xmpp(id)
 				sendPresence(source, jid, "unsubscribe")
@@ -1185,23 +931,24 @@ def removeUser(user, roster=False, notify=True):
 
 def getPid():
 	"""
-	Gets new PID and kills the previous PID
-	by signals 15 and then 9
+	Gets a new PID and kills the previous PID
+	by signals 15 and 9
 	"""
 	pid = os.getpid()
 	if os.path.exists(pidFile):
-		oldPid = rFile(pidFile)
-		if oldPid:
+		old = rFile(pidFile)
+		if old:
 			Print("#-# Killing the previous instance: ", False)
-			oldPid = int(oldPid)
-			if pid != oldPid:
+			old = int(old)
+			if pid != old:
 				try:
-					os.kill(oldPid, 15)
+					os.kill(old, 15)
 					time.sleep(3)
-					os.kill(oldPid, 9)
+					os.kill(old, 9)
 				except OSError:
-					pass
-				Print("%d killed.\n" % oldPid, False)
+					Print("%d not killed.\n" % old, False)
+				else:
+					Print("%d killed.\n" % old, False)
 	wFile(pidFile, str(pid))
 
 
@@ -1212,77 +959,6 @@ def loadExtensions(dir):
 	for file in os.listdir(dir):
 		if not file.startswith("."):
 			execfile("%s/%s" % (dir, file), globals())
-
-
-class ModuleLoader:
-
-	"""
-	A complete proxy for modules. You can easy load, reload and unload any module using this.
-	Modules are different from extensions.
-	While extensions works in main globals() and have their callbacks,
-	modules works in their own globals() and they're not affect to the core.
-	Unfortunately, most of modules are not protected from harm and they may have affect on the connection
-	"""
-
-	loaded = set([])
-	@classmethod
-	def __register(cls, module):
-		if hasattr(module, "load"):
-			module.load()
-		ModuleLoader.loaded.add(module.__name__)
-
-	@classmethod
-	def __unregister(self, module):
-		if hasattr(module, "unload"):
-			module.unload()
-		ModuleLoader.loaded.remove(module.__name__)
-
-	@classmethod
-	def list(cls):
-		modules = []
-		for file in os.listdir("modules"):
-			name, ext = os.path.splitext(file)
-			if ext == ".py":
-				modules.append(name)
-		return modules
-
-	@classmethod
-	def reload(cls, name):
-		if name in sys.modules:
-			module = sys.modules[name]
-			cls.__unregister(module)
-			return reload(module)
-
-
-	@classmethod
-	def load(cls, list=[]):
-		result = []
-		errors = []
-		for name in list:
-			if name in cls.loaded:
-				try: module = cls.reload(name)
-				except Exception: errors.append(name); continue
-			else:
-				try:
-					module = __import__(name, globals(), locals())
-				except Exception:
-					crashLog("module_loader")
-					errors.append(name)
-					continue
-
-			result.append(name)
-			cls.__register(module)
-		return (result, errors)
-
-	@classmethod
-	def unload(cls, list=[]):
-		result = []
-		for name in list:
-			if name in sys.modules:
-				cls.__unregister(sys.modules[name])
-				del sys.modules[name]
-				result.append(name)
-		return result
 
 
 def connect():
@@ -1300,7 +976,8 @@ def connect():
 		Print("ok.\n", False)
 		Print("#-# Auth: ", False)
 		if not Component.auth(TransportID, Password):
-			Print("failed (%s/%s)!\n" % (Component.lastErr, Component.lastErrCode), True)
+			Print("failed (%s/%s)!\n"
+				% (Component.lastErr, Component.lastErrCode), True)
 			return False
 		else:
 			Print("ok.\n", False)
@@ -1328,10 +1005,12 @@ def runMainActions():
 	if allowBePublic:
 		makeMeKnown()
 	for num, event in enumerate(Handlers["evt01"]):
-		runThread(event, (), "extension-%d" % num)
-	runThread(Poll.process, (), "longPoll")
-	runThread(updateCron, (), "updateCron")
-	ModuleLoader.load(ModuleLoader.list())
+		utils.runThread(event, (), "extension-%d" % num)
+	utils.runThread(Poll.process, (), "longPoll")
+	utils.runThread(updateCron, (), "updateCron")
+	import modulemanager
+	Manager = modulemanager.ModuleManager
+	Manager.load(Manager.list())
 
 
 def main():
@@ -1339,6 +1018,12 @@ def main():
 	Running main actions to start the transport
 	Such as pid, db, connect
 	"""
+	if RUN_AS:
+		import pwd
+		uid = pwd.getpwnam(RUN_AS).pw_uid
+		logger.warning("switching to user %s:%s", RUN_AS, uid)
+		os.setuid(uid)
+
 	getPid()
 	initDatabase(DatabaseFile)
 	if connect():
@@ -1351,13 +1036,12 @@ def main():
 def disconnectHandler(crash=True):
 	"""
 	Handles disconnect
-	And writes a crashlog if crash parameter is equals True
+	And writes a crashlog if crash parameter equals True
 	"""
 	logger.debug("disconnectHandler has been called!")
 	executeHandlers("evt02")
 	if crash:
 		crashLog("main.disconnect")
-	## In case to catch some weird errors right here
 	logger.critical("Disconnecting from the server")
 	try:
 		Component.disconnect()
@@ -1380,9 +1064,10 @@ def disconnectHandler(crash=True):
 
 def makeMeKnown():
 	"""
-	That's such a weird function just makes post request
+	That's such a weird function just makes a post request
 	to the vk4xmpp monitor which is located on http://xmppserv.ru/xmpp-monitor
-	You can check out the source of The VK4XMPP Monitor utilty over there: https://github.com/aawray/xmpp-monitor
+	You can check out the source of The VK4XMPP Monitor utilty
+		over there: https://github.com/aawray/xmpp-monitor
 	"""
 	if WhiteList:
 		WhiteList.append(VK4XMPP_MONITOR_SERVER)
@@ -1423,6 +1108,5 @@ if __name__ == "__main__":
 			logger.critical("disconnected")
 			crashLog("component.iter")
 			disconnectHandler(True)
-
 
 # This is the end!

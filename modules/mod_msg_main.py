@@ -8,8 +8,7 @@ Module purpose is to receive and handle messages
 
 from __main__ import *
 from __main__ import _
-import __main__
-
+import utils
 
 def reportReceived(msg, jidFrom, jidTo):
 	"""
@@ -56,7 +55,8 @@ def acceptCaptcha(cl, args, jidTo, source):
 			sendMessage(cl, source, jidTo, answer)
 
 
-def message_handler_threaded(cl, msg):
+@utils.threaded
+def message_handler(cl, msg):
 	body = msg.getBody()
 	jidTo = msg.getTo()
 	destination = jidTo.getStripped()
@@ -92,15 +92,6 @@ def message_handler_threaded(cl, msg):
 	executeHandlers("msg02", (msg,))
 
 
-def message_handler(cl, msg):
-	runThread(message_handler_threaded, (cl, msg))
-
-
-def load():
-	TransportFeatures.add(xmpp.NS_RECEIPTS)
-	Component.RegisterHandler("message", message_handler)
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_RECEIPTS)
-	Component.UnregisterHandler("message", message_handler)
+MOD_TYPE = "message"
+MOD_FEATURES = xmpp.NS_RECEIPTS
+MOD_HANDLERS = ((message_handler, "", "", False),)

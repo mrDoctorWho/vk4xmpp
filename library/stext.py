@@ -1,6 +1,10 @@
 # coding: utf-8
 # (с) simpleApps, 25.06.12; 19:58:42
-# License: GPLv3.
+
+"""
+Provides a way to use translations
+Not optimal, but still.
+"""
 
 import os
 from writer import rFile

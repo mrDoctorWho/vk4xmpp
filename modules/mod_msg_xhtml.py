@@ -3,17 +3,18 @@
 # © simpleApps, 2013 — 2015.
 # This module depends on mod_xhtml.
 
-from __main__ import *
+from __main__ import Transport, logger
+import xmpp
 import mod_xhtml
 
 def xhtml_handler(cl, msg):
 	destination = msg.getTo().getStripped()
 	source = msg.getFrom().getStripped()
-	if source in Transport:
+	if source in Transport and msg.getType() == "chat":
 		user = Transport[source]
-		html = msg.getTag("html") 
-		if html and html.getTag("body"): ## XHTML-IM!
-			logger.debug("msgHandler: fetched xhtml image from %s" % source)
+		html = msg.getTag("html")
+		if html and html.getTag("body"):  # XHTML-IM!
+			logger.debug("fetched xhtml image from %s", source)
 			try:
 				xhtml = mod_xhtml.parseXHTML(user, html, source, destination)
 			except Exception:
@@ -21,11 +22,6 @@ def xhtml_handler(cl, msg):
 			if xhtml:
 				raise xmpp.NodeProcessed()
 
-def load():
-	TransportFeatures.add(xmpp.NS_XHTML_IM)
-	Component.RegisterHandler("message", xhtml_handler, "chat")
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_XHTML_IM)
-	Component.UnregisterHandler("message", xhtml_handler, "chat")
+MOD_TYPE = "message"
+MOD_HANDLERS = ((xhtml_handler, "", "", True),)
+MOD_FEATURES = [xmpp.NS_XHTML_IM]

@@ -2,12 +2,14 @@
 # © simpleApps, 2010
 
 """
-Sometimes your program can crash with an error "IOError: device not ready" when it prints some text
-This module is used to prevent such things
+Provides a “safe” way to print a text
 """
 
 import sys
 import time
+
+__author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
+
 
 def use_lsd(text):
 	import random

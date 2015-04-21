@@ -40,10 +40,9 @@ def sendCaptcha(self):
 	Presence = xmpp.protocol.Presence(self.source, show="xa", status=body, frm=TransportID)
 	sender(Component, Presence)
 
-
-TransportFeatures.add(xmpp.NS_CAPTCHA)
-TransportFeatures.add(xmpp.NS_OOB)
-TransportFeatures.add(xmpp.NS_MEDIA)
-TransportFeatures.add(xmpp.NS_URN_OOB)
+TransportFeatures.update({xmpp.NS_OOB,
+	xmpp.NS_MEDIA,
+	xmpp.NS_CAPTCHA,
+	xmpp.NS_URN_OOB})
 
 registerHandler("evt04", sendCaptcha)

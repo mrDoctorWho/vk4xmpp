@@ -5,8 +5,10 @@
 from __main__ import *
 from __main__ import _
 
-del Semaphore
-Semaphore = threading.Semaphore()
+VCARD_SEMAPHORE = threading.Semaphore()
+
+DESCRIPTION = "VK4XMPP Transport\n© simpleApps, 2013 — 2015."
+GITHUB_URL = "https://github.com/mrDoctorWho/vk4xmpp"
 
 
 def buildVcard(tags):
@@ -20,22 +22,27 @@ def buildVcard(tags):
 	return vCard
 
 
-def vcard_handler_threaded(cl, iq):
+@utils.threaded
+def vcard_handler(cl, iq):
 	# Vcard feature makes transport hang (especially the photo part)
 	# Many clients love to query vcards so much, so the solution was in adding a semaphore and sleep() here
 	# This is probably not a good idea, but for now this is the best one
-	with Semaphore:
+	with VCARD_SEMAPHORE:
 		jidFrom = iq.getFrom()
 		jidTo = iq.getTo()
 		source = jidFrom.getStripped()
 		destination = jidTo.getStripped()
 		result = iq.buildReply("result")
-		_DESC = str.join(chr(10), (DESC, "_" * 16, AdditionalAbout)) if AdditionalAbout else DESC
+		if AdditionalAbout:
+			desc = "%s\n%s" % (DESCRIPTION, AdditionalAbout)
+		else:
+			desc = DESCRIPTION
+
 		if destination == TransportID:
-			vcard = buildVcard({"NICKNAME": "VK4XMPP Transport",
-								"DESC": _DESC,
-								"PHOTO": "https://raw.github.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png",
-								"URL": "http://simpleapps.ru"
+			vcard = buildVcard({"NICKNAME": IDENTIFIER["name"],
+								"DESC": desc,
+								"PHOTO": URL_VCARD_NO_IMAGE,
+								"URL": GITHUB_URL
 								})
 			result.setPayload([vcard])
 
@@ -52,7 +59,7 @@ def vcard_handler_threaded(cl, iq):
 				values = {"NICKNAME": screen_name,
 						"FN": name,
 						"URL": "http://vk.com/id%s" % id,
-						"DESC": _("Contact uses VK4XMPP Transport\n%s") % _DESC
+						"DESC": _("Contact uses VK4XMPP Transport\n%s") % desc
 						}
 				if id in user.friends.keys():
 					values["PHOTO"] = json.get(PhotoSize) or URL_VCARD_NO_IMAGE
@@ -66,15 +73,6 @@ def vcard_handler_threaded(cl, iq):
 		time.sleep(1.5)
 
 
-def vcard_handler(cl, iq):
-	runThread(vcard_handler_threaded, (cl, iq))
-
-
-def load():
-	TransportFeatures.add(xmpp.NS_VCARD)
-	Component.RegisterHandler("iq", vcard_handler, "get", xmpp.NS_VCARD)
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_VCARD)
-	Component.UnregisterHandler("iq", vcard_handler, "get", xmpp.NS_VCARD)
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((vcard_handler, "get", xmpp.NS_VCARD, False),)
+MOD_FEATURES = [xmpp.NS_VCARD]

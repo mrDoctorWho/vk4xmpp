@@ -10,16 +10,11 @@ def version_handler(cl, iq):
 		result = iq.buildReply("result")
 		query = result.getTag("query")
 		query.setTagData("name", IDENTIFIER["name"])
-		query.setTagData("version", Revision)
+		query.setTagData("version", REVISION)
 		query.setTagData("os", "%s / %s" % (OS, Python))
 		sender(cl, result)
 
 
-def load():
-	TransportFeatures.add(xmpp.NS_VERSION)
-	Component.RegisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_VERSION)
-	Component.UnregisterHandler("iq", version_handler, "get", xmpp.NS_VERSION)
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((version_handler, "get", xmpp.NS_VERSION, False),)
+MOD_FEATURES = [xmpp.NS_VERSION]

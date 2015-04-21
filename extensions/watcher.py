@@ -12,11 +12,14 @@ def watcherMsg(text):
 
 
 def watch_registered(source):
-	watcherMsg(_("User has removed registration: %s") % source)
+	watcherMsg(_("New user registered: %s") % source)
 
 
 def watch_unregistered(source):
-	watcherMsg(_("New user registered: %s") % source)
+	watcherMsg(_("User has removed registration: %s") % source)
+
+if not isdef("WatcherList"):
+	WatcherList = []
 
 registerHandler("evt08", watch_registered)
 registerHandler("evt09", watch_unregistered)

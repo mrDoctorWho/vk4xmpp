@@ -13,7 +13,6 @@
 Watches for inactive users and removes them
 """
 
-isdef = lambda var: var in globals()
 
 def user_activity_evt01():
 	runDatabaseQuery("create table if not exists last_activity (jid text, date integer)", set=True)
@@ -52,7 +51,7 @@ def user_activity_remove():
 				"the database because of inactivity more than %s (jid: %s)" % (LA, jid))
 			else:
 				sendMessage(Component, jid, TransportID, _("Your last activity was more than %s seconds ago. Relogin or you'll be exterminated.") % LA, LA)			
-	runThread(user_activity_remove, delay=(60*60*24))
+	utils.runThread(user_activity_remove, delay=(60*60*24))
 
 # A dirty hack to add seen users in stats
 def calcStats():

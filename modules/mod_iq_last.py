@@ -3,13 +3,15 @@
 # © simpleApps, 2013 — 2015.
 
 from __main__ import *
+import xmpp
+import utils
 
-
-def last_handler_threaded(cl, iq):
+@utils.threaded
+def last_handler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
 	source = jidFrom.getStripped()
-	destination = jidTo.getStripped() ## By following standard we should use destination with resource, If we don't client must think user is offline. So, let it be.
+	destination = jidTo.getStripped()
 	id = vk2xmpp(destination)
 	if id == TransportID:
 		last = int(time.time() - startTime)
@@ -26,15 +28,8 @@ def last_handler_threaded(cl, iq):
 	result.setTagData("query", name)
 	sender(cl, result)
 
-def last_handler(cl, iq):
-	runThread(last_handler_threaded, (cl, iq))
 
-def load():
-	TransportFeatures.add(xmpp.NS_LAST)
-	UserFeatures.add(xmpp.NS_LAST)
-	Component.RegisterHandler("iq", last_handler, "get", xmpp.NS_LAST)
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_LAST)
-	UserFeatures.remove(xmpp.NS_LAST)
-	Component.UnregisterHandler("iq", last_handler, "get", xmpp.NS_LAST)
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((last_handler, "get", xmpp.NS_LAST, False),)
+MOD_FEATURES = [xmpp.NS_LAST]
+MOD_FEATURES_USER = [xmpp.NS_LAST]

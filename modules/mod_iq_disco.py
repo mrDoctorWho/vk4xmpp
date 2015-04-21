@@ -1,17 +1,18 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2014 — 2015.
-# Warning: This module contains non-optimal and really bad code.
+# Warning: This module contain non-optimal and really bad code.
 
 
 from __main__ import *
 from __main__ import _
 from utils import buildDataForm as buildForm
 from xmpp import DataForm as getForm
+import modulemanager
 
 NODES = {"admin": ("Delete users", 
 					"Global message", 
-					"Show crashlogs", 
+					"Show crash logs", 
 					"Reload config", 
 					"Global Transport settings", 
 					"Check an API token",
@@ -20,7 +21,6 @@ NODES = {"admin": ("Delete users",
 					"Reload extensions"), 
 		"user": ("Edit settings",)}
 
-FORM_TYPES = ("text-single", "text-multi", "jid-multi")
 
 def disco_handler(cl, iq):
 	source = iq.getFrom().getStripped()
@@ -37,8 +37,8 @@ def disco_handler(cl, iq):
 		result = iq.buildReply("result")
 		payload.append(xmpp.Node("identity", IDENTIFIER))
 		if source in ADMIN_JIDS:
-			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID }))
-			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID }))
+			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID}))
+			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID}))
 		if ns == xmpp.NS_DISCO_INFO:
 			for key in features:
 				xNode = xmpp.Node("feature", {"var": key})
@@ -79,20 +79,8 @@ def disco_handler(cl, iq):
 
 
 getUsersList = lambda: runDatabaseQuery("select jid from users", many=True)
-
-
-def deleteUsers(jids):
-	for key in jids:
-		try:
-			removeUser(key)
-		except Exception:
-			pass
-
-
-def sendGlobalMessage(text):
-	jids = getUsersList()
-	for jid in jids:
-		sendMessage(Component, jid[0], TransportID, text)
+deleteUsers = lambda jids: [utils.execute(removeUser, (key,), False) for key in jids]
+sendGlobalMessage = lambda text: [sendMessage(Component, jid[0], TransportID, text) for jid in getUsersList()]
 
 
 def checkAPIToken(token):
@@ -102,13 +90,13 @@ def checkAPIToken(token):
 	vk = VK()
 	try:
 		auth = vk.auth(token, True, False)
-		if not auth:    # in case if VK() won't raise an exception
+		if not auth:  # in case if VK() won't raise an exception
 			raise api.AuthError("Auth failed")
 		else:
 			vk.online = True
 			userID = vk.getUserID()
 			name = vk.getUserData(userID)
-			data = {"auth": auth, "name": name, "id": str(userID), "friends_count": len(vk.getFriends())}
+			data = {"auth": auth, "name": name, "friends_count": len(vk.getFriends())}
 	except (api.VkApiError, Exception):
 		data = wException()
 	return data
@@ -141,8 +129,16 @@ def dictToDataForm(_dict, _fields=None):
 	return _fields
 
 
-## a feature to query the database
+def getConfigFields(config):
+	fields = []
+	for key, values in config.items():
+		fields.append({"var": key, "label": _(values["label"]), 
+			"type": values.get("type", "boolean"),
+			 "value": values["value"], "desc": _(values.get("desc"))})
+	return fields
 
+
+@utils.safe
 def commands_handler(cl, iq):
 	source = iq.getFrom().getStripped()
 	cmd = iq.getTag("command", namespace=xmpp.NS_COMMANDS)
@@ -156,15 +152,15 @@ def commands_handler(cl, iq):
 		note = None
 		simpleForm = buildForm(fields=[dict(var="FORM_TYPE", type="hidden", value=xmpp.NS_ADMIN)])
 		if node and action != "cancel":
+			dictForm = getForm(node=form).asDict()
 			if source in ADMIN_JIDS:
 				if node == "Delete users":
 					if not form:
 						simpleForm = buildForm(simpleForm, 
 							fields=[{"var": "jids", "type": "jid-multi", "label": _("Jabber ID's"), "required": True}])
 					else:
-						form = getForm(node=form).asDict()
-						if form.get("jids"):
-							runThread(deleteUsers, (form["jids"],))
+						if dictForm.get("jids"):
+							utils.runThread(deleteUsers, (dictForm["jids"],))
 						simpleForm = None
 						completed = True
 
@@ -174,15 +170,14 @@ def commands_handler(cl, iq):
 							fields=[{"var": "text", "type": "text-multi", "label": _("Message"), "required": True}], 
 							title=_("Enter the message text"))
 					else:
-						form = getForm(node=form).asDict()
-						if form.has_key("text"):
-							text = "\n".join(form["text"])
-							runThread(sendGlobalMessage, (text,))
+						if dictForm.has_key("text"):
+							text = "\n".join(dictForm["text"])
+							utils.runThread(sendGlobalMessage, (text,))
 						note = "The message was sent."
 						simpleForm = None
 						completed = True
 
-				elif node == "Show crashlogs":
+				elif node == "Show crash logs":
 					if not form:
 						simpleForm = buildForm(simpleForm, 
 							fields=[{"var": "filename", "type": "list-single", "label": "Filename", 
@@ -190,9 +185,8 @@ def commands_handler(cl, iq):
 							title="Choose wisely")
 
 					else:
-						form = getForm(node=form).asDict()
-						if form.get("filename"):
-							filename = "crash/%s" % form["filename"]
+						if dictForm.get("filename"):
+							filename = "crash/%s" % dictForm["filename"]
 							body = None
 							if os.path.exists(filename):
 								body = rFile(filename)
@@ -206,9 +200,8 @@ def commands_handler(cl, iq):
 							fields=[{"var": "token", "type": "text-single", "label": "API Token"}],
 							title=_("Enter the API token"))
 					else:
-						form = getForm(node=form).asDict()
-						if form.get("token"):
-							token = form["token"]
+						if dictForm.get("token"):
+							token = dictForm["token"]
 							_result = checkAPIToken(token)
 
 							if isinstance(_result, dict):
@@ -240,61 +233,62 @@ def commands_handler(cl, iq):
 				elif node == "Global Transport settings":
 					config = transportSettings.settings
 					if not form:
-						_fields = []
-						for key, values in config.items():
-							_fields.append({"var": key, "label": _(values["label"]), 
-								"type": values.get("type", "boolean"),
-								 "value": values["value"], "desc": _(values.get("desc"))})
-						simpleForm = buildForm(simpleForm, fields=_fields, title="Choose wisely")
+						simpleForm = buildForm(simpleForm, fields=getConfigFields(config), title="Choose wisely")
 
 					elif form:
-						form = getForm(node=form).asDict()
-						for key in form.keys():
+						for key in dictForm.keys():
 							if key in config.keys():
-								transportSettings.settings[key]["value"] = utils.normalizeValue(form[key])
+								transportSettings.settings[key]["value"] = utils.normalizeValue(dictForm[key])
 						note = "The settings were changed."
 						simpleForm = None
 						completed = True
 
 				elif node == "(Re)load modules":
-					modules = ModuleLoader.list()
+					Manager = modulemanager.ModuleManager
+					modules = Manager.list()
 					if not form:
-						_fields = dictToDataForm(dict(map(lambda mod: (mod, mod in ModuleLoader.loaded), modules)))
+						_fields = dictToDataForm(dict([(mod, mod in Manager.loaded) for mod in modules]))
 						simpleForm = buildForm(simpleForm, fields=_fields, title="(Re)load modules", 
 							data=[_("Modules can be loaded or reloaded if they already loaded")])
 
 					elif form:
-						form = getForm(node=form).asDict()
 						keys = []
-						for key in form.keys():
-							if key in modules and utils.normalizeValue(form[key]):
+						for key in dictForm.keys():
+							if key in modules and utils.normalizeValue(dictForm[key]):
 								keys.append(key)
 
-						loaded, errors = ModuleLoader.load(list=keys)
+						loaded, errors = Manager.load(list=keys)
 						_fields = []
 						if loaded:
-							_fields.append({"var": "loaded", "label": "loaded", "type": "text-multi", "value": str.join("\n", loaded)})
+							_fields.append({"var": "loaded", "label": "loaded", "type":
+								"text-multi", "value": str.join("\n", loaded)})
 						if errors:
-							_fields.append({"var": "errors", "label": "errors", "type": "text-multi", "value": str.join("\n", errors)})
+							_fields.append({"var": "errors", "label": "errors", "type":
+								"text-multi", "value": str.join("\n", errors)})
 
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
 						completed = True
 
 				elif node == "Unload modules":
-					modules = ModuleLoader.loaded.copy()
+					Manager = modulemanager.ModuleManager
+					modules = Manager.loaded.copy()
 					modules.remove("mod_iq_disco")
 					if not form:
-						_fields = dictToDataForm(dict(map(lambda mod: (mod, False), modules)))
-						simpleForm = buildForm(simpleForm, fields=_fields, title="Unload modules")
+						_fields = dictToDataForm(dict([(mod, False) for mod in modules]))
+						if _fields:
+							simpleForm = buildForm(simpleForm, fields=_fields, title="Unload modules")
+						else:
+							note = "Nothing to unload."
+							completed = True
+							simpleForm = None
 
 					elif form:
-						form = getForm(node=form).asDict()
 						keys = []
-						for key in form.keys():
-							if key in ModuleLoader.loaded and utils.normalizeValue(form[key]):
+						for key in dictForm.keys():
+							if key in Manager.loaded and utils.normalizeValue(dictForm[key]):
 								keys.append(key)
 
-						unload = ModuleLoader.unload(list=keys)
+						unload = Manager.unload(list=keys)
 						_fields = [{"var": "loaded", "label": "unloaded", "type": "text-multi", "value": str.join("\n", unload)}]
 
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
@@ -306,25 +300,19 @@ def commands_handler(cl, iq):
 				config = Transport[source].settings
 				if not form:
 					user = Transport[source]
-					_fields = []
-					for key, values in config.items():
-						_fields.append({"var": key, "label": _(values["label"]), 
-							"type": values.get("type", "boolean"), 
-							"value": values["value"], "desc": _(values.get("desc"))})
-
-					simpleForm = buildForm(simpleForm, fields=_fields, title="Choose wisely")
+					simpleForm = buildForm(simpleForm, fields=getConfigFields(config), title="Choose wisely")
 
 				elif form:
-					form = getForm(node=form).asDict()
-					for key in form.keys():
+					for key in dictForm.keys():
 						if key in config.keys():
-							Transport[source].settings[key] = utils.normalizeValue(form[key])
+							Transport[source].settings[key] = utils.normalizeValue(dictForm[key])
 					note = "The settings were changed."
 					simpleForm = None
 					completed = True
 			
 			if completed:
-				commandTag = result.setTag("command", {"status": "completed", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
+				commandTag = result.setTag("command", {"status": "completed", 
+					"node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
 				if simpleForm:
 					commandTag.addChild(node=simpleForm)
 				if note:
@@ -332,27 +320,13 @@ def commands_handler(cl, iq):
 					commandTag.setTagData("note", note)
 
 			elif not form and simpleForm:
-				commandTag = result.setTag("command", {"status": "executing", "node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
+				commandTag = result.setTag("command", {"status": "executing", 
+					"node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
 				commandTag.addChild(node=simpleForm)
 		sender(cl, result)
 
 
-
-def load():
-	TransportFeatures.add(xmpp.NS_COMMANDS)
-	TransportFeatures.add(xmpp.NS_DISCO_INFO)
-	TransportFeatures.add(xmpp.NS_DISCO_ITEMS)
-	TransportFeatures.add(xmpp.NS_DATA)
-	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
-	Component.RegisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
-	Component.RegisterHandler("iq", commands_handler, "set")
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_COMMANDS)
-	TransportFeatures.remove(xmpp.NS_DISCO_INFO)
-	TransportFeatures.remove(xmpp.NS_DISCO_ITEMS)
-	TransportFeatures.remove(xmpp.NS_DATA)
-	Component.UnregisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_INFO)
-	Component.UnregisterHandler("iq", disco_handler, "get", xmpp.NS_DISCO_ITEMS)
-	Component.UnregisterHandler("iq", commands_handler, "set")
+MOD_TYPE = "iq"
+MOD_FEATURES = [xmpp.NS_COMMANDS, xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS, xmpp.NS_DATA]
+MOD_HANDLERS = ((disco_handler, "get", [xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS], False), (commands_handler, "set", "", False))
+FORM_TYPES = ("text-single", "text-multi", "jid-multi")

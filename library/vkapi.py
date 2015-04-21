@@ -1,10 +1,18 @@
 # coding: utf-8
 # © simpleApps, 2013 — 2015.
 
+"""
+Manages VK API requests
+Provides password login and direct VK API calls
+Designed for huge number of clients (per ip)
+Which is why it has request retries
+"""
+
+__author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
+
 import cookielib
 import httplib
 import logging
-import mimetools
 import re
 import socket
 import ssl
@@ -17,14 +25,25 @@ import webtools
 SOCKET_TIMEOUT = 30
 REQUEST_RETRIES = 6
 
+# VK APP ID
+APP_ID = 3789129
+# VK APP scope
+SCOPE = 69638
+
 socket.setdefaulttimeout(SOCKET_TIMEOUT)
 
 logger = logging.getLogger("vk4xmpp")
 
 token_exp = re.compile("(([\da-f]+){11,})", re.IGNORECASE)
 
+ERRORS = (httplib.BadStatusLine,
+	urllib2.URLError,
+	socket.gaierror,
+	socket.timeout,
+	socket.error,
+	ssl.SSLError)
 
-## Trying to use faster library usjon instead of simplejson
+# Trying to use faster library usjon instead of simplejson
 try:
 	import ujson as json
 	logger.debug("vkapi: using ujson instead of simplejson")
@@ -52,7 +71,8 @@ def attemptTo(maxRetries, resultType, *errors):
 					data = func(*args, **kwargs)
 				except errors as exc:
 					retries += 1
-					logger.warning("vkapi: trying to execute \"%s\" in #%d time" % (func.func_name, retries))
+					logger.warning("vkapi: trying to execute \"%s\" in #%d time",
+						func.func_name, retries)
 					time.sleep(0.2)
 				else:
 					break
@@ -60,7 +80,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				if hasattr(exc, "errno") and exc.errno == 101:
 					raise NetworkNotFound()
 				data = resultType()
-				logger.warning("vkapi: Error %s occurred on executing %s" % (exc, func))
+				logger.warning("vkapi: Error %s occurred on executing %s", exc, func)
 			return data
 
 		wrapper.__name__ = func.__name__
@@ -71,8 +91,10 @@ def attemptTo(maxRetries, resultType, *errors):
 
 class AsyncHTTPRequest(httplib.HTTPConnection):
 	"""
-	Provides easy method to make asynchronous http requests and getting socket object from it
+	A method to make asynchronous http request
+	Provides a way to get a socket object to use in select()
 	"""
+
 	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
 		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
@@ -80,9 +102,11 @@ class AsyncHTTPRequest(httplib.HTTPConnection):
 		self.data = data
 		self.headers = headers or {}
 
+	@attemptTo(REQUEST_RETRIES, None, *ERRORS)
 	def open(self):
 		self.connect()
-		self.request(("POST" if self.data else "GET"), self.url, self.data, self.headers)
+		self.request(("POST" if self.data else "GET"), self.url, self.data,
+			self.headers)
 		return self
 
 	def read(self):
@@ -95,51 +119,58 @@ class AsyncHTTPRequest(httplib.HTTPConnection):
 	def __exit__(self, *args):
 		self.close()
 
+	@classmethod
+	def getOpener(cls, url, query={}):
+		"""
+		Opens a connection to url and returns AsyncHTTPRequest() object
+		"""
+		if query:
+			url += "?%s" % urllib.urlencode(query)
+		return AsyncHTTPRequest(url).open()
+
 
 class RequestProcessor(object):
 	"""
-	Processes base requests: POST (application/x-www-form-urlencoded and multipart/form-data) and GET.
+	Processes base requests:
+		POST (application/x-www-form-urlencoded and multipart/form-data)
+		GET
 	"""
 	headers = {"User-agent": "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:21.0)"
 					" Gecko/20130309 Firefox/21.0",
 				"Accept-Language": "ru-RU, utf-8"}
-	boundary = mimetools.choose_boundary()
+	boundary = "github.com/mrDoctorWho/vk4xmpp"
 
-	def __init__(self):
-		self.cookieJar = cookielib.CookieJar()
-		cookieProcessor = urllib2.HTTPCookieProcessor(self.cookieJar)
-		self.open = urllib2.build_opener(cookieProcessor).open
-
-	def getCookie(self, name):
-		"""
-		Gets cookie from cookieJar
-		"""
-		for cookie in self.cookieJar:
-			if cookie.name == name:
-				return cookie.value
+	def __init__(self, cook=False):
+		if cook:
+			cookieJar = cookielib.CookieJar()
+			cookieProcessor = urllib2.HTTPCookieProcessor(cookieJar)
+			self.open = urllib2.build_opener(cookieProcessor).open
+			self.getCookie = lambda name: [c.value for c in cookieJar if c.name == name]
+		else:
+			self.open = urllib2.build_opener().open
 
 	def multipart(self, key, name, ctype, data):
 		"""
 		Makes multipart/form-data encoding
 		Parameters:
-			key: a form key (is there a form?)
-			name: file name
-			ctype: Content-Type
-			data: just data you want to send
+			key: form key (is there a form?)
+			name: filename
+			ctype: content type
+			data: the data you want to send
 		"""
-		start = ["--" + self.boundary, "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"" % (key, name), \
-									"Content-Type: %s" % ctype, "", ""] ## We already have content type so maybe we shouldn't detect it
-		end = ["", "--" + self.boundary + "--", ""]
-		start = "\n".join(start)
-		end = "\n".join(end)
-		data = start + data + end
-		return data
+		boundary = "--%s" % self.boundary
+		disposition = "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\""\
+		% (key, name)
+		ctype = "Content-Type: %s" % ctype
+		header = "%(boundary)s\n%(disposition)s\n%(ctype)s\n\n" % vars()
+		footer = "\n%s--\n" % boundary
+		return header + data + footer
 
 	def request(self, url, data=None, headers=None, urlencode=True):
 		"""
 		Makes a http(s) request
 		Parameters:
-			url: a request url 
+			url: a request url
 			data: a request data
 			headers: a request headers (if not set, self.headers will be used)
 			urlencode: urlencode flag
@@ -153,7 +184,7 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(REQUEST_RETRIES, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
+	@attemptTo(REQUEST_RETRIES, tuple, *ERRORS)
 	def post(self, url, data="", urlencode=True):
 		"""
 		POST request
@@ -162,7 +193,7 @@ class RequestProcessor(object):
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(REQUEST_RETRIES, tuple, urllib2.URLError, ssl.SSLError, httplib.BadStatusLine)
+	@attemptTo(REQUEST_RETRIES, tuple, *ERRORS)
 	def get(self, url, query={}):
 		"""
 		GET request
@@ -173,102 +204,66 @@ class RequestProcessor(object):
 		body = resp.read()
 		return (body, resp)
 
-## todo: move getOpener the hell out of here
-	@attemptTo(REQUEST_RETRIES, None, socket.gaierror, socket.timeout, socket.error)
-	def getOpener(self, url, query={}):
-		"""
-		Opens a connection to url and returns AsyncHTTPRequest() object
-		"""
-		if query:
-			url += "?%s" % urllib.urlencode(query)
-		return AsyncHTTPRequest(url).open()
 
-
-class APIBinding:
+class PasswordLogin(object):
 	"""
-	Provides simple VK API binding
-	Translates VK errors to python exceptions
-	Allows to make a password authorization
+	Provides a way to log-in by a password
 	"""
-	def __init__(self, number=None, password=None, token=None, app_id=3789129,
-	scope=69638, debug=None):
-		self.password = password
+	def __init__(self, number, password):
 		self.number = number
-		self.token = token
-		self.app_id = app_id
-		self.scope = scope
+		self.password = password
+		self.RIP = RequestProcessor(cook=True)
 
-		self.sid = None
-		self.captcha = {}
-		self.last = []
-		self.lastMethod = ()
-
-		self.RIP = RequestProcessor()
-		self.debug = debug or []
-
-	def loginByPassword(self):
+	def login(self):
 		"""
 		Logging in using password
 		"""
 		url = "https://login.vk.com/"
 		values = {"act": "login",
-				"utf8": "1",
-				"email": self.number,
-				"pass": self.password}
+		"utf8": "1",
+		"email": self.number,
+		"pass": self.password}
 
 		body, response = self.RIP.post(url, values)
-		remixSID = self.RIP.getCookie("remixsid")
 
-		if remixSID:
-			self.sid = remixSID
-
-		elif "sid=" in response.url:
+		if "sid=" in response.url:
+			logger.error("vkapi: PasswordLogin ran into captcha! (number: %s)",
+				self.number)
 			raise AuthError("Captcha!")
-		else:
+
+		if not self.RIP.getCookie("remixsid"):
 			raise AuthError("Invalid password")
 
 		if "security_check" in response.url:
-			# This code should be rewritten
+			logger.warning("vkapi: PasswordLogin ran into a security check (number: %s)",
+				self.number)
 			hash = re.search("security_check.*?hash: '(.*?)'\};", body).group(0)
 			if not self.number[0] == "+":
 				self.number = "+" + self.number
 
-			code = self.number[2:-2]
+			code = self.number[2:-2]  # valid for Russia only. Unfrotunately.
 			values = {"act": "security_check",
-					"al": "1",
-					"al_page": "3",
-					"code": code,
-					"hash": hash,
-					"to": ""}
+			"al": "1",
+			"al_page": "3",
+			"code": code,
+			"hash": hash,
+			"to": ""}
 			post = self.RIP.post("https://vk.com/login.php", values)
 			body, response = post
 			if response and not body.split("<!>")[4] == "4":
 				raise AuthError("Incorrect number")
+		return self.confirm()
 
-	def checkSid(self):
+	def confirm(self):
 		"""
-		Checks sid to set the logged-in flag
-		"""
-		if self.sid:
-			url = "https://vk.com/feed2.php"
-			get = self.RIP.get(url)
-			if get:
-				body, response = get
-				if body and response:
-					data = json.loads(body)
-					if data["user"]["id"] != -1:
-						return data
-
-	def confirmThisApp(self):
-		"""
-		Confirms your application and receives the token
+		Confirms the application and receives the token
 		"""
 		url = "https://oauth.vk.com/authorize/"
 		values = {"display": "mobile",
-				"scope": self.scope,
-				"client_id": self.app_id,
-				"response_type": "token",
-				"redirect_uri": "https://oauth.vk.com/blank.html"}
+		"scope": SCOPE,
+		"client_id": APP_ID,
+		"response_type": "token",
+		"redirect_uri": "https://oauth.vk.com/blank.html"}
 
 		token = None
 		body, response = self.RIP.get(url, values)
@@ -276,84 +271,109 @@ class APIBinding:
 			if "access_token" in response.url:
 				token = token_exp.search(response.url).group(0)
 			else:
-				postTarget = webtools.getTagArg("form method=\"post\"", "action", body, "form")
+				# What is it?
+				postTarget = webtools.getTagArg("form method=\"post\"", "action",
+					body, "form")
 				if postTarget:
 					body, response = self.RIP.post(postTarget)
 					token = token_exp.search(response.url).group(0)
 				else:
-					raise AuthError("Couldn't execute confirmThisApp()!")
-		self.token = token
+					raise AuthError("Couldn't confirm the application!")
+		return token
 
+
+class APIBinding(object):
+	"""
+	Provides simple VK API binding
+	Translates VK errors to python exceptions
+	Allows to make a password authorization
+	"""
+	def __init__(self, token, debug=[]):
+		self.token = token
+		self.debug = debug
+
+		self.captcha = {}
+		self.last = []
+		self.lastMethod = ()
+
+		self.timeout = 1.00
+
+		self.RIP = RequestProcessor()
 
 	def method(self, method, values=None, nodecode=False):
 		"""
 		Issues the VK method
 		Parameters:
 			method: vk method
-			values: method parameters (no captcha_{sid,key}, access_token or v parameters needed)
-			nodecode: decode flag
+			values: method parameters
 		"""
-		values = values or {}
 		url = "https://api.vk.com/method/%s" % method
+		values = values or {}
 		values["access_token"] = self.token
 		values["v"] = "3.0"
 
-		if self.captcha and self.captcha.has_key("key"):
+		if "key" in self.captcha:
 			values["captcha_sid"] = self.captcha["sid"]
 			values["captcha_key"] = self.captcha["key"]
 			self.captcha = {}
+
 		self.lastMethod = (method, values)
 		self.last.append(time.time())
 		if len(self.last) > 2:
-			if (self.last.pop() - self.last.pop(0)) <= 1.25:
-				time.sleep(0.37)
+			if (self.last.pop() - self.last.pop(0)) <= self.timeout:
+				time.sleep(self.timeout / 3.0)
 
 		if method in self.debug or self.debug == "all":
 			start = time.time()
-			print "issuing method %s with values %s in thread: %s" % (method, str(values), threading.currentThread().name)
+			print "issuing method %s with values %s in thread: %s" % (method,
+				str(values), threading.currentThread().name)
 
 		response = self.RIP.post(url, values)
-		if response and not nodecode:
+		if response:
 			body, response = response
 			if body:
 				try:
 					body = json.loads(body)
 				except ValueError:
 					return {}
-#	 Debug:
+
 			if method in self.debug or self.debug == "all":
-				print "response for method %s: %s in thread: %s (%0.2fs)" % (method, str(body), threading.currentThread().name, (time.time() - start))
+				print "response for method %s: %s in thread: %s (%0.2fs)" % (method,
+					str(body), threading.currentThread().name, (time.time() - start))
 
 			if "response" in body:
 				return body["response"] or {}
 
-			## according to vk.com/dev/errors
+			# according to vk.com/dev/errors
 			elif "error" in body:
 				error = body["error"]
 				eCode = error["error_code"]
 				eMsg = error.get("error_msg", "")
-				logger.error("vkapi: error occured on executing method (%(method)s, code: %(eCode)s, msg: %(eMsg)s)" % vars())
+				logger.error("vkapi: error occured on executing method"
+					" (%(method)s, code: %(eCode)s, msg: %(eMsg)s)" % vars())
 
-				if eCode == 5:     # auth failed / invalid session(?)
-					raise VkApiError(eMsg)
-				elif eCode == 6:     # too fast
-					time.sleep(1.25)
-					return self.method(method, values)
-				elif eCode == 7:     # not allowed
+				if eCode == 7:  # not allowed
 					raise NotAllowed(eMsg)
-				elif eCode == 10:    # internal server error
+				elif eCode == 10:  # internal server error
 					raise InternalServerError(eMsg)
-				elif eCode == 13:    # runtime error
+				elif eCode == 13:  # runtime error
 					raise RuntimeError(eMsg)
-				elif eCode == 14:     # captcha
+				elif eCode == 14:  # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 						raise CaptchaNeeded()
 				elif eCode == 15:
 					raise AccessDenied(eMsg)
-				elif eCode in (1, 9, 100): ## 1 is an unknown error / 9 is flood control / 100 is wrong method or parameters loss 
+				# 1 - unknown error / 100 - wrong method or parameters loss
+				elif eCode in (1, 6, 9, 100):
+					if eCode in (6, 9):   # 6 - too fast / 9 - flood control
+						self.timeout += 0.05
+						logger.warning("vkapi: got code 9, increasing timeout to %0.2f",
+							self.timeout)
+						time.sleep(self.timeout)
+						return self.method(method, values)
 					return {"error": eCode}
-				raise VkApiError(body["error"])
+				raise VkApiError(eMsg)
 
 	def retry(self):
 		"""
@@ -378,11 +398,13 @@ class NetworkNotFound(Exception):
 	"""
 	pass
 
+
 class LongPollError(Exception):
 	"""
 	Should be raised when longpoll exception occurred
 	"""
 	pass
+
 
 class VkApiError(Exception):
 	"""
@@ -394,7 +416,8 @@ class VkApiError(Exception):
 class AuthError(VkApiError):
 	"""
 	Happens when user is trying to login using password
-	And there's one of possible errors: captcha, invalid password and wrong phone
+	And there's one of possible errors: captcha,
+		invalid password and wrong phone
 	"""
 	pass
 
@@ -416,7 +439,7 @@ class CaptchaNeeded(VkApiError):
 
 class TokenError(VkApiError):
 	"""
-	Will be raised when happens error with code 5 and 3 retries to make request are failed
+	Will be raised if Token Error occurred
 	"""
 	pass
 
@@ -427,6 +450,7 @@ class NotAllowed(VkApiError):
 	Happens usually when someone's added our user in the black-list
 	"""
 	pass
+
 
 class AccessDenied(VkApiError):
 	"""

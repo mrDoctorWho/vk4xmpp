@@ -4,7 +4,7 @@
 
 from __main__ import *
 from __main__ import _
-from __main__ import Component ## being missed somehow
+from __main__ import Component  # being missed somehow
 import random
 import urllib
 
@@ -63,5 +63,10 @@ def parseXHTML(user, html, source, destination, mType="user_id"):
 			except Exception:
 				logger.error("xhmtlParse: fetched wrong xhtml image (jid: %s)" % source)
 				return False
-			runThread(sendPhoto, (user, data, mime_type, destination, mType))
+			utils.runThread(sendPhoto, (user, data, mime_type, destination, mType))
 	return True
+
+
+MOD_TYPE = ""
+MOD_HANDLERS = ()
+MOD_FEATURES = []

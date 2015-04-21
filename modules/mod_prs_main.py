@@ -11,6 +11,7 @@ from __main__ import _
 
 USERS_ON_INIT = set([])
 
+
 def initializeUser(source, resource, prs):
 	"""
 	Initializes user for a first time after he have registered
@@ -24,8 +25,8 @@ def initializeUser(source, resource, prs):
 		Transport[jid] = user = User(jid)
 		try:
 			if user.connect():
-				user.initialize(False, True, resource) ## probably we need to know resource a bit earlier than this time
-				runThread(executeHandlers, ("prs01", (source, prs)))
+				user.initialize(False, True, resource)  # probably we need to know resource a bit earlier than this time
+				utils.runThread(executeHandlers, ("prs01", (source, prs)))
 			else:
 				crashLog("user.connect", False)
 				sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
@@ -49,7 +50,7 @@ def presence_handler(cl, prs):
 				if resource not in user.resources and user not in USERS_ON_INIT:
 					logger.debug("Received presence %s from user. Calling sendInitPresence() (jid: %s)" % (pType, source))
 					user.resources.add(resource)
-					runThread(user.sendInitPresence, ())
+					utils.runThread(user.sendInitPresence, ())
 
 		elif pType == "unavailable":
 			if jidTo == TransportID and resource in user.resources:
@@ -86,20 +87,17 @@ def presence_handler(cl, prs):
 		elif pType == "unsubscribe":
 			if source in Transport and destination == TransportID:
 				removeUser(user, True, False)
-				watcherMsg(_("User removed his registration: %s") % source)
+				executeHandlers("evt09", (source,))
 
 
 	elif pType in ("available", None) and destination == TransportID:
 		# It's possible to receive more than one presence from @gmail.com
 		if source not in USERS_ON_INIT:
-			runThread(initializeUser, args=(source, resource, prs))
+			utils.runThread(initializeUser, args=(source, resource, prs))
 			USERS_ON_INIT.add(source)
-	runThread(executeHandlers, ("prs01", (source, prs)))
+	utils.runThread(executeHandlers, ("prs01", (source, prs)))
 
 
-def load():
-	Component.RegisterHandler("presence", presence_handler)
-
-
-def unload():
-	Component.UnregisterHandler("presence", presence_handler)
+MOD_TYPE = "presence"
+MOD_HANDLERS = ((presence_handler, "", "", False),)
+MOD_FEATURES = []

@@ -10,7 +10,7 @@ Server = "localhost"
 
 # Connection port (as set in Jabber server config).
 # Default value for Prosody is 5347.
-Port = 5556
+Port = 5347
 
 # Transport ID (for all instances of vk4xmpp).
 TransportID = "vk.example.com"
@@ -76,7 +76,7 @@ DEBUG_XMPPPY = False
 DatabaseFile = "vk4xmpp.db"
 
 ## File to store PID in.
-pidFile = "pidFile.txt"
+pidFile = "vk4xmpp.pid"
 
 ## Log file.
 logFile = "vk4xmpp.log"
@@ -93,17 +93,11 @@ settingsDir = "settings"
 ## Stanza send interval (in seconds).
 STANZA_SEND_INTERVAL = 0.03125
 
-## Enable photo hashes? This setting is probably can cause weird errors such as captcha, random disconnects (IOError: Disconnected) and others.
-## But users like to see avatars in their roster. If it will cause disconnects, but if you still want to use it, then just increase the STANZA_SEND_INTERVAL value
-## But be careful, this value is global so transport will become slower.
-ENABLE_PHOTO_HASHES = False
-
 ## Debug longpoll queries.
 DEBUG_POLL = False
 
-## Debug api requests. It should contain a list of methods which you would like to debug or "all" if you like to debug all methods.
+## Debug api requests. It should contain a list of the methods you like to debug. Set to "all" if you like to debug all the methods.
 DEBUG_API = []
-
 
 ## VK4XMPP Monitor settings
 ## The server where the stats requests will come from
@@ -112,3 +106,8 @@ VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
 ## The URL where transport should send POST requests with it's name
 ## See https://github.com/aawray/xmpp-monitor
 VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
+
+## Posix
+# Run as a specified user. Set to "username" to run as "username" instead of current user.
+# Bear in mind that transport must have permission to run as this user.
+RUN_AS = None

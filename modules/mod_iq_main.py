@@ -2,12 +2,19 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2013 — 2015.
 
-from __main__ import *
+from __main__ import TransportID, sender
+import xmpp
+import utils
 
-def main_handler(cl, iq):
-	jidFrom = iq.getFrom()
+try:
+	from __main__ import WhiteList
+except ImportError:
+	WhiteList = []
+
+def main_iq_handler(cl, iq):
+	source = iq.getFrom()
 	if WhiteList:
-		if jidFrom and jidFrom.getDomain() not in WhiteList:
+		if source and source.getDomain() not in WhiteList:
 			sender(cl, utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, "You're not in the white-list"))
 			raise xmpp.NodeProcessed()
 
@@ -18,11 +25,6 @@ def main_handler(cl, iq):
 			sender(cl, iq.buildReply("result"))
 
 
-def load():
-	TransportFeatures.add(xmpp.NS_PING)
-	Component.RegisterHandler("iq", main_handler, makefirst=True)
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_PING)
-	Component.UnregisterHandler("iq", main_handler)
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((main_iq_handler, "", "", True),)
+MOD_FEATURES = [xmpp.NS_PING]

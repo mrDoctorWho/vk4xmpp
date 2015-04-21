@@ -1,7 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2014 — 2015.
-## TODO: Handle set/get in separate functions.
 
 from __main__ import *
 from __main__ import _
@@ -104,7 +103,7 @@ def register_handler(cl, iq):
 						if _token:
 							_token = _token.group(0)
 							user.token = _token
-						# In case if user doesn't know what the hell he's doing, we will try the token as a password
+						# In case if user don't know what the hell he's doing, we will try the token as a password
 						elif phone:
 							user.password = token
 							user.username = phone
@@ -113,7 +112,7 @@ def register_handler(cl, iq):
 
 					# If phone or password (token)
 					if (phone and password) or token:
-						runThread(initializeUser, (user, cl, iq))
+						utils.runThread(initializeUser, (user, cl, iq))
 						result = None
 
 			elif query.getTag("remove"):
@@ -125,20 +124,14 @@ def register_handler(cl, iq):
 					result.setPayload([], add=False)
 					executeHandlers("evt09", (source,))
 				else:
-					logger.debug("... but he don't know that he was removed already!")
+					logger.debug("... but they don't know that they were removed already!")
 
 		else:
 			result = utils.buildIQError(iq, 0, _("Feature not implemented."))
-	if result: sender(cl, result)
+	if result:
+		sender(cl, result)
 
 
-def load():
-	TransportFeatures.add(xmpp.NS_REGISTER)
-	TransportFeatures.add(xmpp.NS_DATA)
-	Component.RegisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)
-
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_REGISTER)
-	TransportFeatures.remove(xmpp.NS_DATA)
-	Component.UnregisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)
+MOD_TYPE = "iq"
+MOD_FEATURES = [xmpp.NS_DATA, xmpp.NS_REGISTER]
+MOD_HANDLERS = ((register_handler, "", xmpp.NS_REGISTER, False),)

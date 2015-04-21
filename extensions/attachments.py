@@ -31,7 +31,7 @@ def parseAttachments(self, msg, spacer=""):
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 				for key in keys:
 					if key in att[typ]:
-						body += att[typ][key] ## No new line needed if we have just one photo and no text
+						body += att[typ][key]  # No new line needed if we have just one photo and no text
 						break
 
 			elif typ == "video":

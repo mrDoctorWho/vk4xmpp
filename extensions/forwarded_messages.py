@@ -7,6 +7,7 @@ from datetime import datetime
 if not require("attachments"):
 	raise AssertionError("'forwardMessages' requires 'attachments'")
 
+
 def parseForwardedMessages(self, msg, depth = 0):
 	body = ""
 	if msg.has_key("fwd_messages"):
@@ -26,6 +27,8 @@ def parseForwardedMessages(self, msg, depth = 0):
 				body += parseForwardedMessages(self, fwd, (depth + 1))
 	return body
 
+if not isdef("MAXIMUM_FORWARD_DEPTH"):
+	MAXIMUM_FORWARD_DEPTH = 28
 
 registerHandler("msg01", parseForwardedMessages)
 

@@ -64,7 +64,6 @@ def load():
 	TransportFeatures.add(xmpp.NS_STATS)
 	Component.RegisterHandler("iq", stats_handler, "get", xmpp.NS_STATS)
 
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_STATS)
-	Component.UnregisterHandler("iq", stats_handler, "get", xmpp.NS_STATS)
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((stats_handler, "get", xmpp.NS_STATS, False),)
+MOD_FEATURES = [xmpp.NS_STATS]

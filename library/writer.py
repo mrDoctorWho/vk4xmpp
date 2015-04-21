@@ -2,8 +2,10 @@
 # © simpleApps, 2010
 
 """
-This module used to write, read files and write crash logs
+This module used to read, write files and crash logs
 """
+
+__author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
 
 import __main__
 import logging

@@ -4,7 +4,7 @@
 # File contains parts of code from 
 # BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
 
-## Installation:
+# Installation:
 # The extension requires up to 2 fields in the main config:
 # 1. ConferenceServer - the address of your (or not yours?) conference server
 # Bear in mind that there can be limits on the jabber server for conference per jid. Read the wiki for more details.
@@ -27,9 +27,6 @@ try:
 	import mod_xhtml
 except ImportError:
 	mod_xhtml = None
-
-
-isdef = lambda var: var in globals()
 
 
 def sendIQ(chat, attr, data, afrls, role, jidFrom, reason=None, cb=None, args={}):
@@ -61,7 +58,7 @@ def inviteUser(chat, jidTo, jidFrom, name):
 
 def joinChat(chat, name, jidFrom, status=None):
 	prs = xmpp.Presence("%s/%s" % (chat, name), frm=jidFrom, status=status)
-	prs.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": Revision}, xmpp.NS_CAPS)
+	prs.setTag("c", {"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": REVISION}, xmpp.NS_CAPS)
 	sender(Component, prs)
 
 
@@ -102,7 +99,7 @@ def outgoingChatMessageHandler(self, vkChat):
 		if not self.vk.userID:
 			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % self.source)
 			self.vk.getUserID()
-			runThread(outgoingChatMessageHandler, (self, vkChat), delay=10)
+			utils.runThread(outgoingChatMessageHandler, (self, vkChat), delay=10)
 			return None
 
 		if chatJID not in self.chats:
@@ -190,7 +187,7 @@ class Chat(object):
 			if not vkChat and not self.invited:
 				logger.error("groupchats: damn vk didn't answer to chat list"\
 							"request, starting timer to try again (jid: %s)" % user.source)
-				runThread(self.initialize, (user, chat), delay=10)
+				utils.runThread(self.initialize, (user, chat), delay=10)
 				return False
 			self.raw_users = vkChat.get("users")
 
@@ -271,7 +268,7 @@ class Chat(object):
 			self.created = True
 			logger.debug("groupchats: stanza \"result\" received from %s,"\
 			 			 "continuing initialization (jid: %s)" % (chat, user.source))
-			execute(self.initialize, (user, chat)) ## i don't trust VK so it's better to execute it
+			utils.execute(self.initialize, (user, chat))
 		else:
 			logger.error("groupchats: couldn't set room %s config, the answer is: %s (jid: %s)" % (chat, str(stanza), user.source))
 
@@ -296,7 +293,7 @@ class Chat(object):
 			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)" % (self.jid, source))
 			logger.warning("groupchats: is there any groupchat limit on the server?")
 			if retry:
-				runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
+				utils.runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
 
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
@@ -329,8 +326,7 @@ class Chat(object):
 		jid = None
 		creator, id, domain = cls.getParts(source)
 		if domain == ConferenceServer and creator: ## we will ignore zero-id
-			if creator in jidToID:
-				jid = jidToID[creator]
+			jid = getJIDByID(id)
 		if not jid:
 			jid  = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False, semph=None)
 			if jid:
@@ -338,6 +334,13 @@ class Chat(object):
 		if jid and jid in Transport:
 			user = Transport[jid]
 		return user
+
+	@classmethod
+	def getJIDByID(cls, id):
+		for key, value in Transport.iteritems():
+			if key == id:
+				return value
+		return None
 
 
 def incomingChatMessageHandler(msg):
@@ -523,7 +526,7 @@ def cleanTheChatsUp():
 			logger.debug("groupchats: time for %s expired (jid: %s)" % (jid, user))
 	if result:
 		exterminateChats(chats=result)
-	runThread(cleanTheChatsUp, delay=(60*60*24))
+	utils.runThread(cleanTheChatsUp, delay=(60*60*24))
 
 
 def initChatExtension():
@@ -563,4 +566,5 @@ if isdef("ConferenceServer") and ConferenceServer:
 else:
 	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
-		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, cleanTheChatsUp, initChatExtension
+		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, \
+		cleanTheChatsUp, initChatExtension

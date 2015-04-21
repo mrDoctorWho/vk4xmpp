@@ -10,8 +10,6 @@ It's also can be useful for Openfire administrators
 in case if the transport suddenly disconnects
 """
 
-isdef = lambda var: var in globals()
-
 def alive_keeper():
 	logger.debug("alive_keeper has started!")
 
@@ -39,3 +37,5 @@ def alive_keeper():
 
 if isdef("ALIVE_KEEPER_ENABLED") and ALIVE_KEEPER_ENABLED:
 	registerHandler("evt01", alive_keeper)
+else:
+	del alive_keeper

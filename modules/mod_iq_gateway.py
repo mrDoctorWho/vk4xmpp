@@ -25,17 +25,13 @@ def gateway_handler(cl, iq):
 					break
 			if user:
 				xNode = xmpp.simplexml.Node("jid")
-				xNode.setData(user[0] + "@" + TransportID)
+				xNode.setData("%s@%s" % (user[0], TransportID))
 				result.setQueryPayload([xNode])
 		else:
 			raise xmpp.NodeProcessed()
 		sender(cl, result)
 
 
-def load():
-	TransportFeatures.add(xmpp.NS_GATEWAY)
-	Component.RegisterHandler("iq", gateway_handler, "", xmpp.NS_GATEWAY)
-
-def unload():
-	TransportFeatures.remove(xmpp.NS_GATEWAY)
-	Component.UnregisterHandler("iq", gateway_handler, "", xmpp.NS_GATEWAY)
+MOD_TYPE = "iq"
+MOD_FEATURES = [xmpp.NS_GATEWAY]
+MOD_HANDLERS = ((gateway_handler, "", xmpp.NS_GATEWAY, False),)

@@ -31,6 +31,6 @@ def statustovk_prs01(source, prs, retry=3):
 				else:
 					logger.debug("we didn't receive application permissions, so starting a timer (jid: %s)" % source)
 					if retry:
-						runThread(statustovk_prs01, (source, prs, (retry -1)), delay=10)
+						utils.runThread(statustovk_prs01, (source, prs, (retry -1)), delay=10)
 
 registerHandler("prs01", statustovk_prs01)
