@@ -1,3 +1,5 @@
+[![Code Climate](https://codeclimate.com/github/mrDoctorWho/vk4xmpp/badges/gpa.svg)](https://codeclimate.com/github/mrDoctorWho/vk4xmpp)
+
 [![VK4XMPP on Ohloh](https://www.openhub.net/p/vk4xmpp/widgets/project_partner_badge.gif)](https://www.openhub.net/p/vk4xmpp)
 
 **[Fork Me](https://github.com/mrDoctorWho/vk4xmpp/fork) Now! Spread the project for great good!**
