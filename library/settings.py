@@ -10,6 +10,7 @@ __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
 
 from __main__ import settingsDir, rFile, wFile
 from copy import deepcopy
+import os
 
 GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online",
 										"value": 1},

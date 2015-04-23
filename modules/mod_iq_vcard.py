@@ -10,6 +10,13 @@ VCARD_SEMAPHORE = threading.Semaphore()
 DESCRIPTION = "VK4XMPP Transport\n© simpleApps, 2013 — 2015."
 GITHUB_URL = "https://github.com/mrDoctorWho/vk4xmpp"
 
+if AdditionalAbout:
+	DESCRIPTION = "%s\n%s" % (DESCRIPTION, AdditionalAbout)
+
+VCARD_FIELDS = {"NICKNAME": IDENTIFIER["name"],
+	"DESC": DESCRIPTION,
+	"PHOTO": URL_VCARD_NO_IMAGE,
+	"URL": GITHUB_URL}
 
 def buildVcard(tags):
 	vCard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
@@ -25,7 +32,7 @@ def buildVcard(tags):
 @utils.threaded
 def vcard_handler(cl, iq):
 	# Vcard feature makes transport hang (especially the photo part)
-	# Many clients love to query vcards so much, so the solution was in adding a semaphore and sleep() here
+	# Many clients love to query vcards so much, so the solution was in adding a semaphore here and sleep() at the bottom
 	# This is probably not a good idea, but for now this is the best one
 	with VCARD_SEMAPHORE:
 		jidFrom = iq.getFrom()
@@ -33,17 +40,9 @@ def vcard_handler(cl, iq):
 		source = jidFrom.getStripped()
 		destination = jidTo.getStripped()
 		result = iq.buildReply("result")
-		if AdditionalAbout:
-			desc = "%s\n%s" % (DESCRIPTION, AdditionalAbout)
-		else:
-			desc = DESCRIPTION
 
 		if destination == TransportID:
-			vcard = buildVcard({"NICKNAME": IDENTIFIER["name"],
-								"DESC": desc,
-								"PHOTO": URL_VCARD_NO_IMAGE,
-								"URL": GITHUB_URL
-								})
+			vcard = buildVcard(VCARD_FIELDS)
 			result.setPayload([vcard])
 
 		elif source in Transport:
@@ -51,18 +50,19 @@ def vcard_handler(cl, iq):
 			if user.friends:
 				id = vk2xmpp(destination)
 				args = ["screen_name"]
-				if user.friends.has_key(id):
-					args.append(PhotoSize)
-				json = user.vk.getUserData(id, args)
-				name = json.get("name", str(json))
-				screen_name = json.get("screen_name", str(json))
-				values = {"NICKNAME": screen_name,
-						"FN": name,
-						"URL": "http://vk.com/id%s" % id,
-						"DESC": _("Contact uses VK4XMPP Transport\n%s") % desc
-						}
+				values = VCARD_FIELDS.copy()
 				if id in user.friends.keys():
-					values["PHOTO"] = json.get(PhotoSize) or URL_VCARD_NO_IMAGE
+					args.append(PhotoSize)
+				data = user.vk.getUserData(id, args)
+				name = data.get("name", str(data))
+				screen_name = data.get("screen_name")
+				if not user.settings.use_nicknames:
+					screen_name = name
+				values["NICKNAME"] = screen_name
+				values["FN"] = name
+				values["URL"] = "http://vk.com/id%s" % id
+				if id in user.friends.keys():
+					values["PHOTO"] = data.get(PhotoSize) or URL_VCARD_NO_IMAGE
 				vCard = buildVcard(values)
 				result.setPayload([vCard])
 			else:

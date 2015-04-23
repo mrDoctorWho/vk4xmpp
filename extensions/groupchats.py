@@ -29,22 +29,14 @@ except ImportError:
 	mod_xhtml = None
 
 
-def sendIQ(chat, attr, data, afrls, role, jidFrom, reason=None, cb=None, args={}):
+def setAffiliation(chat, role, jid, jidFrom=TransportID, reason=None):
 	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
 	query = xmpp.Node("query", {"xmlns": xmpp.NS_MUC_ADMIN})
-	arole = query.addChild("item", {attr: data, afrls: role})
+	arole = query.addChild("item", {"jid": jid, "affiliation": role})
 	if reason:
 		arole.setTagData("reason", reason)
-	stanza.addChild(node = query)
-	sender(Component, stanza, cb, args)
-
-
-def makeMember(chat, jid, jidFrom, cb=None, args={}):
-	sendIQ(chat, "jid", jid, "affiliation", "member", jidFrom, cb=cb, args=args)
-
-
-def makeOutcast(chat, jid, jidFrom, reason=None, cb=None, args={}):
-	sendIQ(chat, "jid", jid, "affiliation", "outcast", jidFrom, reason=reason, cb=cb, args=args)
+	stanza.addChild(node=query)
+	sender(Component, stanza)
 
 
 def inviteUser(chat, jidTo, jidFrom, name):
@@ -192,13 +184,13 @@ class Chat(object):
 			self.raw_users = vkChat.get("users")
 
 		name = "@%s" % TransportID
-		makeMember(chat, user.source, TransportID)
+		setAffiliation(chat, "member", user.source)
 		if not self.invited:
 			inviteUser(chat, user.source, TransportID, user.vk.getUserData(self.owner)["name"])
 			self.invited = True
 		logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, user.source))
 		chatMessage(chat, self.topic, TransportID, True, self.creation_date)
-		joinChat(chat, name, TransportID, "Lost in time.") ## let's rename ourself
+		joinChat(chat, name, TransportID, "Lost in time.") ## let's rename ourselves
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
 	def update(self, userObject, vkChat):
@@ -213,28 +205,27 @@ class Chat(object):
 			if users:
 				all_users = users.get("users", [])
 
-		for user in all_users:
-			## checking if there new users we didn't join yet
-			if not user in self.users.keys():
-				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)" % (user, self.jid, userObject.source))
-				jid = vk2xmpp(user)
+		old_users = self.users.keys()
+		buddies = all_users + old_users
+		if TransportID in buddies:
+			buddies.remove(TransportID)
+
+		for user in buddies:
+			jid = vk2xmpp(user)
+			if user not in old_users:
+				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)",
+					user, self.jid, userObject.source)
+
 				name = userObject.vk.getUserData(user)["name"]
 				self.users[int(user)] = {"name": name, "jid": jid}
-				makeMember(self.jid, jid, TransportID)
+				setAffiliation(self.jid, "member", jid)
 				joinChat(self.jid, name, jid) 
 
-		for user in self.users.keys():
-			## checking if there are old users we have to remove
-			if not user in all_users and user != TransportID:
-				logger.debug("groupchats: user %s has left the chat %s (jid: %s)" %\
-							(user, self.jid, userObject.source))
-				leaveChat(self.jid, vk2xmpp(user))
+			elif user not in all_users:
+				logger.debug("groupchats: user %s has left the chat %s (jid: %s)",
+					user, self.jid, userObject.source)
+				leaveChat(self.jid, jid)
 				del self.users[user]
-				if user == userObject.vk.userID:
-					logger.warning("groupchats: user %s has left the chat %s, so the chat would be EXTERMINATED (jid: %s)" %\
-								 	(user, self.jid, userObject.source))
-					self.setConfig(self.jid, TransportID, exterminate=True) ## exterminate the chats when user leave conference or just go offline?
-					del userObject.chats[self.jid]
 
 		topic = vkChat["title"]
 		if topic != self.topic:
@@ -252,10 +243,11 @@ class Chat(object):
 		if exterminate:
 			query.addChild("destroy")
 		else:
-			form = utils.buildDataForm(fields = [{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
-											 {"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
-											 {"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
-											 {"var": "muc#roomconfig_whois", "value": "anyone"}], type="submit")
+			form = utils.buildDataForm(fields=[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
+				{"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
+				{"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
+				{"var": "muc#roomconfig_whois", "value": "anyone"}], 
+				type="submit")
 			query.addChild(node=form)
 		sender(Component, iq, cb, args)
 
@@ -267,10 +259,11 @@ class Chat(object):
 		if xmpp.isResultNode(stanza):
 			self.created = True
 			logger.debug("groupchats: stanza \"result\" received from %s,"\
-			 			 "continuing initialization (jid: %s)" % (chat, user.source))
+			 			 "continuing initialization (jid: %s)", chat, user.source)
 			utils.execute(self.initialize, (user, chat))
 		else:
-			logger.error("groupchats: couldn't set room %s config, the answer is: %s (jid: %s)" % (chat, str(stanza), user.source))
+			logger.error("groupchats: couldn't set room %s config, the answer is: %s (jid: %s)",
+				chat, str(stanza), user.source)
 
 	# here is a possibility to get messed up if many messages were sent before we created the chat 
 	# we have to send the messages immendiately as soon as possible, so delay can mess the messages up
@@ -311,7 +304,7 @@ class Chat(object):
 		Split the source and returns required parts
 		"""
 		node, domain = source.split("@")
-		if "_chat#" in node: ## Custom chat name?
+		if "_chat#" in node:  # Custom chat name?
 			creator, id = node.split("_chat#")
 		else:
 			return (None, None, None)
@@ -325,18 +318,18 @@ class Chat(object):
 		user = None
 		jid = None
 		creator, id, domain = cls.getParts(source)
-		if domain == ConferenceServer and creator: ## we will ignore zero-id
-			jid = getJIDByID(id)
+		if domain == ConferenceServer and creator:
+			jid = cls.getJIDByID(id)
 		if not jid:
-			jid  = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False, semph=None)
+			jid = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False, semph=None)
 			if jid:
 				jid = jid[0]
 		if jid and jid in Transport:
 			user = Transport[jid]
 		return user
 
-	@classmethod
-	def getJIDByID(cls, id):
+	@staticmethod
+	def getJIDByID(id):
 		for key, value in Transport.iteritems():
 			if key == id:
 				return value
@@ -370,21 +363,21 @@ def incomingChatMessageHandler(msg):
 				if source in getattr(user, "chats", {}):
 					owner_nickname = user.chats[source].owner_nickname
 				if not owner_nickname:
-					owner_nickname = runDatabaseQuery("select nick from groupchats where jid=?",\
-													(source,), many=False)[0]
+					owner_nickname = runDatabaseQuery("select nick from groupchats where jid=?",
+						(source,), many=False)[0]
 				# None of “normal” clients will send messages with timestamp
 				# If we do (as we set in force_vk_date_group), then the message received from a user
 				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
 				send = ((nick == owner_nickname and user.settings.tie_chat_to_nickname)
-						or user.settings.force_vk_date_group)
+					or user.settings.force_vk_date_group)
 
 				if html and html.getTag("body"): ## XHTML-IM!
 					logger.debug("groupchats: fetched xhtml image (jid: %s)" % source)
 					try:
-						xhtml = mod_xhtml.parseXHTML(user, html, source, source, "chat_id")
+						mod_xhtml.parseXHTML(user, html, source, source, "chat_id")
 					except Exception:
-						xhtml = False
-					if xhtml:
+						pass
+					else:
 						# Don't send a message if there's an image
 						raise xmpp.NodeProcessed()
 				if send:
@@ -446,7 +439,7 @@ def handleChatPresences(source, prs):
 				id = vk2xmpp(jid)
 				if id != TransportID and id not in chat.users.keys():
 					if (time.gmtime().tm_mon, time.gmtime().tm_mday) == (4, 1):
-						makeOutcast(source, jid, TransportID, _("Get the hell outta here!"))
+						setAffiliation(source, "outcast", jid, reason=_("Get the hell outta here!"))
 					else:
 						leaveChat(source, jid, _("I am not welcomed here"))
 
@@ -564,7 +557,7 @@ if isdef("ConferenceServer") and ConferenceServer:
 	logger.info("extension groupchats is loaded")
 
 else:
-	del sendIQ, makeMember, makeOutcast, inviteUser, joinChat, leaveChat, \
+	del setAffiliation, inviteUser, joinChat, leaveChat, \
 		outgoingChatMessageHandler, chatMessage, Chat, \
 		incomingChatMessageHandler, handleChatErrors, handleChatPresences, exterminateChats, \
 		cleanTheChatsUp, initChatExtension

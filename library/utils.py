@@ -3,7 +3,7 @@
 # © simpleApps, 2014.
 
 """
-Contain useful functions which used across the modules
+Contains useful functions which used across the modules
 """
 
 import threading
@@ -60,6 +60,7 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 		if att:
 			return runThread(func, args, name, (att - 1), delay)
 		crashLog("runThread.%s" % name)
+	return thr
 
 
 def safe(func):

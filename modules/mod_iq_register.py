@@ -5,13 +5,12 @@
 from __main__ import *
 from __main__ import _
 
-URL_ACCEPT_APP = URL_ACCEPT_APP % VK_ACCESS
-
 
 def initializeUser(user, cl, iq):
 	source = user.source
 	result = iq.buildReply("result")
 	connect = False
+	resource = iq.getFrom().getResource()
 	try:
 		connect = user.connect(True)
 	except (api.TokenError, api.AuthError) as e:
@@ -19,10 +18,10 @@ def initializeUser(user, cl, iq):
 	else:
 		if connect:
 			try:
-				user.initialize()
+				user.initialize(resource=resource)
 			except api.CaptchaNeeded:
 				user.vk.captchaChallenge()
-			except Exception: ## is there could be any other exception?
+			except Exception:
 				crashLog("user.init")
 				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
 			else:
@@ -32,6 +31,7 @@ def initializeUser(user, cl, iq):
 			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 	sender(cl, result)
 
+import forms
 
 def register_handler(cl, iq):
 	jidTo = iq.getTo()
@@ -49,21 +49,8 @@ def register_handler(cl, iq):
 
 	if destination == TransportID:
 		if iType == "get" and not queryChildren:
-			logger.debug("Send registration form to user (jid: %s)" % source)
-			# Something is really messed up down here
-			form = utils.buildDataForm(fields = [
-				# Auth page input
-				{"var": "link", "type": "text-single", "label": _("Autorization page"),
-					"desc": ("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
-						   "and then paste url to password field."), 
-				"value": URL_ACCEPT_APP},
-				# Phone input
-				{"var": "phone", "type": "text-single", "label": _("Phone number"), "desc": _("Enter phone number in format +71234567890"), "value": "+"},
-				# Password checkbox
-				{"var": "use_password", "type": "boolean", "label": _("Get access-token automatically"), "desc": _("Tries to get access-token automatically. (NOT recommended, password required!)")},
-				# Password input
-				{"var": "password", "type": "text-private", "label": _("Password/Access-token"), "desc": _("Type password, access-token or url (recommended)")}],
-			data = [_("Type data in fields")])
+			logger.debug("Send registration form to user (jid: %s)", source)
+			form = utils.buildDataForm(fields=forms.Forms.getComlicatedForm(), data=[_("Fill the fields below")])
 			result.setQueryPayload([form])
 
 		elif iType == "set" and queryChildren:

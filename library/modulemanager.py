@@ -20,20 +20,20 @@ def proxy(func):
 			for (handler, typ, ns, makefirst) in args:
 				if isinstance(ns, list):
 					while ns:
-						func(type, handler, typ, ns.pop(), makefirst)
+						func(type, handler, typ, ns.pop(), makefirst=makefirst)
 				else:
-					func(type, handler, typ, ns, makefirst)
+					func(type, handler, typ, ns, makefirst=makefirst)
 	return wrapper
 
 
 @proxy
-def register(type, handler, typ, ns, makefirst=False):
-	Component.RegisterHandler(type, handler, typ, ns, makefirst=makefirst)
+def register(*args, **kwargs):
+	Component.RegisterHandler(*args, **kwargs)
 
 
 @proxy
-def unregister(type, handler, typ, ns, _=0):
-	Component.UnregisterHandler(type, handler, typ, ns)
+def unregister(*args, **kwargs):
+	Component.UnregisterHandler(*args)
 
 
 def addFeatures(features, list=TransportFeatures):
@@ -89,31 +89,29 @@ class ModuleManager:
 		return modules
 
 	@classmethod
-	def reload(cls, name):
-		if name in sys.modules:
-			module = sys.modules[name]
-			cls.__unregister(module)
-			return reload(module)
+	def __load(cls, name, reload=False):
+		try:
+			if reload:
+				module = sys.modules[name]
+				cls.__unregister(module)
+				module = reload(module)
+			else:
+				module = __import__(name, globals(), locals())
+		except Exception:
+			crashLog("modulemanager.load")
+			module = None
+		return module
 
 	@classmethod
 	def load(cls, list=[]):
 		result = []
 		errors = []
 		for name in list:
-			if name in cls.loaded:
-				try:
-					module = cls.reload(name)
-				except Exception:
-					crashLog("modulemanager.reload")
-					errors.append(name)
-					continue
-			else:
-				try:
-					module = __import__(name, globals(), locals())
-				except Exception:
-					crashLog("modulemanager.load")
-					errors.append(name)
-					continue
+			loaded = name in cls.loaded
+			module = cls.__load(name, loaded)
+			if not module:
+				errors.append(name)
+				continue
 
 			result.append(name)
 			cls.__register(module)

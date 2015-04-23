@@ -300,7 +300,7 @@ class APIBinding(object):
 
 		self.RIP = RequestProcessor()
 
-	def method(self, method, values=None, nodecode=False):
+	def method(self, method, values=None):
 		"""
 		Issues the VK method
 		Parameters:

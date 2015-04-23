@@ -196,6 +196,7 @@ escape = re.compile("|".join(unichr(x) for x in badChars),
 sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
+findListByID = lambda id, list: [key for key in list if key["lid"] == id]
 
 
 class VK(object):
@@ -212,6 +213,7 @@ class VK(object):
 		self.pollInitialzed = False
 		self.online = False
 		self.userID = 0
+		self.lists = []
 		self.friends_fields = set(["screen_name"])
 		logger.debug("VK.__init__ with number:%s from jid:%s", number, source)
 
@@ -391,7 +393,7 @@ class VK(object):
 		logger.debug("VK: user %s has left", self.source)
 		self.online = False
 		utils.runThread(executeHandlers, ("evt06", (self,)))
-		utils.runThread(self.method, ("account.setOffline", None, True, True))
+		utils.runThread(self.method, ("account.setOffline", None, True))
 
 	def getFriends(self, fields=None):
 		"""
@@ -408,7 +410,7 @@ class VK(object):
 			online = friend["online"]
 			name = escape("", str.join(chr(32), (friend["first_name"],
 				friend["last_name"])))
-			friends[uid] = {"name": name, "online": online}
+			friends[uid] = {"name": name, "online": online, "lists": friend["lists"]}
 			for key in fields:
 				friends[uid][key] = friend.get(key)
 		return friends
@@ -427,8 +429,14 @@ class VK(object):
 		"""
 		Gets user id
 		"""
-		self.userID = self.method("execute.getUserID")
+		if not self.userID:
+			self.userID = self.method("execute.getUserID")
 		return self.userID
+
+	def getLists(self):
+		if not self.lists:
+			self.lists = self.method("friends.getLists")
+		return self.lists
 
 	def getUserData(self, uid, fields=None):
 		"""
@@ -568,6 +576,12 @@ class User(object):
 			self.friends = self.vk.getFriends()
 		return self.vk.online
 
+	def markRosterSet(self, cl=None, stanza=None):
+		self.rosterSet = True
+		runDatabaseQuery("update users set rosterSet=? where jid=?",
+			(self.rosterSet, self.source), True)
+
+
 	def initialize(self, force=False, send=True, resource=None, raise_exc=False):
 		"""
 		Initializes user after self.connect() is done:
@@ -588,7 +602,8 @@ class User(object):
 		if self.friends and not self.rosterSet or force:
 			logger.debug("User: sending subscription presence with force:%s (jid: %s)",
 				force, self.source)
-			self.sendSubPresence(self.friends)
+			import rostermanager
+			rostermanager.Roster.checkRosterx(self, resource)
 		if send:
 			self.sendInitPresence()
 		if resource:
@@ -636,7 +651,7 @@ class User(object):
 
 	def sendSubPresence(self, dist=None):
 		"""
-		Sends subsribe presence to self.source
+		Sends subscribe presence to self.source
 		Parameteres:
 			dist: friends list
 		"""
@@ -645,9 +660,7 @@ class User(object):
 			sendPresence(self.source, vk2xmpp(uid), "subscribe", value["name"])
 		sendPresence(self.source, TransportID, "subscribe", IDENTIFIER["name"])
 		if dist:
-			self.rosterSet = True
-			runDatabaseQuery("update users set rosterSet=? where jid=?",
-				(self.rosterSet, self.source), True)
+			self.markRosterSet()
 
 	def sendMessages(self, init=False):
 		"""
