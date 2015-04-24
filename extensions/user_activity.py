@@ -40,17 +40,18 @@ def user_activity_remove():
 	for (jid, date) in users:
 		if (time.time() - date) >= LA:
 			if jid not in Transport:
-				import shutil
 				runDatabaseQuery("delete from users where jid=?", (jid,), set=True)
 				runDatabaseQuery("delete from last_activity where jid=?", (jid,))
-				try:
-					shutil.rmtree("%s/%s" % (settingsDir, jid))
-				except Exception:
-					crashLog("remove_inactive")
+				settings = "%s/%s" % (settingsDir, jid)
+				if os.path.exists(settings):
+					import shutil
+					shutil.rmtree(settings)
 				logger.info("user_activity: user has been removed from " \
 				"the database because of inactivity more than %s (jid: %s)" % (LA, jid))
 			else:
-				sendMessage(Component, jid, TransportID, _("Your last activity was more than %s seconds ago. Relogin or you'll be exterminated.") % LA, LA)			
+				sendMessage(Component, jid, TransportID, 
+					_("Your last activity was more than %s seconds ago."
+						" Relogin or you'll be exterminated.") % LA, LA)
 	utils.runThread(user_activity_remove, delay=(60*60*24))
 
 # A dirty hack to add seen users in stats
