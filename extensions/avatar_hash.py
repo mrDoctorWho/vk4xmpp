@@ -55,4 +55,4 @@ if isdef("ENABLE_PHOTO_HASHES") and ENABLE_PHOTO_HASHES:
 	registerHandler("prs02", addPresenceHash)
 
 else:
-	del sha1, makePhotoHash, addPresenceHash
+	del makePhotoHash, addPresenceHash

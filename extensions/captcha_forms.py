@@ -4,7 +4,6 @@
 
 from hashlib import sha1
 
-
 def sendCaptcha(user, url):
 	logger.debug("VKLogin: sending message with captcha to %s" % user.source)
 	body = _("WARNING: VK has sent you a CAPTCHA."

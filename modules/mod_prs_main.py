@@ -19,19 +19,17 @@ def initializeUser(source, resource, prs):
 	logger.debug("User not in the transport, but a presence received. Searching in database (jid: %s)" % source)
 	data = runDatabaseQuery("select jid,username from users where jid=?", (source,), many=False)
 	if data:
-		sendPresence(source, TransportID, None, IDENTIFIER["name"], caps=True, reason=_("You are being initialized, please wait..."), show="xa")
+		sendPresence(source, TransportID, None, IDENTIFIER["name"], caps=True,
+			reason=_("You are being initialized, please wait..."), show="xa")
 		logger.debug("User has been found in database (jid: %s)" % source)
 		jid, phone = data
 		Transport[jid] = user = User(jid)
-		try:
-			if user.connect():
-				user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
-				utils.runThread(executeHandlers, ("prs01", (source, prs)))
-			else:
-				crashLog("user.connect", False)
-				sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
-		except Exception:
-			crashLog("prs.init")
+		if user.connect():
+			user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
+			utils.runThread(executeHandlers, ("prs01", (source, prs)))
+		else:
+			sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
+
 	if source in USERS_ON_INIT:
 		USERS_ON_INIT.remove(source)
 
@@ -58,7 +56,7 @@ def presence_handler(cl, prs):
 				if user.resources:
 					user.sendOutPresence(jidFrom)
 			if not user.resources:
-				sender(cl, xmpp.Presence(jidFrom, "unavailable", frm = TransportID))
+				sendPresence(jidFrom, TransportID, "unavailable")
 				if transportSettings.send_unavailable:
 					user.sendOutPresence(jidFrom)
 				user.vk.disconnect()
@@ -68,24 +66,21 @@ def presence_handler(cl, prs):
 					pass
 	
 		elif pType == "error":
-			eCode = prs.getErrorCode()
-			if eCode == "404":
+			if prs.getErrorCode() == "404":
 				user.vk.disconnect()
 
 		elif pType == "subscribe":
+			sendPresence(source, jidTo, "subscribed")
+			if user.friends:
+				id = vk2xmpp(destination)
+				if id in user.friends:
+					if user.friends[id]["online"]:
+						sendPresence(jidFrom, frm=jidTo)
 			if destination == TransportID:
-				sender(cl, xmpp.Presence(source, "subscribed", frm=TransportID))
-				sender(cl, xmpp.Presence(jidFrom, frm=TransportID))
-			else:
-				sender(cl, xmpp.Presence(source, "subscribed", frm=jidTo))
-				if user.friends:
-					id = vk2xmpp(destination)
-					if id in user.friends:
-						if user.friends[id]["online"]:
-							sender(cl, xmpp.Presence(jidFrom, frm=jidTo))
+				sendPresence(jidFrom, TransportID)
 	
 		elif pType == "unsubscribe":
-			if source in Transport and destination == TransportID:
+			if destination == TransportID:
 				removeUser(user, True, False)
 				executeHandlers("evt09", (source,))
 

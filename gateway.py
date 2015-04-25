@@ -225,6 +225,8 @@ class VK(object):
 		try:
 			int(self.method("isAppUser", force=True))
 		except (api.VkApiError, TypeError, AttributeError):
+			import traceback
+			traceback.print_exc()
 			return False
 		return True
 
@@ -289,17 +291,12 @@ class VK(object):
 		if not self.engine.captcha and (self.online or force):
 			try:
 				result = self.engine.method(method, args)
-			except (api.InternalServerError, api.AccessDenied) as e:
-				# To prevent returning True from checkData()
+			except (api.InternalServerError, api.AccessDenied):
 				if force:
 					raise
 
 			except api.NetworkNotFound as e:
 				self.online = False
-
-			except api.CaptchaNeeded as e:
-				logger.error("VK: running captcha challenge (jid: %s)", self.source)
-				executeHandlers("evt04", (self, self.engine.captcha["img"]))
 
 			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
@@ -348,7 +345,7 @@ class VK(object):
 		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
-		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)})
+		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)}) or ()
 		friends = {}
 		for friend in raw:
 			uid = friend["uid"]
@@ -475,12 +472,13 @@ class User(object):
 			pwd = api.PasswordLogin(username, password).login()
 			token = pwd.confirm()
 
-		vk = VK(token, self.source)
+		self.vk = vk = VK(token, self.source)
 		try:
 			auth = vk.auth()
 		except api.CaptchaNeeded:
 			self.sendSubPresence()
-			executeHandlers("evt04", (user, url))
+			logger.error("User: running captcha challenge (jid: %s)", self.source)
+			executeHandlers("evt04", (self, vk.engine.captcha["img"]))
 			return True
 		else:
 			logger.debug("User seems to be authenticated (jid: %s)", self.source)
@@ -494,7 +492,6 @@ class User(object):
 						self.lastMsgID, self.rosterSet), True)
 			executeHandlers("evt07", (self,))
 			self.friends = vk.getFriends()
-		self.vk = vk
 		return vk.online
 
 	def markRosterSet(self, cl=None, stanza=None):
@@ -628,8 +625,6 @@ class User(object):
 			runDatabaseQuery("update users set lastMsgID=? where jid=?",
 				(self.lastMsgID, self.source), True)
 
-		if not self.vk.userID:
-			self.vk.getUserID()
 
 	def processPollResult(self, opener):
 		"""
@@ -731,9 +726,6 @@ class User(object):
 		"""
 		logger.debug("calling reauth for user %s", self.source)
 		if not self.vk.online:
-			# Reset the token variable
-			# In order to prevent user deletion from the database
-			self.token = None
 			self.connect()
 		self.initialize(True)
 

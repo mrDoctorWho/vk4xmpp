@@ -35,7 +35,6 @@ def initializeUser(user, cl, iq, kwargs):
 
 import forms
 
-
 def register_handler(cl, iq):
 	jidTo = iq.getTo()
 	jidFrom = iq.getFrom()

@@ -416,7 +416,7 @@ class InternalServerError(VkApiError):
 	pass
 
 
-class CaptchaNeeded(VkApiError):
+class CaptchaNeeded(Exception):
 	"""
 	Will be raised when happens error with code 14
 	To prevent captchas, you should probably send less of queries
