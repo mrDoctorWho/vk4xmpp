@@ -25,7 +25,6 @@ def execute(handler, list=(), log=True):
 		result = handler(*list)
 	except (SystemExit, xmpp.NodeProcessed):
 		result = True
-		print xmpp.NodeProcessed
 	except Exception:
 		result = None
 		if log:
@@ -84,7 +83,7 @@ def threaded(func):
 	"""
 	def wrapper(*args):
 		runThread(func, args)
-	wrapper.__name__ = func.__name__
+	wrapper.__name__ = "threaded_%s" % func.__name__
 	return wrapper
 
 

@@ -4,10 +4,8 @@
 
 findListByID = lambda id, list: [key for key in list if key["lid"] == id]
 
-from defaults import IDENTIFIER
-from __main__ import TransportID, vk2xmpp, sender, Component, sendPresence
-import xmpp
-import utils
+from __main__ import *
+from __main__ import _
 
 class Roster:
 

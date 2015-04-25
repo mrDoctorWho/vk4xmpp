@@ -16,7 +16,7 @@ def initializeUser(source, resource, prs):
 	"""
 	Initializes user for a first time after he have registered
 	"""
-	logger.debug("User not in the transport, but presence received. Searching in database (jid: %s)" % source)
+	logger.debug("User not in the transport, but a presence received. Searching in database (jid: %s)" % source)
 	data = runDatabaseQuery("select jid,username from users where jid=?", (source,), many=False)
 	if data:
 		sendPresence(source, TransportID, None, IDENTIFIER["name"], caps=True, reason=_("You are being initialized, please wait..."), show="xa")
@@ -25,7 +25,7 @@ def initializeUser(source, resource, prs):
 		Transport[jid] = user = User(jid)
 		try:
 			if user.connect():
-				user.initialize(False, True, resource)  # probably we need to know resource a bit earlier than this time
+				user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
 				utils.runThread(executeHandlers, ("prs01", (source, prs)))
 			else:
 				crashLog("user.connect", False)

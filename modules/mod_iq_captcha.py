@@ -22,7 +22,7 @@ def captcha_handler(cl, iq):
 				xTag = capTag.getTag("x", {}, xmpp.NS_DATA)
 				ocrTag = xTag.getTag("field", {"var": "ocr"})
 				value = ocrTag.getTagData("value")
-				mod_msg.acceptCaptcha(cl, value, destination, source)
+				mod_msg.acceptCaptcha(value, source, destination)
 
 
 MOD_TYPE = "iq"

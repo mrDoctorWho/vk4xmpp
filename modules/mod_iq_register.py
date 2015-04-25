@@ -6,13 +6,14 @@ from __main__ import *
 from __main__ import _
 
 
-def initializeUser(user, cl, iq):
-	source = user.source
+@utils.threaded
+def initializeUser(user, cl, iq, kwargs):
 	result = iq.buildReply("result")
 	connect = False
 	resource = iq.getFrom().getResource()
+	source = user.source
 	try:
-		connect = user.connect(True)
+		connect = user.connect(**kwargs)
 	except (api.TokenError, api.AuthError) as e:
 		result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _(str(e) + " Try logging in by token."))
 	else:
@@ -31,7 +32,9 @@ def initializeUser(user, cl, iq):
 			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 	sender(cl, result)
 
+
 import forms
+
 
 def register_handler(cl, iq):
 	jidTo = iq.getTo()
@@ -61,25 +64,15 @@ def register_handler(cl, iq):
 				form = xmpp.DataForm(node=data).asDict()
 				phone = str(form.get("phone", "")).lstrip("+")
 				password = str(form.get("password", ""))
-				use_password = utils.normalizeValue(form.get("use_password", "")) ## In case here comes some unknown crap
+				use_password = utils.normalizeValue(form.get("use_password", ""))  # In case here comes some unknown crap
 
 				if not password:
 					result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("The token/password field can't be empty!"))
 				else:
-					## Check if the user already registered. If registered, delete him then
-					if source in Transport:
-						removeUser(Transport[source], notify=False)
-
-					# Creating a user object
-					user = User(source=source)
-
 					if use_password:
 						logger.debug("user want to use a password (jid: %s)" % source)
 						if not phone or phone == "+":
 							result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Phone is incorrect."))
-						else:
-							user.password = password
-							user.username = phone
 					else:
 						logger.debug("user won't use a password (jid: %s)" % source)
 						token = password
@@ -88,18 +81,16 @@ def register_handler(cl, iq):
 						## If not using a password, then we need to check if there a link or token. It's possible that user's wrong and that's a password.
 						_token = api.token_exp.search(token)
 						if _token:
-							_token = _token.group(0)
-							user.token = _token
-						# In case if user don't know what the hell he's doing, we will try the token as a password
+							token = _token.group(0)
 						elif phone:
-							user.password = token
-							user.username = phone
+							password = token
 						else:
 							result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _("Fill the fields!"))
 
 					# If phone or password (token)
-					if (phone and password) or token:
-						utils.runThread(initializeUser, (user, cl, iq))
+					if token or (phone and password):
+						user = User(source)
+						initializeUser(user, cl, iq, {"username": phone, "password": password, "token": token})
 						result = None
 
 			elif query.getTag("remove"):

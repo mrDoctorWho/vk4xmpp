@@ -22,37 +22,25 @@ def reportReceived(msg, jidFrom, jidTo):
 		return answer
 
 
-def acceptCaptcha(cl, args, jidTo, source):
+def acceptCaptcha(key, source, destination):
 	"""
 	Accepts the captcha value in 2 possible ways:
 		1. User sent a message
 		2. User sent an IQ with the captcha value
 	"""
 	if args:
-		answer = None
+		answer = _("Captcha invalid.")
 		user = Transport[source]
-		if user.vk.engine.captcha:
-			logger.debug("user %s called captcha challenge" % source)
-			user.vk.engine.captcha["key"] = args
-			success = False
-			try:
-				logger.debug("retrying for user %s" % source)
-				success = user.vk.engine.retry()
-			except api.CaptchaNeeded:
-				logger.error("retry for user %s failed!" % source)
-				user.vk.captchaChallenge()
-			if success:
-				logger.debug("retry for user %s successed!" % source)
-				answer = _("Captcha valid.")
-				Presence = xmpp.Presence(source, show=None, frm=TransportID)
-				sender(Component, Presence)
-				user.tryAgain()
-			else:
-				answer = _("Captcha invalid.")
+		logger.debug("user %s called captcha challenge" % source)
+		try:
+			user.captchaChallenge(key)
+		except api.CaptchaNeeded:
+			pass
 		else:
-			answer = _("Not now. Ok?")
-		if answer:
-			sendMessage(cl, source, jidTo, answer)
+			logger.debug("retry for user %s successed!" % source)
+			answer = _("Captcha valid.")
+			sendPresence(source, TransportID, caps=True)
+		sendMessage(Component, source, destination, answer)
 
 
 @utils.threaded
@@ -79,7 +67,7 @@ def message_handler(cl, msg):
 					text, args = raw
 					args = args.strip()
 					if text == "!captcha" and args:
-						acceptCaptcha(cl, args, jidTo, source)
+						acceptCaptcha(args, source, jidTo)
 						answer = reportReceived(msg, jidFrom, jidTo)
 
 			else:

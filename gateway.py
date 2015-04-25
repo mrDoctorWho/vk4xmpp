@@ -204,9 +204,8 @@ class VK(object):
 	A base class for VK
 	Contain functions which directly work with VK
 	"""
-	def __init__(self, number=None, password=None, source=None):
-		self.number = number
-		self.password = password
+	def __init__(self, token=None, source=None):
+		self.token = token
 		self.source = source
 		self.pollConfig = {"mode": 66, "wait": 30, "act": "a_check"}
 		self.pollServer = ""
@@ -215,34 +214,9 @@ class VK(object):
 		self.userID = 0
 		self.lists = []
 		self.friends_fields = set(["screen_name"])
-		logger.debug("VK.__init__ with number:%s from jid:%s", number, source)
+		logger.debug("VK initialized (jid: %s)", source)
 
 	getToken = lambda self: self.engine.token
-
-	def checkData(self):
-		"""
-		Checks the token or authorizes by password
-		Raises api.TokenError if token is invalid or missed in hell
-		Raises api.VkApiError if phone/password is invalid
-		"""
-		logger.debug("VK: checking data (jid: %s)", self.source)
-		if not self.engine.token and self.password:
-			logger.debug("VK.checkData: trying to login via password")
-			passwordLogin = api.PasswordLogin(self.number, self.password)
-			self.engine.token = passwordLogin.login()
-			if not self.checkToken():
-				raise api.VkApiError("Incorrect phone or password")
-
-		elif self.engine.token:
-			logger.debug("VK.checkData: trying to use token")
-			if not self.checkToken():
-				logger.error("VK.checkData: token invalid: %s", self.engine.token)
-				raise api.TokenError("Token is invalid: %s (jid: %s)"
-					% (self.engine.token, self.source))
-		else:
-			logger.error("VK.checkData: no token and no password (jid: %s)",
-				self.source)
-			raise api.TokenError("%s, Where the hell is your token?" % self.source)
 
 	def checkToken(self):
 		"""
@@ -250,39 +224,18 @@ class VK(object):
 		"""
 		try:
 			int(self.method("isAppUser", force=True))
-		except (api.VkApiError, TypeError):
+		except (api.VkApiError, TypeError, AttributeError):
 			return False
 		return True
 
-	def auth(self, token=None, raise_exc=False, initpoll=True):
-		"""
-		Initializes self.engine object
-		Calls self.checkData() and initializes longPoll if all is ok
-		"""
-		logger.debug("VK.auth %s token (jid: %s)",
-			"with" if token else "without", self.source)
-		self.engine = api.APIBinding(token, debug=DEBUG_API)
-		try:
-			self.checkData()
-		except api.CaptchaNeeded:
-			raise
-		except api.AuthError as e:
-			logger.error("VK.auth failed with error %s (jid: %s)",
-				e.message, self.source)
-			if raise_exc:
-				raise
-			return False
-		except api.TokenError:
-			raise
-		except Exception:
-			crashLog("VK.auth")
-			if raise_exc:
-				raise
-			return False
-		logger.debug("VK.auth completed")
-		if initpoll:
-			self.online = True
-			utils.runThread(self.initPoll, (), "__initPoll-%s" % self.source)
+	def auth(self, username=None, password=None):
+		logger.debug("VK going to authenticate (jid: %s)", self.source)
+		self.engine = api.APIBinding(self.token, debug=DEBUG_API)
+
+		if not self.checkToken():
+			raise api.TokenError("The token is invalid (jid: %s)" % self.source)
+
+		self.online = True
 		return True
 
 	def initPoll(self):
@@ -346,7 +299,7 @@ class VK(object):
 
 			except api.CaptchaNeeded as e:
 				logger.error("VK: running captcha challenge (jid: %s)", self.source)
-				self.captchaChallenge()
+				executeHandlers("evt04", (self, self.engine.captcha["img"]))
 
 			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
@@ -366,7 +319,7 @@ class VK(object):
 					roster = True
 				elif m == "User authorization failed: invalid access_token.":
 					sendMessage(Component, self.source, TransportID,
-								_(m + " Please, register again"))
+						m + " Please, register again")
 				utils.runThread(removeUser, (self.source, roster))
 				logger.error("VK: apiError %s (jid: %s)", m, self.source)
 				self.online = False
@@ -375,25 +328,17 @@ class VK(object):
 			logger.error("VK: error %s occurred while executing"
 				" method(%s) (%s) (jid: %s)",
 				e.__class__.__name__, method, e.message, self.source)
-			return False
+			return result
 
-	def captchaChallenge(self):
-		"""
-		Runs all handlers registered to event 04 (captcha)
-		Removes user from poll until the challenge is done
-		"""
-		if self.engine.captcha:
-			executeHandlers("evt04", (self,))
-			self.online = False
-
+	@utils.threaded
 	def disconnect(self):
 		"""
-		Stops all user handlers and removes himself from Poll
+		Stops all user handlers and removes their from Poll
 		"""
-		logger.debug("VK: user %s has left", self.source)
 		self.online = False
-		utils.runThread(executeHandlers, ("evt06", (self,)))
-		utils.runThread(self.method, ("account.setOffline", None, True))
+		logger.debug("VK: user %s has left", self.source)
+		executeHandlers("evt06", (self,))
+		self.method("account.setOffline")
 
 	def getFriends(self, fields=None):
 		"""
@@ -403,14 +348,14 @@ class VK(object):
 		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
-		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)}) or ()
+		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)})
 		friends = {}
 		for friend in raw:
 			uid = friend["uid"]
 			online = friend["online"]
 			name = escape("", str.join(chr(32), (friend["first_name"],
 				friend["last_name"])))
-			friends[uid] = {"name": name, "online": online, "lists": friend["lists"]}
+			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
 			for key in fields:
 				friends[uid][key] = friend.get(key)
 		return friends
@@ -491,90 +436,66 @@ class User(object):
 
 	"""
 	def __init__(self, source=""):
-
-		self.auth = None
-		self.exists = None
-
 		self.friends = {}
+		self.typing = {}
+		self.source = source
 
 		self.lastMsgID = 0
-		self.password = None
 		self.rosterSet = None
-
-		self.source = source
-		self.token = None
-		self.typing = {}
 		self.username = None
 
 		self.resources = set([])
 		self.settings = Settings(source)
 		self.last_udate = time.time()
 		self.sync = threading._allocate_lock()
-		logger.debug("initializing User (jid: %s)", self.source)
+		logger.debug("User initialized (jid: %s)", self.source)
 
-	def connect(self, raise_exc=False):
+	findUserInDB = lambda self: runDatabaseQuery("select * from users where jid=?", (self.source,), many=False)
+
+	def connect(self, username=None, password=None, token=None):
 		"""
 		Calls VK.auth() and calls captchaChallenge on captcha
 		Updates db if auth() is done
 		Raises exception if raise_exc == True
 		"""
-		self.vk = VK(self.username, self.password, self.source)
-		data = runDatabaseQuery("select * from users where jid=?",
-			(self.source,), many=False)
-		if data:
-			if not self.token and not self.password:
-				logger.debug("User exists in the database."
-					" Using their information (jid: %s)", self.source)
-				self.exists = True
-				self.source, self.username,\
-					self.token, self.lastMsgID, self.rosterSet = data
-			elif self.password or self.token:
-				logger.debug("User: %s exists in the database."
-					" The record will be deleted.", self.source)
-				utils.runThread(removeUser, (self,))
+		logger.debug("User connecting (jid: %s)", self.source)
+		exists = False
+		# check if user registered
+		user = self.findUserInDB()
+		if user:
+			exists = True
+			_, _, token, self.lastMsgID, self.rosterSet = user
+			logger.debug("User was found in the database. (jid: %s)", self.source)
 
-		logger.debug("User: connecting (jid: %s)", self.source)
-		self.auth = None
-		# TODO: Check the code below
-		# what the hell is going on down here?
-		if self.username and self.password:
-			self.vk.username = self.username
-			self.vk.password = self.password
+		if not (token or password):
+			logger.warning("User wasn't found in the database and no token or password was given!")
+			raise RuntimeError("Either no token or password was given!")
+
+		if password:
+			pwd = api.PasswordLogin(username, password).login()
+			token = pwd.confirm()
+
+		vk = VK(token, self.source)
 		try:
-			self.auth = self.vk.auth(self.token, raise_exc=raise_exc)
+			auth = vk.auth()
 		except api.CaptchaNeeded:
 			self.sendSubPresence()
-			self.vk.captchaChallenge()
+			executeHandlers("evt04", (user, url))
 			return True
-		except (api.TokenError, api.AuthError):
-			if raise_exc:
-				raise
-			return False
 		else:
-			logger.debug("User: auth=%s (jid: %s)", self.auth, self.source)
-
-		if self.auth and self.vk.getToken():
-			logger.debug("User: updating database because auth done (jid: %s)",
-				self.source)
-			# User isn't exists so we gonna make a new record in the db
-			if not self.exists:
-				runDatabaseQuery("insert into users values (?,?,?,?,?)",
-					(self.source,
-						"",
-						self.vk.getToken(),
-						self.lastMsgID,
-						self.rosterSet),
-					True)
-
-			elif self.password:
+			logger.debug("User seems to be authenticated (jid: %s)", self.source)
+			if exists:
+				# Anyways, it won't hurt anyone
 				runDatabaseQuery("update users set token=? where jid=?",
-					(self.vk.getToken(),
-						self.source),
-					True)
+					(vk.getToken(), self.source), True)
+			else:
+				runDatabaseQuery("insert into users (jid, token, lastMsgID, rosterSet) values (?,?,?,?)",
+					(self.source, vk.getToken(),
+						self.lastMsgID, self.rosterSet), True)
 			executeHandlers("evt07", (self,))
-			self.vk.online = True
-			self.friends = self.vk.getFriends()
-		return self.vk.online
+			self.friends = vk.getFriends()
+		self.vk = vk
+		return vk.online
 
 	def markRosterSet(self, cl=None, stanza=None):
 		self.rosterSet = True
@@ -620,9 +541,8 @@ class User(object):
 		if not self.settings.i_am_ghost:
 			if not self.friends:
 				self.friends = self.vk.getFriends()
-			count = len(self.friends)
 			logger.debug("User: sending init presence (friends count: %s) (jid %s)",
-				count, self.source)
+				len(self.friends), self.source)
 			key = "name"
 			if self.settings.use_nicknames:
 				key = "screen_name"
@@ -794,6 +714,7 @@ class User(object):
 					logger.error("updateFriends: no friends received (jid: %s).",
 						self.source)
 					return None
+
 				for uid in friends:
 					if uid not in self.friends:
 						self.sendSubPresence({uid: friends[uid]})
@@ -803,7 +724,7 @@ class User(object):
 						sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
 				self.friends = friends
 
-	def tryAgain(self):
+	def reauth(self):
 		"""
 		Tries to execute self.initialize() again and connect() if needed
 		Usually needed after captcha challenge is done
@@ -815,6 +736,14 @@ class User(object):
 			self.token = None
 			self.connect()
 		self.initialize(True)
+
+	def captchaChallenge(self, key):
+		engine = self.vk.engine
+		engine.captcha["key"] = key
+		logger.debug("retrying for user %s" % self.source)
+		if engine.retry():
+			self.reauth()
+		return True
 
 
 def sendPresence(destination, source, pType=None, nick=None,

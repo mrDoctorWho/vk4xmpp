@@ -205,33 +205,30 @@ class RequestProcessor(object):
 		return (body, resp)
 
 
-class PasswordLogin(object):
+class PasswordLogin(RequestProcessor):
 	"""
 	Provides a way to log-in by a password
 	"""
 	def __init__(self, number, password):
 		self.number = number
 		self.password = password
-		self.RIP = RequestProcessor(cook=True)
+		RequestProcessor.__init__(self, cook=True)
 
 	def login(self):
 		"""
 		Logging in using password
 		"""
 		url = "https://login.vk.com/"
-		values = {"act": "login",
-		"utf8": "1",
-		"email": self.number,
-		"pass": self.password}
+		values = {"act": "login", "email": self.number,	"pass": self.password}
 
-		body, response = self.RIP.post(url, values)
+		body, response = self.post(url, values)
 
 		if "sid=" in response.url:
-			logger.error("vkapi: PasswordLogin ran into captcha! (number: %s)",
+			logger.error("vkapi: PasswordLogin ran into a captcha! (number: %s)",
 				self.number)
 			raise AuthError("Captcha!")
 
-		if not self.RIP.getCookie("remixsid"):
+		if not self.getCookie("remixsid"):
 			raise AuthError("Invalid password")
 
 		if "security_check" in response.url:
@@ -241,48 +238,41 @@ class PasswordLogin(object):
 			if not self.number[0] == "+":
 				self.number = "+" + self.number
 
-			code = self.number[2:-2]  # valid for Russia only. Unfrotunately.
-			values = {"act": "security_check",
-			"al": "1",
-			"al_page": "3",
-			"code": code,
-			"hash": hash,
-			"to": ""}
-			post = self.RIP.post("https://vk.com/login.php", values)
+			code = self.number[2:-2]  # valid for Russia only. Unfortunately.
+			values = {"act": "security_check", "al": "1", "al_page": "3",
+				"code": code, "hash": hash, "to": ""}
+			post = self.post("https://vk.com/login.php", values)
 			body, response = post
 			if response and not body.split("<!>")[4] == "4":
 				raise AuthError("Incorrect number")
-		return self.confirm()
+		return self
 
 	def confirm(self):
 		"""
 		Confirms the application and receives the token
 		"""
 		url = "https://oauth.vk.com/authorize/"
-		values = {"display": "mobile",
-		"scope": SCOPE,
-		"client_id": APP_ID,
-		"response_type": "token",
-		"redirect_uri": "https://oauth.vk.com/blank.html"}
+		values = {"display": "mobile", "scope": SCOPE,
+			"client_id": APP_ID, "response_type": "token",
+			"redirect_uri": "https://oauth.vk.com/blank.html"}
 
 		token = None
-		body, response = self.RIP.get(url, values)
+		body, response = self.get(url, values)
 		if response:
 			if "access_token" in response.url:
 				token = token_exp.search(response.url).group(0)
 			else:
-				# What is it?
 				postTarget = webtools.getTagArg("form method=\"post\"", "action",
 					body, "form")
 				if postTarget:
-					body, response = self.RIP.post(postTarget)
+					body, response = self.post(postTarget)
 					token = token_exp.search(response.url).group(0)
 				else:
 					raise AuthError("Couldn't confirm the application!")
 		return token
 
 
-class APIBinding(object):
+class APIBinding(RequestProcessor):
 	"""
 	Provides simple VK API binding
 	Translates VK errors to python exceptions
@@ -291,14 +281,11 @@ class APIBinding(object):
 	def __init__(self, token, debug=[]):
 		self.token = token
 		self.debug = debug
-
-		self.captcha = {}
 		self.last = []
+		self.captcha = {}
 		self.lastMethod = ()
-
 		self.timeout = 1.00
-
-		self.RIP = RequestProcessor()
+		RequestProcessor.__init__(self)
 
 	def method(self, method, values=None):
 		"""
@@ -328,7 +315,7 @@ class APIBinding(object):
 			print "issuing method %s with values %s in thread: %s" % (method,
 				str(values), threading.currentThread().name)
 
-		response = self.RIP.post(url, values)
+		response = self.post(url, values)
 		if response:
 			body, response = response
 			if body:
