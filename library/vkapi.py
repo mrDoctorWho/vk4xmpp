@@ -260,7 +260,12 @@ class PasswordLogin(RequestProcessor):
 		body, response = self.get(url, values)
 		if response:
 			if "access_token" in response.url:
-				token = token_exp.search(response.url).group(0)
+				match = token_exp.search(response.url)
+				if match:
+					token = match.group(0)
+				else:
+					logger.error("token regexp doesn't match the url: %s", response.url)
+					raise AuthError("Something went wrong. We're so sorry.")
 			else:
 				postTarget = webtools.getTagArg("form method=\"post\"", "action",
 					body, "form")
@@ -289,7 +294,7 @@ class APIBinding(RequestProcessor):
 
 	def method(self, method, values=None):
 		"""
-		Issues the VK method
+		Issues a VK method
 		Parameters:
 			method: vk method
 			values: method parameters
@@ -400,11 +405,16 @@ class VkApiError(Exception):
 	pass
 
 
+class CaptchaNeeded(Exception):
+	"""
+	Will be raised when captcha appears
+	"""
+	pass
+
+
 class AuthError(VkApiError):
 	"""
 	Happens when user is trying to login using password
-	And there's one of possible errors: captcha,
-		invalid password and wrong phone
 	"""
 	pass
 
@@ -412,14 +422,6 @@ class AuthError(VkApiError):
 class InternalServerError(VkApiError):
 	"""
 	Well, that error should be probably ignored
-	"""
-	pass
-
-
-class CaptchaNeeded(Exception):
-	"""
-	Will be raised when happens error with code 14
-	To prevent captchas, you should probably send less of queries
 	"""
 	pass
 

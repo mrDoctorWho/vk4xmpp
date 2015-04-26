@@ -225,18 +225,14 @@ class VK(object):
 		try:
 			int(self.method("isAppUser", force=True))
 		except (api.VkApiError, TypeError, AttributeError):
-			import traceback
-			traceback.print_exc()
 			return False
 		return True
 
 	def auth(self, username=None, password=None):
 		logger.debug("VK going to authenticate (jid: %s)", self.source)
 		self.engine = api.APIBinding(self.token, debug=DEBUG_API)
-
 		if not self.checkToken():
 			raise api.TokenError("The token is invalid (jid: %s)" % self.source)
-
 		self.online = True
 		return True
 
@@ -799,7 +795,6 @@ def sender(cl, stanza, cb=None, args={}):
 		try:
 			cl.send(stanza)
 		except Exception:
-			crashLog("sender")
 			disconnectHandler(True)
 
 
@@ -972,27 +967,23 @@ def disconnectHandler(crash=True):
 	Handles disconnect
 	And writes a crashlog if crash parameter equals True
 	"""
-	logger.debug("disconnectHandler has been called!")
 	executeHandlers("evt02")
 	if crash:
 		crashLog("main.disconnect")
-	logger.critical("Disconnecting from the server")
+	logger.critical("disconnecting from the server")
 	try:
 		Component.disconnect()
 	except AttributeError:
 		pass
-	except Exception:
-		crashLog("disconnect_handler")
 	global ALIVE
 	ALIVE = False
-	logger.info("Disconnected successfully!")
 	if not Daemon:
-		logger.warning("The trasnport is going to be restarted!")
-		Print("Reconnecting...")
+		logger.warning("the trasnport is going to be restarted!")
+		Print("Restarting...")
 		time.sleep(5)
 		os.execl(sys.executable, sys.executable, *sys.argv)
 	else:
-		logger.info("The transport is shutting down!")
+		logger.info("the transport is shutting down!")
 		sys.exit(-1)
 
 

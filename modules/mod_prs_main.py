@@ -75,7 +75,7 @@ def presence_handler(cl, prs):
 				id = vk2xmpp(destination)
 				if id in user.friends:
 					if user.friends[id]["online"]:
-						sendPresence(jidFrom, frm=jidTo)
+						sendPresence(jidFrom, jidTo)
 			if destination == TransportID:
 				sendPresence(jidFrom, TransportID)
 	

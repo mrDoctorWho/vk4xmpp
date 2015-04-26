@@ -7,6 +7,8 @@ findListByID = lambda id, list: [key for key in list if key["lid"] == id]
 from __main__ import *
 from __main__ import _
 
+RosterSemaphore = threading.Semaphore()
+
 class Roster:
 
 	@staticmethod
@@ -15,9 +17,9 @@ class Roster:
 
 	@classmethod
 	@utils.threaded
-	def manageRoster(cls, user, jid, dist={}, action="add"):
+	def manageRoster(cls, user, dist={}, action="add"):
 		lists = user.vk.getLists()
-		iq = xmpp.Iq("set", to=jid, frm=TransportID)
+		iq = xmpp.Iq("set", to=user.source, frm=TransportID)
 		node = xmpp.Node("x", {"xmlns": xmpp.NS_ROSTERX}) 
 		items = [cls.getNode(TransportID, action=action)]
 		dist = dist or user.friends
@@ -30,7 +32,10 @@ class Roster:
 			items.append(item)
 		node.setPayload(items)
 		iq.addChild(node=node)
-		sender(Component, iq, cb=user.markRosterSet)
+		logger.debug("RosterManager: sending %s fellas to user (jid: %s)", len(items), user)
+		with RosterSemaphore:
+			sender(Component, iq, cb=user.markRosterSet)
+			user.sendSubPresence(user.friends)
 
 	@classmethod
 	def checkRosterx(cls, user, resource):
@@ -42,14 +47,14 @@ class Roster:
 		sendPresence(jid, TransportID, "subscribe", IDENTIFIER["name"])
 		sendPresence(jid, TransportID, nick=IDENTIFIER["name"],
 			reason=_("You are being initialized, please wait..."), show="xa")
-		def answer(cl, stanza, timer):
+		def answer(cl, stanza):
 			if xmpp.isResultNode(stanza):
 				query = stanza.getTag("query")
 				if query.getTags("feature", attrs={"var": xmpp.NS_ROSTERX}):
-					timer.cancel()
-					cls.manageRoster(user, jid, user.friends)
+					cls.manageRoster(user, user.friends)
+				else:
+					user.sendSubPresence(user.friends)
 
 		iq = xmpp.Iq("get", to=jid, frm=TransportID)
 		iq.addChild("query", namespace=xmpp.NS_DISCO_INFO)
-		timer = utils.runThread(user.sendSubPresence, (user.friends,), delay=10)
-		sender(Component, iq, cb=answer, args={"timer": timer})
+		sender(Component, iq, cb=answer)
