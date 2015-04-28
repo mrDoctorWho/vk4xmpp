@@ -168,9 +168,9 @@ class Poll:
 		"""
 		Processes the select result (see above)
 		Handles answers from user.processPollResult()
-		Decides neiter if need to add user to poll or not
+		Decides if need to add user to poll or not
 		"""
-		result = utils.execute(user.processPollResult, (opener,)) or -1
+		result = utils.execute(user.processPollResult, (opener,))
 		if DEBUG_POLL:
 			logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
 		if result == -1:

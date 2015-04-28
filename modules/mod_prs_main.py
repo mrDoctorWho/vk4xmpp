@@ -24,11 +24,16 @@ def initializeUser(source, resource, prs):
 		logger.debug("User has been found in database (jid: %s)" % source)
 		jid, phone = data
 		Transport[jid] = user = User(jid)
-		if user.connect():
+		try:
+			connect = user.connect()
+		except Exception:
+			sendMessage(Component, jid, TransportID, 
+				_("Auth failed! If this error repeated, "
+					"please register again. This incident will be reported."))
+			crashLog("user.connect")
+		else:
 			user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
 			utils.runThread(executeHandlers, ("prs01", (source, prs)))
-		else:
-			sendMessage(Component, jid, TransportID, _("Auth failed! If this error repeated, please register again. This incident will be reported."))
 
 	if source in USERS_ON_INIT:
 		USERS_ON_INIT.remove(source)
@@ -54,11 +59,11 @@ def presence_handler(cl, prs):
 			if jidTo == TransportID and resource in user.resources:
 				user.resources.remove(resource)
 				if user.resources:
-					user.sendOutPresence(jidFrom)
+					user.sendOutPresence(source)
 			if not user.resources:
-				sendPresence(jidFrom, TransportID, "unavailable")
+				sendPresence(source, TransportID, "unavailable")
 				if transportSettings.send_unavailable:
-					user.sendOutPresence(jidFrom)
+					user.sendOutPresence(source)
 				user.vk.disconnect()
 				try:
 					del Transport[source]
@@ -75,9 +80,9 @@ def presence_handler(cl, prs):
 				id = vk2xmpp(destination)
 				if id in user.friends:
 					if user.friends[id]["online"]:
-						sendPresence(jidFrom, jidTo)
+						sendPresence(source, destination)
 			if destination == TransportID:
-				sendPresence(jidFrom, TransportID)
+				sendPresence(source, destination)
 	
 		elif pType == "unsubscribe":
 			if destination == TransportID:

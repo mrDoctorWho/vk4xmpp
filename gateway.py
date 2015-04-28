@@ -83,8 +83,8 @@ import vkapi as api
 import utils
 
 # Compatibility with old config files
-if not ADMIN_JIDS:
-	ADMIN_JIDS = [evalJID]
+if not ADMIN_JIDS and evalJID:
+	ADMIN_JIDS.append(evalJID)
 
 # Setting variables
 # DefLang for language id, root for the translations directory
@@ -193,10 +193,10 @@ badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars),
 	re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 
+checkOnline = lambda friends, key: friends[key]["online"]
 sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
-findListByID = lambda id, list: [key for key in list if key["lid"] == id]
 
 
 class VK(object):
@@ -223,7 +223,7 @@ class VK(object):
 		Checks the api token
 		"""
 		try:
-			int(self.method("isAppUser", force=True))
+			int(self.engine.method("isAppUser"))
 		except (api.VkApiError, TypeError, AttributeError):
 			return False
 		return True
@@ -279,7 +279,7 @@ class VK(object):
 			nodecode: decode flag (make json.loads or not)
 			force: says that method will be executed even the captcha and not online
 		See library/vkapi.py for more information about exceptions
-		Returns method execition result
+		Returns method execution result
 		"""
 		args = args or {}
 		result = {}
@@ -291,7 +291,11 @@ class VK(object):
 				if force:
 					raise
 
-			except api.NetworkNotFound as e:
+			except api.CaptchaNeeded:
+				executeHandlers("evt04", (self, self.engine.captcha["img"]))
+				self.online = False
+
+			except api.NetworkNotFound:
 				self.online = False
 
 			except api.NotAllowed as e:
@@ -495,8 +499,7 @@ class User(object):
 		runDatabaseQuery("update users set rosterSet=? where jid=?",
 			(self.rosterSet, self.source), True)
 
-
-	def initialize(self, force=False, send=True, resource=None, raise_exc=False):
+	def initialize(self, force=False, send=True, resource=None):
 		"""
 		Initializes user after self.connect() is done:
 			1. Receives friends list and set 'em to self.friends
@@ -529,9 +532,9 @@ class User(object):
 
 	def sendInitPresence(self):
 		"""
-		Sends init presence (available) to user from all his online friends
+		Sends init presence (available) to the user from all their online friends
 		"""
-		if not self.settings.i_am_ghost:
+		if not self.settings.i_am_ghost and not self.vk.engine.captcha:
 			if not self.friends:
 				self.friends = self.vk.getFriends()
 			logger.debug("User: sending init presence (friends count: %s) (jid %s)",
@@ -543,12 +546,11 @@ class User(object):
 				if value["online"]:
 					sendPresence(self.source, vk2xmpp(uid), None,
 						value.get(key, "Unknown"), caps=True)
-		if not self.vk.engine.captcha:
 			sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
 	def sendOutPresence(self, destination, reason=None, all=False):
 		"""
-		Sends out presence (unavailable) to destination and set reason if exists
+		Sends out presence (unavailable) to destination. Defines a reason, if set.
 		Parameters:
 			destination: to whom send the stanzas
 			reason: offline status message
@@ -557,7 +559,7 @@ class User(object):
 		logger.debug("User: sending out presence to %s", self.source)
 		friends = self.friends.keys()
 		if not all and friends:
-			friends = filter(lambda key: self.friends[key]["online"], friends)
+			friends = filter(checkOnline, friends)
 
 		for uid in friends + [TransportID]:
 			sendPresence(destination, vk2xmpp(uid), "unavailable", reason=reason)
@@ -649,7 +651,7 @@ class User(object):
 			return 1
 
 		if "failed" in data:
-			logger.debug("longpoll: failed. Searching for new server(jid: %s)",
+			logger.debug("longpoll: failed. Searching for a new server (jid: %s)",
 				self.source)
 			return 0
 
