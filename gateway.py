@@ -193,7 +193,6 @@ badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars),
 	re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 
-checkOnline = lambda friends, key: friends[key]["online"]
 sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
@@ -559,7 +558,7 @@ class User(object):
 		logger.debug("User: sending out presence to %s", self.source)
 		friends = self.friends.keys()
 		if not all and friends:
-			friends = filter(checkOnline, friends)
+			friends = filter(lambda key: self.friends[key]["online"], friends)
 
 		for uid in friends + [TransportID]:
 			sendPresence(destination, vk2xmpp(uid), "unavailable", reason=reason)
