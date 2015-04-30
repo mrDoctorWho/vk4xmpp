@@ -1,3 +1,6 @@
+// Gets a photo link for each user in argument users
+// Returns a list of {"uid": id, "photo": url}
+
 var users = Args.users;
 var photoSize = Args.size;
 var data = API.users.get({"user_ids":users, fields:[photoSize]});

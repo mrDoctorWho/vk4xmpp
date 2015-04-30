@@ -49,7 +49,7 @@ try:
 	logger.debug("vkapi: using ujson instead of simplejson")
 except ImportError:
 	import json
-	logger.error("vkapi: ujson couldn't be loaded, using simplejson instead")
+	logger.warning("vkapi: ujson wasn't loaded, using simplejson instead")
 
 
 def attemptTo(maxRetries, resultType, *errors):

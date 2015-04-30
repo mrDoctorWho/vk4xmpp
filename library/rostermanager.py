@@ -41,7 +41,7 @@ class Roster:
 	def checkRosterx(cls, user, resource):
 		"""
 		Checks if the client supports XEP-0144: Roster Item Exchange
-		If it doesn't, or it didn't answer us, then transport will use old method
+		If it doesn't, or it didn't answer us, then transport will use the old method
 		"""
 		jid = "%s/%s" % (user.source, resource)
 		sendPresence(jid, TransportID, "subscribe", IDENTIFIER["name"])

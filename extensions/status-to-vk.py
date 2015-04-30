@@ -3,7 +3,7 @@
 # © simpleApps, 2014 (30.08.14 08:08AM GMT) — 2015.
 
 """
-This plugin allows users to publish their status in VK_ACCESS
+This plugin allows users to publish their status in VK
 """
 
 VK_ACCESS += 1024

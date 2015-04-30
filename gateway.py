@@ -94,7 +94,12 @@ if THREAD_STACK_SIZE:
 	threading.stack_size(THREAD_STACK_SIZE)
 del formatter, loggerHandler
 
-OS = "{0} {2:.16} [{4}]".format(*os.uname())
+if os.name == "posix":
+	OS = "{0} {2:.16} [{4}]".format(*os.uname())
+else:
+	import platform
+	OS = "Windows {0}".format(*platform.win32_ver())
+
 Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 
 # See extensions/.example.py for more information about handlers
