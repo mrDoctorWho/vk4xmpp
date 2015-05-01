@@ -5,25 +5,21 @@
 
 def interpreter_msg02(msg):
 	body = msg.getBody()
-	jidTo = msg.getTo()
-	destination = jidTo.getStripped()
-	jidFrom = msg.getFrom()
-	source = jidFrom.getStripped()
-	
+	destination = msg.getTo().getStripped()
+	source = msg.getFrom().getStripped()
 	if body:
 		answer = None
-		if jidTo == TransportID:
+		if destination == TransportID:
 			raw = body.split(None, 1)
 			if len(raw) > 1:
 				text, args = raw
 				args = args.strip()
-
 				if text == "!eval" and args and source in ADMIN_JIDS:
 					try:
 						result = unicode(eval(args))
 					except Exception:
 						result = returnExc()
-					sendMessage(Component, source, jidTo, result)
+					sendMessage(Component, source, destination, result)
 
 				elif text == "!exec" and args and source in ADMIN_JIDS:
 					try:
@@ -32,6 +28,6 @@ def interpreter_msg02(msg):
 						result = returnExc()
 					else:
 						result = "Done."
-					sendMessage(Component, source, jidTo, result)
+					sendMessage(Component, source, destination, result)
 
 registerHandler("msg02", interpreter_msg02)

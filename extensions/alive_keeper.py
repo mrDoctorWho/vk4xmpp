@@ -1,8 +1,8 @@
 # coding: utf-8
 # Code © WitcherGeralt, 2012.
 # Originally coded for BlackSmith bot mark.2
-## Installation:
-## Add a field named ALIVE_KEEPER_ENABLED in the main config file and set it's value to True in order to enable the keeper.
+# Installation:
+# Add a field named ALIVE_KEEPER_ENABLED in the main config file and set it's value to True in order to enable the keeper.
 
 """
 Makes the transport ping itself, so it can detect connection hang

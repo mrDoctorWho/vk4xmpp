@@ -1,28 +1,27 @@
 # coding: utf-8
 
-# Connection hostname.
-# For Prosody: "vk.example.com".
+# Connection host.
+# For Prosody/Ejabberd: "vk.example.com".
+# For Openfire (for new versions): just subdomain ("vk" for vk.example.com).
 Host = "localhost"
 
 # Connection server (usually equals hostname).
-# For Prosody: "localhost".
+# If your transport runs on the same server as the jabber-server
+# Then it's just "localhost".
 Server = "localhost" 
 
 # Connection port (as set in Jabber server config).
 # Default value for Prosody is 5347.
 Port = 5347
 
-# Transport ID (for all instances of vk4xmpp).
+# Transport ID (the ID which the transport will send stanzas from).
 TransportID = "vk.example.com"
 
 # Connection password.
 Password = "secret"
 
 # Language (ru/en/pl).
-DefLang = "ru"
-
-# Photo size (photo_50, photo_100, photo_200_orig).
-PhotoSize = "photo_100"
+DefLang = "en"
 
 # White list. Put servers here that should be allowed access to the
 # transport, e.g., ['yourserver1.tld','yourserver2.tld'].
@@ -34,6 +33,10 @@ WhiteList = []
 # Leave it blank to disable notifications.
 WatcherList = []
 
+# List of admin jids (JID for "!eval" command and admin-features in adhoc).
+# Example: ["mrdoctorwho@example.com", "lindsey@somehost.com"]
+ADMIN_JIDS = []
+
 # Additional description. It will be shown after "about" text in transport's vCard.
 AdditionalAbout = ""
 
@@ -41,73 +44,73 @@ AdditionalAbout = ""
 # server's MUC. E.g., conference.example.com.
 ConferenceServer = ""
 
-# Publish this intstance information in public transport list at
+# Photo size (photo_50, photo_100, photo_200_orig).
+# Affects transport stability & performance
+PhotoSize = "photo_100"
+
+# Publish this intstance information in the public transport list at
 # http://xmppserv.ru.ru/xmpp-monitor.
 allowBePublic = True
 
 # User limit. How many users can be registered on your server?
-# Set to 0 for "unlimited".
+# Set to 0 for unlimited.
 USER_LIMIT = 0
 
 # URL which will be used in registration form. See the example in js/vk4xmpp.html or in http://simpleapps.ru/vk4xmpp.html (if the site is still alive in your time)
 # URL MUST have "%d" somewhere, it's used for access definition. Since 01.08.2014 any plugin can modify the access, so it will be defined in the url.
 URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"
 
-#! Danger zone.
-#! Change the settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENDED!
-## Thread stack size (WARNING: THIS MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR).
-## You may need to tune it to optimize memory consuming.
-## Minimum value is 32768 bytes (32kb).
-THREAD_STACK_SIZE = 0
-
-## Maximum forwarded messages depth.
-MAXIMUM_FORWARD_DEPTH = 20
-
-## Image that will be used if the transport can't recieve image from VK.
+# Image that will be used if the transport can't recieve image from VK.
 URL_VCARD_NO_IMAGE = "https://raw.githubusercontent.com/mrDoctorWho/vk4xmpp/master/vk4xmpp.png"
 
-## Eval JID (JID for "!eval" command and admin-features in adhoc).
-ADMIN_JIDS = []
+#! Danger zone.
+#! Change the settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENDED!
+# You were warned.
+# Thread stack size (WARNING: THIS MAY CAUSE TRANSPORT CRASH WITH SEGMENTATION FAULT ERROR).
+# You may need to tune it to optimize memory consuming.
+# Minimum value is 32768 bytes (32kb).
+THREAD_STACK_SIZE = 0
 
-## Debug xmpppy library.
-DEBUG_XMPPPY = False
-
-## Database file (anything you like).
+# Database file (anything you like).
 DatabaseFile = "vk4xmpp.db"
 
-## File to store PID in.
+# File to store PID in.
 pidFile = "vk4xmpp.pid"
 
-## Log file.
+# Log file.
 logFile = "vk4xmpp.log"
 
-## Directory for crash logs storage.
+# Directory where transport will write crash logs.
 crashDir = "crash"
 
-## Log level (logging.INFO, logging.DEBUG, logging.ERROR, logging.CRITICAL).
-LOG_LEVEL = logging.DEBUG
-
-## Directory for users settings.
+# Directory for users settings.
 settingsDir = "settings"
 
-## Stanza send interval (in seconds).
+# Stanza send interval (in seconds).
 STANZA_SEND_INTERVAL = 0.03125
 
-## Debug longpoll queries.
+# Debug xmpppy library.
+DEBUG_XMPPPY = False
+
+# Debug longpoll queries.
 DEBUG_POLL = False
 
-## Debug api requests. It should contain a list of the methods you like to debug. Set to "all" if you like to debug all the methods.
+# Debug api requests. 
+# Put the list of the methods you like to debug. Set to "all" if you want to debug all the methods.
 DEBUG_API = []
 
-## VK4XMPP Monitor settings
-## The server where the stats requests will come from
+# Log level (logging.INFO, logging.DEBUG, logging.ERROR, logging.CRITICAL).
+LOG_LEVEL = logging.DEBUG
+
+# VK4XMPP Monitor settings
+# The server where the stats requests will come from
 VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
 
-## The URL where transport should send POST requests with it's name
-## See https://github.com/aawray/xmpp-monitor
+# The URL where transport should send POST requests with it's name
+# See https://github.com/aawray/xmpp-monitor for more information
 VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
 
-## Posix
+# THE FOLLOWING OPTIONS ARE FOR POSIX-LIKE SYSTEMS ONLY
 # Run as a specified user. Set to "username" to run as "username" instead of current user.
 # Bear in mind that transport must have permission to run as this user.
 RUN_AS = None
