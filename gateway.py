@@ -892,7 +892,7 @@ def loadExtensions(dir):
 	Read and exec files located in dir
 	"""
 	for file in os.listdir(dir):
-		if not file.startswith("."):
+		if not file.startswith(".") and file.endswith(".py"):
 			execfile("%s/%s" % (dir, file), globals())
 
 
