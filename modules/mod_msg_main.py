@@ -81,5 +81,5 @@ def message_handler(cl, msg):
 
 
 MOD_TYPE = "message"
-MOD_FEATURES = xmpp.NS_RECEIPTS
+MOD_FEATURES = [xmpp.NS_RECEIPTS]
 MOD_HANDLERS = ((message_handler, "", "", False),)
