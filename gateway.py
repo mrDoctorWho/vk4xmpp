@@ -236,7 +236,7 @@ class VK(object):
 		logger.debug("VK going to authenticate (jid: %s)", self.source)
 		self.engine = api.APIBinding(self.token, debug=DEBUG_API)
 		if not self.checkToken():
-			raise api.TokenError("The token is invalid (jid: %s)" % self.source)
+			raise api.TokenError("The token is invalid (jid: %s, token: %s)" % (self.source, self.token))
 		self.online = True
 		return True
 
@@ -291,15 +291,15 @@ class VK(object):
 		if not self.engine.captcha and (self.online or force):
 			try:
 				result = self.engine.method(method, args)
-			except (api.InternalServerError, api.AccessDenied):
+			except (api.InternalServerError, api.AccessDenied) as e:
 				if force:
 					raise
 
-			except api.CaptchaNeeded:
+			except api.CaptchaNeeded as e:
 				executeHandlers("evt04", (self, self.engine.captcha["img"]))
 				self.online = False
 
-			except api.NetworkNotFound:
+			except api.NetworkNotFound as e:
 				self.online = False
 
 			except api.NotAllowed as e:

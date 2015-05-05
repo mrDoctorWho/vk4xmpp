@@ -42,21 +42,20 @@ def initializeUser(source, resource, prs):
 def presence_handler(cl, prs):
 	pType = prs.getType()
 	jidFrom = prs.getFrom()
-	jidTo = prs.getTo()
 	source = jidFrom.getStripped()
-	destination = jidTo.getStripped()
 	resource = jidFrom.getResource()
+	destination = prs.getTo().getStripped()
 	if source in Transport:
 		user = Transport[source]
 		if pType in ("available", "probe", None):
-			if jidTo == TransportID:
+			if destination == TransportID:
 				if resource not in user.resources and user not in USERS_ON_INIT:
 					logger.debug("Received presence %s from user. Calling sendInitPresence() (jid: %s)" % (pType, source))
 					user.resources.add(resource)
-					utils.runThread(user.sendInitPresence, ())
+					utils.runThread(user.sendInitPresence)
 
 		elif pType == "unavailable":
-			if jidTo == TransportID and resource in user.resources:
+			if destination == TransportID and resource in user.resources:
 				user.resources.remove(resource)
 				if user.resources:
 					user.sendOutPresence(source)
@@ -64,10 +63,10 @@ def presence_handler(cl, prs):
 				sendPresence(source, TransportID, "unavailable")
 				if transportSettings.send_unavailable:
 					user.sendOutPresence(source)
-				user.vk.disconnect()
 				try:
+					user.vk.disconnect()
 					del Transport[source]
-				except KeyError:
+				except (AttributeError, KeyError):
 					pass
 	
 		elif pType == "error":
@@ -75,7 +74,7 @@ def presence_handler(cl, prs):
 				user.vk.disconnect()
 
 		elif pType == "subscribe":
-			sendPresence(source, jidTo, "subscribed")
+			sendPresence(source, destination, "subscribed")
 			if user.friends:
 				id = vk2xmpp(destination)
 				if id in user.friends:
