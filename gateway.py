@@ -498,7 +498,7 @@ class User(object):
 			self.friends = vk.getFriends()
 		return vk.online
 
-	def markRosterSet(self, cl=None, stanza=None):
+	def markRosterSet(self):
 		self.rosterSet = True
 		runDatabaseQuery("update users set rosterSet=? where jid=?",
 			(self.rosterSet, self.source), True)

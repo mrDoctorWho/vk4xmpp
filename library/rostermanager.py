@@ -9,6 +9,7 @@ from __main__ import _
 
 RosterSemaphore = threading.Semaphore()
 
+
 class Roster:
 
 	@staticmethod
@@ -17,9 +18,17 @@ class Roster:
 
 	@classmethod
 	@utils.threaded
-	def manageRoster(cls, user, dist={}, action="add"):
+	def manageRoster(cls, user, jid, dist={}, action="add"):
+		def answer(cl, stanza):
+			if xmpp.isResultNode(stanza):
+				logger.debug("Roster has been successfully set (jid: %s)", jid)
+				user.markRosterSet()
+			else:
+				logger.error("Couldn't set user's roster! Stanza: %s (jid: %s)", str(stanza), jid)
+
+		# should we send requests for each 100 friends to prevent transport disconnect?
 		lists = user.vk.getLists()
-		iq = xmpp.Iq("set", to=user.source, frm=TransportID)
+		iq = xmpp.Iq("set", to=jid, frm=TransportID)
 		node = xmpp.Node("x", {"xmlns": xmpp.NS_ROSTERX}) 
 		items = [cls.getNode(TransportID, action=action)]
 		dist = dist or user.friends
@@ -34,8 +43,8 @@ class Roster:
 		iq.addChild(node=node)
 		logger.debug("RosterManager: sending %s fellas to user (jid: %s)", len(items), user)
 		with RosterSemaphore:
-			sender(Component, iq, cb=user.markRosterSet)
-			user.sendSubPresence(user.friends)
+			sender(Component, iq, cb=answer)
+#			user.sendSubPresence(user.friends)
 
 	@classmethod
 	def checkRosterx(cls, user, resource):
@@ -51,8 +60,10 @@ class Roster:
 			if xmpp.isResultNode(stanza):
 				query = stanza.getTag("query")
 				if query.getTags("feature", attrs={"var": xmpp.NS_ROSTERX}):
-					cls.manageRoster(user, user.friends)
+					logger.debug("using the RosterX method to add items to user's roster (jid: %s)", jid)
+					cls.manageRoster(user, jid, user.friends)
 				else:
+					logger.debug("using the old method to add items to user's roster (jid: %s)", jid)
 					user.sendSubPresence(user.friends)
 
 		iq = xmpp.Iq("get", to=jid, frm=TransportID)
