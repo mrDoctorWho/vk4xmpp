@@ -7,6 +7,7 @@ from datetime import datetime
 if not require("attachments"):
 	raise AssertionError("'forwardMessages' requires 'attachments'")
 
+
 def parseForwardedMessages(self, msg, depth = 0):
 	body = ""
 	if msg.has_key("fwd_messages"):
@@ -17,14 +18,17 @@ def parseForwardedMessages(self, msg, depth = 0):
 		for fwd in fwd_messages:
 			source = fwd["uid"]
 			date = fwd["date"]
-			fwdBody = escape("", uHTML(fwd["body"]))
+			fwdBody = escape("", uhtml(fwd["body"]))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
 			name = self.vk.getUserData(source)["name"]
 			body += "\n%s[%s] <%s> %s" % (spacer, date, name, fwdBody)
-			body += parseAttachments(self, fwd)
+			body += parseAttachments(self, fwd, spacer)
 			if depth < MAXIMUM_FORWARD_DEPTH: 
 				body += parseForwardedMessages(self, fwd, (depth + 1))
 	return body
 
+if not isdef("MAXIMUM_FORWARD_DEPTH"):
+	MAXIMUM_FORWARD_DEPTH = 28
 
 registerHandler("msg01", parseForwardedMessages)
+

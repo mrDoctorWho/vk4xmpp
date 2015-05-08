@@ -912,6 +912,8 @@ class Iq(Protocol):
 		iq = Iq(typ, to=self.getFrom(), frm=self.getTo(), attrs={"id": self.getID()})
 		if self.getTag("query"):
 			iq.setQueryNS(self.getQueryNS())
+		if self.getTagAttr("query", "node"):
+			iq.setQuerynode(self.getQuerynode())
 		return iq
 
 class ErrorNode(Node):
@@ -1162,14 +1164,14 @@ class DataReported(Node):
 		"""
 		return self.getTag("field", attrs={"var": name})
 
-	def setField(self, name, typ=None, label=None, options=[]):
+	def setField(self, name, typ=None, label=None, desc=None, options=[]):
 		"""
 		Create if nessessary or get the existing datafield object with name "name" and return it.
 		If created, attributes "type" and "label" are applied to new datafield.
 		"""
 		field = self.getField(name)
 		if not field:
-			field = self.addChild(node=DataField(name, None, typ, 0, label, options=options))
+			field = self.addChild(node=DataField(name, None, typ, 0, label, desc=desc, options=options))
 		return field
 
 	def asDict(self):
@@ -1234,13 +1236,13 @@ class DataItem(Node):
 		"""
 		return self.getTag("field", attrs={"var": name})
 
-	def setField(self, name, value=None, typ=None, options=[]):
+	def setField(self, name, value=None, typ=None, desc=None, options=[]):
 		"""
 		Create if nessessary or get the existing datafield object with name "name" and return it.
 		"""
 		field = self.getField(name)
 		if not field:
-			field = self.addChild(node=DataField(name, value, typ, options=options))
+			field = self.addChild(node=DataField(name, value, typ, desc=desc, options=options))
 		return field
 
 	def asDict(self):
@@ -1381,13 +1383,13 @@ class DataForm(Node):
 		"""
 		return self.getTag("field", attrs={"var": name})
 
-	def setField(self, name, value=None, typ=None, options=[]):
+	def setField(self, name, value=None, typ=None, desc=None, options=[]):
 		"""
 		Create if nessessary or get the existing datafield object with name "name" and return it.
 		"""
 		field = self.getField(name)
 		if not field:
-			field = self.addChild(node=DataField(name, value, typ, options=options))
+			field = self.addChild(node=DataField(name, value, typ, desc=desc, options=options))
 		return field
 
 	def asDict(self):

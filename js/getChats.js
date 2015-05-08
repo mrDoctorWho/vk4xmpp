@@ -1,3 +1,6 @@
+// Searches for chats in dialogs
+// Return chat object with it's users
+
 var dialogs = API.messages.searchDialogs({"limit":200});
 var len = dialogs.length;
 var chats = [];

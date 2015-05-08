@@ -1,8 +1,20 @@
 # coding: utf-8
 # © simpleApps, 2010
 
+"""
+This module used to read, write files and crash logs
+"""
+
+__author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
+
 import __main__
-import os, sys, time, logging, traceback
+import logging
+import os
+import sys
+import time
+import traceback
+
+from printer import *
 
 logger = logging.getLogger("vk4xmpp")
 
@@ -22,18 +34,18 @@ def wFile(filename, data, mode = "w"):
 	with open(filename, mode, 0) as file:
 		file.write(data)
 
+
 def rFile(filename):
 	"""
-	Reads file and returns data
+	Reads a file and returns the data
 	"""
 	if not os.path.exists(filename):
-		return ""
+		return "{}"
 	with open(filename, "r") as file:
 		return file.read()
 
 
-
-def crashLog(name, fixme_ = True):
+def crashLog(name, fixme_=True):
 	"""
 	Writes crashlog, ignoring duplicates
 	Parameters:
@@ -41,7 +53,7 @@ def crashLog(name, fixme_ = True):
 		fixme_ needeed to know if print the "fixme" message or not
 	"""
 	global lastErrorBody
-	logger.error("write crashlog %s" % name)
+	logger.error("crashlog %s has been written" % name)
 	if fixme_:
 		fixme(name)
 	try:
@@ -57,20 +69,13 @@ def crashLog(name, fixme_ = True):
 		fixme("crashlog")
 		wException()
 
-def Print(text, line = True):
-	if line:
-		text += "\n"
-	try:
-		sys.stdout.write(text)
-		sys.stdout.flush()
-	except (IOError, OSError):
-		pass
 
 def wException(file = False):
 	exception = traceback.format_exc().strip()
 	if not file:
 		Print(exception)
 	return exception
+
 
 def returnExc():
 	exc = sys.exc_info()

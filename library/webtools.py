@@ -1,7 +1,5 @@
 # coding: utf-8
-
-# BlackSmith-bot module.
-# © simpleApps, 21.05.2012.
+# parts of code © alkogrun
 
 import re
 import htmlentitydefs
@@ -13,9 +11,13 @@ for Name, Numb in htmlentitydefs.name2codepoint.iteritems():
 
 del Name, Numb, htmlentitydefs
 
-compile_ehtmls = re.compile("&(#?[xX]?(?:[0-9a-fA-F]+|\w{1,8}));")
+compile_ehtmls = re.compile(r"&(#?[xX]?(?:[0-9a-fA-F]+|\w{1,8}));")
+compile_eol = re.compile(r"</?br */?>")
 
-def uHTML(data):
+def uhtml(data):
+	"""
+	Unescapes escaped html characters
+	"""
 	if "&" in data:
 
 		def e_sb(co):
@@ -36,14 +38,14 @@ def uHTML(data):
 			return Char
 
 		data = compile_ehtmls.sub(e_sb, data)
-	data = re.sub("</?br */?>", "\n", data)
+	data = compile_eol.sub("\n", data)
 	return data
 
-def getTagArg(tag, argv, data, close_tag = 0):
-	if not close_tag:
-		close_tag = tag
-	pattern = re.compile("<%(tag)s.? %(argv)s=[\"']?(.*?)[\"']?\">(.*?)</%(close_tag)s>" % vars(), flags = re.DOTALL | re.IGNORECASE)
+def getTagArg(tag, argv, data, close_tag=""):
+	close_tag = close_tag or tag
+	pattern = re.compile(r"<%(tag)s.? %(argv)s=[\"']?(.*?)[\"']?\">(.*?)</%(close_tag)s>" % vars(), flags=re.DOTALL | re.IGNORECASE)
 	tagData = pattern.search(data)
 	if tagData:
 		tagData = tagData.group(1)
 	return tagData or " "
+

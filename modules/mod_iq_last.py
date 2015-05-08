@@ -1,15 +1,17 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 from __main__ import *
+import xmpp
+import utils
 
-
+@utils.threaded
 def last_handler(cl, iq):
 	jidFrom = iq.getFrom()
 	jidTo = iq.getTo()
 	source = jidFrom.getStripped()
-	destination = jidTo.getStripped() ## By following standard we should use destination with resource, If we don't client must think user is offline. So, let it be.
+	destination = jidTo.getStripped()
 	id = vk2xmpp(destination)
 	if id == TransportID:
 		last = int(time.time() - startTime)
@@ -27,5 +29,7 @@ def last_handler(cl, iq):
 	sender(cl, result)
 
 
-def load():
-	Component.RegisterHandler("iq", last_handler, "get", xmpp.NS_LAST)
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((last_handler, "get", xmpp.NS_LAST, False),)
+MOD_FEATURES = [xmpp.NS_LAST]
+MOD_FEATURES_USER = [xmpp.NS_LAST]

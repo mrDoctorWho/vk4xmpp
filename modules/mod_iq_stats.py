@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 from __main__ import *
 
@@ -8,8 +8,8 @@ from __main__ import *
 STAT_FIELDS = {
 			"users/total": "users",
 			"users/online": "users",
-			"memory/virtual": "KB",
-			"memory/real": "KB",
+			"memory/virtual": "MB",
+			"memory/real": "MB",
 			"cpu/percent": "percent",
 			"cpu/time": "seconds",
 			"thread/active": "threads",
@@ -17,14 +17,6 @@ STAT_FIELDS = {
 			"msg/out": "messages"
 			}
 
-
-def calcStats():
-	countTotal = 0
-	countOnline = len(Transport)
-	with Database(DatabaseFile, Semaphore) as db:
-		db("select count(*) from users")
-		countTotal = db.fetchone()[0]
-	return [countTotal, countOnline]
 
 def stats_handler(cl, iq):
 	destination = iq.getTo()
@@ -35,18 +27,24 @@ def stats_handler(cl, iq):
 		if not iqChildren:
 			keys = sorted(STAT_FIELDS.keys(), reverse=True)
 			for key in keys:
-				Node = xmpp.Node("stat", {"name": key})
-				queryPayload.append(Node)
+				node = xmpp.Node("stat", {"name": key})
+				queryPayload.append(node)
 		else:
 			users = calcStats()
-			shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
-			virt, real, percent, time = shell[1].split()
-			stats = {"users": users, 
-					 "KB": [virt, real],
-					 "percent": [percent], 
-					 "seconds": [time], 
-					 "threads": [threading.activeCount()],
-					 "messages": [Stats["msgout"], Stats["msgin"]]}
+			try:
+				shell = os.popen("ps -o vsz,rss,%%cpu,time -p %s" % os.getpid()).readlines()
+				virt, real, percent, time = shell[1].split()
+			except IndexError:
+				logger.error("IndexError during trying to execute `ps`")
+				raise xmpp.NodeProcessed()
+
+			virt, real = "%0.2f" % (int(virt)/1024.0), "%0.2f" % (int(real)/1024.0)
+			stats = {"users": users,
+					"MB": [virt, real],
+					"percent": [percent],
+					"seconds": [time],
+					"threads": [threading.activeCount()],
+					"messages": [Stats["msgout"], Stats["msgin"]]}
 			for child in iqChildren:
 				if child.getName() == "stat":
 					name = child.getAttr("name")
@@ -63,4 +61,9 @@ def stats_handler(cl, iq):
 
 
 def load():
+	TransportFeatures.add(xmpp.NS_STATS)
 	Component.RegisterHandler("iq", stats_handler, "get", xmpp.NS_STATS)
+
+MOD_TYPE = "iq"
+MOD_HANDLERS = ((stats_handler, "get", xmpp.NS_STATS, False),)
+MOD_FEATURES = [xmpp.NS_STATS]

@@ -1,50 +1,50 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
+
+"""
+Module purpose is to receive and handle messages
+"""
 
 from __main__ import *
 from __main__ import _
+import utils
 
 def reportReceived(msg, jidFrom, jidTo):
+	"""
+	Reports if message is received
+	"""
 	if msg.getTag("request"):
 		answer = xmpp.Message(jidFrom, frm=jidTo)
-		tag = answer.setTag("received", namespace = xmpp.NS_RECEIPTS)
+		tag = answer.setTag("received", namespace=xmpp.NS_RECEIPTS)
 		tag.setAttr("id", msg.getID())
 		answer.setID(msg.getID())
 		return answer
 
 
-def acceptCaptcha(cl, args, jidTo, source):
+def acceptCaptcha(key, source, destination):
+	"""
+	Accepts the captcha value in 2 possible ways:
+		1. User sent a message
+		2. User sent an IQ with the captcha value
+	"""
 	if args:
-		answer = None
+		answer = _("Captcha invalid.")
 		user = Transport[source]
-		if user.vk.engine.captcha:
-			logger.debug("user %s called captcha challenge" % source)
-			user.vk.engine.captcha["key"] = args
-			success = False
-			try:
-				logger.debug("retrying for user %s" % source)
-				success = user.vk.engine.retry()
-			except api.CaptchaNeeded:
-				logger.error("retry for user %s failed!" % source)
-				user.vk.captchaChallenge()
-			if success:
-				logger.debug("retry for user %s successed!" % source)
-				answer = _("Captcha valid.")
-				Presence = xmpp.Presence(source, frm = TransportID)
-				Presence.setShow("available")
-				sender(Component, Presence)
-				user.tryAgain()
-			else:
-				answer = _("Captcha invalid.")
+		logger.debug("user %s called captcha challenge" % source)
+		try:
+			user.captchaChallenge(key)
+		except api.CaptchaNeeded:
+			pass
 		else:
-			answer = _("Not now. Ok?")
-		if answer:
-			sendMessage(cl, source, jidTo, answer)
+			logger.debug("retry for user %s successed!" % source)
+			answer = _("Captcha valid.")
+			sendPresence(source, TransportID, caps=True)
+		sendMessage(Component, source, destination, answer)
 
 
+@utils.threaded
 def message_handler(cl, msg):
-	mType = msg.getType()
 	body = msg.getBody()
 	jidTo = msg.getTo()
 	destination = jidTo.getStripped()
@@ -56,7 +56,8 @@ def message_handler(cl, msg):
 		if msg.getTag("composing"):
 			target = vk2xmpp(destination)
 			if target != TransportID:
-				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
+				with user.sync:
+					user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
 
 		if body:
 			answer = None
@@ -66,32 +67,19 @@ def message_handler(cl, msg):
 					text, args = raw
 					args = args.strip()
 					if text == "!captcha" and args:
-						acceptCaptcha(cl, args, jidTo, source)
+						acceptCaptcha(args, source, jidTo)
 						answer = reportReceived(msg, jidFrom, jidTo)
-					elif text == "!eval" and args and source == evalJID:
-						try:
-							result = unicode(eval(args))
-						except Exception:
-							result = returnExc()
-						sendMessage(cl, source, jidTo, result)
-					elif text == "!exec" and args and source == evalJID:
-						try:
-							exec(unicode(args + "\n"), globals())
-						except Exception:
-							result = returnExc()
-						else:
-							result = "Done."
-						sendMessage(cl, source, jidTo, result)
+
 			else:
 				uID = jidTo.getNode()
-				vkMessage = user.vk.sendMessage(body, uID)
-				if vkMessage:
-					answer = reportReceived(msg, jidFrom, jidTo)
+				with user.sync:
+					if user.vk.sendMessage(body, uID):
+						answer = reportReceived(msg, jidFrom, jidTo)
 			if answer:
 				sender(cl, answer)
-	for func in Handlers["msg02"]:
-		func(msg)
-		
+	executeHandlers("msg02", (msg,))
 
-def load():
-	Component.RegisterHandler("message", message_handler)
+
+MOD_TYPE = "message"
+MOD_FEATURES = [xmpp.NS_RECEIPTS]
+MOD_HANDLERS = ((message_handler, "", "", False),)

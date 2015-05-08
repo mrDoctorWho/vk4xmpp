@@ -1,145 +1,101 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2014.
-## TODO: Handle set/get in separate functions.
+# © simpleApps, 2014 — 2015.
 
 from __main__ import *
 from __main__ import _
+import forms
 
-URL_ACCEPT_APP = "http://simpleapps.ru/vk4xmpp.html#%d" % VK_ACCESS
 
-
-def initializeUser(user, cl, iq):
-	source = user.source
+@utils.threaded
+def initializeUser(user, cl, iq, kwargs):
 	result = iq.buildReply("result")
 	connect = False
+	resource = iq.getFrom().getResource()
+	source = user.source
 	try:
-		connect = user.connect(True)
-	except api.AuthError, e:
-		result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _(str(e) + " Try to logging in by token."))
+		connect = user.connect(**kwargs)
+	except (api.TokenError, api.AuthError) as e:
+		result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _(str(e) + " Try logging in by token."))
 	else:
 		if connect:
-			try:
-				user.initialize()
-			except api.CaptchaNeeded:
-				user.vk.captchaChallenge()
-			except Exception:
-				crashLog("user.init")
-				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Initialization failed."))
-			else:
-				Transport[source] = user
-				watcherMsg(_("New user registered: %s") % source)
+			user.initialize(resource=resource)
+			executeHandlers("evt08", (source,))
 		else:
 			logger.error("user connection failed (jid: %s)" % source)
 			result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Incorrect password or access token!"))
 	sender(cl, result)
 
+
+@utils.safe
 def register_handler(cl, iq):
-	jidTo = iq.getTo()
-	jidFrom = iq.getFrom()
-	source = jidFrom.getStripped()
-	destination = jidTo.getStripped()
+	source = iq.getFrom().getStripped()
+	destination = iq.getTo().getStripped()
 	iType = iq.getType()
-	queryChildren = iq.getQueryChildren()
 	result = iq.buildReply("result")
 	if USER_LIMIT:
 		count = calcStats()[0]
 		if count >= USER_LIMIT and not source in Transport:
-			cl.send(utils.buildIQError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
+			sender(cl, utils.buildIQError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
 			raise xmpp.NodeProcessed()
 
-	if destination == TransportID:
-		if iType == "get" and not queryChildren:
-			logger.debug("Sending registration form to user (jid: %s)" % source)
-			form = xmpp.DataForm()
-			form.addChild(node=xmpp.Node("instructions")).setData(_("Type data in fields")) ## TODO: Complete this by forms
-			link = form.setField("link", URL_ACCEPT_APP, "text-single")
-			link.setLabel(_("Autorization page"))
-			link.setDesc(_("If you won't get access-token automatically, please, follow authorization link and authorize app,\n"\
-						   "and then paste url to password field."))
-			phone = form.setField("phone", "+", "text-single")
-			phone.setLabel(_("Phone number"))
-			phone.setDesc(_("Enter phone number in format +71234567890"))
-			use_password = form.setField("use_password", "0", "boolean")
-			use_password.setLabel(_("Get access-token automatically"))
-			use_password.setDesc(_("Try to get access-token automatically. (NOT recommended, password required!)"))
-			password = form.setField("password", None, "text-private")
-			password.setLabel(_("Password/Access-token"))
-			password.setDesc(_("Type password, access-token or url (recommended)"))
-			result.setQueryPayload((form,))
+	if destination == TransportID and iq.getQueryChildren():
+		phone, password, use_password, token, result = None, None, None, None, None
+		query = iq.getTag("query")
+		data = query.getTag("x", namespace=xmpp.NS_DATA)
+		if data:
+			form = xmpp.DataForm(node=data).asDict()
+			phone = str(form.get("phone", "")).lstrip("+")
+			password = str(form.get("password", ""))
+			use_password = utils.normalizeValue(form.get("use_password", ""))  # In case here comes some unknown crap
 
-		elif iType == "set" and queryChildren:
-			phone, password, use_password, token = False, False, False, False
-			query = iq.getTag("query")
-			if query.getTag("x"):
-				for node in iq.getTags("query", namespace=xmpp.NS_REGISTER):
-					for node in node.getTags("x", namespace=xmpp.NS_DATA):
-						phone = node.getTag("field", {"var": "phone"})
-						phone = phone and phone.getTagData("value")
-						password = node.getTag("field", {"var": "password"})
-						password = password and password.getTagData("value")
-						use_password = node.getTag("field", {"var": "use_password"})
-						use_password = use_password and use_password.getTagData("value")
-
-				if not password:
-					result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Empty password"))
-
-	## Some clients send "true" or "false" instead of 1/0
-				if not isNumber(use_password):
-					if use_password and use_password.lower() == "true":
-						use_password = 1
-					else:
-						usd_password = 0
-
-				user = User(source=source)
-				use_password = int(use_password)
-
-
-	## If user won't use password so we need token
-				if not use_password:
+			if not password:
+				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("The token/password field can't be empty!"))
+			else:
+				if use_password:
+					logger.debug("user want to use a password (jid: %s)" % source)
+					if not phone or phone == "+":
+						result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Phone is incorrect."))
+				else:
 					logger.debug("user won't use a password (jid: %s)" % source)
 					token = password
-					password = False
-				else:
-					logger.debug("user want to use a password (jid: %s)" % source)
-					if not phone:
-						result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Phone incorrect."))
-					user.password = password
-					user.username = phone
-		
-	## Check if user already registered. If registered, delete him then
-				if source in Transport:
-					user = Transport[source]
-					removeUser(user, semph=False)
-
-	## If we not using a password so we need to check if there a link or token. Or maybe user's wrong and that's his password.
-				if not use_password:
-					_token = api.token_exp.search(token)
-					if _token:
-						_token = _token.group(0)
-						user.token = _token
+					password = None
+					# If not using a password, then we need to check if there a link or token. It's possible that user's wrong and that's a password.
+					match = api.token_exp.search(token)
+					if match:
+						token = match.group(0)
+					elif phone:
+						password = token
 					else:
-						user.password = token
-						user.username = phone
-					
-		## Check if all data is correct.
-				runThread(initializeUser, (user, cl, iq))
-				result = None
+						result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _("Fill the fields!"))
 
-			elif query.getTag("remove"):
-				logger.debug("user %s want to remove me..." % source)
-				if source in Transport:
-					user = Transport[source]
-					removeUser(user, True, False)
-					result.setPayload([], add = 0)
-					watcherMsg(_("User has removed registration: %s") % source)
-				else:
-					logger.debug("... but he don't know that he was removed already!")
+				# If phone or password (token)
+				if token or (phone and password):
+					user = User(source)
+					initializeUser(user, cl, iq, {"username": phone, "password": password, "token": token})
+					result = None
 
-		else:
-			result = utils.buildIQError(iq, 0, _("Feature not implemented."))
-	if result: sender(cl, result) 
+		elif query.getTag("remove"):
+			logger.debug("user %s want to remove me..." % source)
+			if source in Transport:
+				user = Transport[source]
+				removeUser(user, True, False)
+				result = iq.buildReply("result")
+				result.setPayload([], add=False)
+				executeHandlers("evt09", (source,))
+	if result:
+		sender(cl, result)
 
-def load():
-	Component.RegisterHandler("iq", register_handler, "", xmpp.NS_REGISTER)
- 
+
+
+def sendRegisterForm(cl, iq):
+	logger.debug("Send registration form to user (jid: %s)", iq.getFrom().getStripped())
+	form = utils.buildDataForm(fields=forms.Forms.getComlicatedForm(), data=[_("Fill the fields below")])
+	result = iq.buildReply("result")
+	result.setQueryPayload([form])
+	sender(cl, result)
+
+
+MOD_TYPE = "iq"
+MOD_FEATURES = [xmpp.NS_DATA, xmpp.NS_REGISTER]
+MOD_HANDLERS = ((register_handler, "set", xmpp.NS_REGISTER, False), (sendRegisterForm, "get", xmpp.NS_REGISTER, False))
