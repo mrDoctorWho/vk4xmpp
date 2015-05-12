@@ -44,7 +44,7 @@ class Roster:
 		logger.debug("RosterManager: sending %s fellas to user (jid: %s)", len(items), user)
 		with RosterSemaphore:
 			sender(Component, iq, cb=answer)
-#			user.sendSubPresence(user.friends)
+			user.sendSubPresence(user.friends)
 
 	@classmethod
 	def checkRosterx(cls, user, resource):

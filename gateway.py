@@ -334,7 +334,7 @@ class VK(object):
 	@utils.threaded
 	def disconnect(self):
 		"""
-		Stops all user handlers and removes their from Poll
+		Stops all user handlers and removes them from Poll
 		"""
 		self.online = False
 		logger.debug("VK: user %s has left", self.source)
@@ -451,18 +451,18 @@ class User(object):
 		self.sync = threading._allocate_lock()
 		logger.debug("User initialized (jid: %s)", self.source)
 
-	findUserInDB = lambda self: runDatabaseQuery("select * from users where jid=?", (self.source,), many=False)
+	@classmethod
+	findUserInDB = lambda cls, source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
 
 	def connect(self, username=None, password=None, token=None):
 		"""
 		Calls VK.auth() and calls captchaChallenge on captcha
 		Updates db if auth() is done
-		Raises exception if raise_exc == True
 		"""
 		logger.debug("User connecting (jid: %s)", self.source)
 		exists = False
 		# check if user registered
-		user = self.findUserInDB()
+		user = self.findUserInDB(self.source)
 		if user:
 			exists = True
 			_, _, token, self.lastMsgID, self.rosterSet = user
@@ -536,7 +536,7 @@ class User(object):
 
 	def sendInitPresence(self):
 		"""
-		Sends init presence (available) to the user from all their online friends
+		Sends init presence (available) to the user from all them online friends
 		"""
 		if not self.settings.i_am_ghost and not self.vk.engine.captcha:
 			if not self.friends:
@@ -718,7 +718,6 @@ class User(object):
 				for uid in self.friends:
 					if uid not in friends:
 						sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
-						sendPresence(self.source, vk2xmpp(uid), "unsubscribed")
 				self.friends = friends
 
 	def reauth(self):
@@ -773,7 +772,7 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 		cl: xmpp.Client object
 		destination: to whom send the message
 		source: from who send the message
-		body: obviously message body
+		body: message body
 		timestamp: message timestamp (XEP-0091)
 		typ: xmpp chatstates type (XEP-0085)
 	"""
@@ -838,8 +837,8 @@ def removeUser(user, roster=False, notify=True):
 	elif user:
 		source = user.source
 	else:
-		raise ValueError("No user or token was given")
-	user = Transport.get(source)  # here's probability it's not the User object
+		raise ValueError("No user or source was given")
+	user = Transport.get(source)
 	if notify:
 		# Would russians understand the joke?
 		sendMessage(Component, source, TransportID,
@@ -880,8 +879,9 @@ def getPid():
 					os.kill(old, 15)
 					time.sleep(3)
 					os.kill(old, 9)
-				except OSError:
-					Print("%d not killed.\n" % old, False)
+				except OSError as e:
+					if e.errno != 3:
+						Print("%d %s.\n" % (old, e.message), False)
 				else:
 					Print("%d killed.\n" % old, False)
 	wFile(pidFile, str(pid))
@@ -935,7 +935,7 @@ def initializeUsers():
 
 def runMainActions():
 	"""
-	Running main actions to make transport work
+	Running the main actions to make the transport work
 	"""
 	if allowBePublic:
 		makeMeKnown()

@@ -79,9 +79,13 @@ def register_handler(cl, iq):
 			logger.debug("user %s want to remove me..." % source)
 			if source in Transport:
 				user = Transport[source]
-				removeUser(user, True, False)
 				result = iq.buildReply("result")
 				result.setPayload([], add=False)
+				executeHandlers("evt09", (source,))
+
+			elif User.findUserInDB(source):
+				removeUser(source, True, False)
+				sendPresence(TransportID, destination, "unsubscribe")
 				executeHandlers("evt09", (source,))
 	if result:
 		sender(cl, result)
