@@ -246,6 +246,7 @@ class Chat(object):
 			form = utils.buildDataForm(fields=[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
 				{"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
 				{"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
+				{"var": "muc#roomconfig_persistent", "type": "boolean", "value": "1"},
 				{"var": "muc#roomconfig_whois", "value": "anyone"}], 
 				type="submit")
 			query.addChild(node=form)
