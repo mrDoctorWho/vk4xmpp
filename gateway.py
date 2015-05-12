@@ -201,7 +201,7 @@ escape = re.compile("|".join(unichr(x) for x in badChars),
 sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
-
+findUserInDB = lambda source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
 
 class VK(object):
 	"""
@@ -451,9 +451,6 @@ class User(object):
 		self.sync = threading._allocate_lock()
 		logger.debug("User initialized (jid: %s)", self.source)
 
-	@classmethod
-	findUserInDB = lambda cls, source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
-
 	def connect(self, username=None, password=None, token=None):
 		"""
 		Calls VK.auth() and calls captchaChallenge on captcha
@@ -462,7 +459,7 @@ class User(object):
 		logger.debug("User connecting (jid: %s)", self.source)
 		exists = False
 		# check if user registered
-		user = self.findUserInDB(self.source)
+		user = findUserInDB(self.source)
 		if user:
 			exists = True
 			_, _, token, self.lastMsgID, self.rosterSet = user

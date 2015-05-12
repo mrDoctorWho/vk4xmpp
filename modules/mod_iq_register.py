@@ -83,7 +83,7 @@ def register_handler(cl, iq):
 				result.setPayload([], add=False)
 				executeHandlers("evt09", (source,))
 
-			elif User.findUserInDB(source):
+			elif findUserInDB(source):
 				removeUser(source, True, False)
 				sendPresence(TransportID, destination, "unsubscribe")
 				executeHandlers("evt09", (source,))
