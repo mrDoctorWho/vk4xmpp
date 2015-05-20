@@ -1,3 +1,7 @@
+> **Разработка транспорта остановлена окончательно. Никаких исправлений и обновлений больше не будет. Однако pull-request'ы приветствуются**.
+
+> **The Transport developement has been ceased. No fixes or updates would appear anymore. Although pull-requests would be accepted still.**
+
 [![Code Climate](https://codeclimate.com/github/mrDoctorWho/vk4xmpp/badges/gpa.svg)](https://codeclimate.com/github/mrDoctorWho/vk4xmpp)
 
 [![VK4XMPP on Ohloh](https://www.openhub.net/p/vk4xmpp/widgets/project_partner_badge.gif)](https://www.openhub.net/p/vk4xmpp)
