@@ -22,14 +22,14 @@ def sendPhoto(user, data, type, address, mType):
 	if address == TransportID:
 		answer = _("Are you kidding me?")
 	elif mask:
-		if mask & 4 == 4: ## we have enough access?
+		if mask & 4 == 4: # we have enough access?
 			ext = type.split("/")[1]
 			name = "vk4xmpp_%s.%s" % (random.randint(1000, 9000), ext)
 			server = str(user.vk.method("photos.getMessagesUploadServer")["upload_url"])
-			response = json.loads(user.vk.engine.RIP.post(
+			response = json.loads(user.vk.engine.post(
 					server,
-					user.vk.engine.RIP.multipart("photo", str(name), str(type), data),
-					urlencode = False)[0])
+					user.vk.engine.multipart("photo", str(name), str(type), data),
+					urlencode=False)[0])
 
 			id = user.vk.method("photos.saveMessagesPhoto", response)
 			if id:
@@ -52,7 +52,7 @@ def sendPhoto(user, data, type, address, mType):
 def parseXHTML(user, html, source, destination, mType="user_id"):
 	body = html.getTag("body")
 	if body:
-		## TODO: Maybe would be better if we use regular expressions?
+		# TODO: Maybe would be better if we use regular expressions?
 		src = body.getTagAttr("img", "src")
 		raw_data = src.split("data:")[1]
 		mime_type = raw_data.split(";")[0]

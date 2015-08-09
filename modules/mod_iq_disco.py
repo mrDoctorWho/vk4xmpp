@@ -80,16 +80,32 @@ def disco_handler(cl, iq):
 
 getUsersList = lambda: runDatabaseQuery("select jid from users", many=True)
 deleteUsers = lambda jids: [utils.execute(removeUser, (key,), False) for key in jids]
-sendGlobalMessage = lambda text: [sendMessage(Component, jid[0], TransportID, text) for jid in getUsersList()]
+
+
+def sendAnnouncement(destination, body, subject):
+	msg = xmpp.Message(destination, body, "normal", frm=TransportID)
+	timestamp = time.gmtime(time.time())
+	msg.setSubject(subject)
+	msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
+	sender(Component, msg)
+
+
+def sendGlobalMessage(body, subject, online):
+	if online:
+		users = Transport.keys()
+	else:
+		users = getUsersList()
+	for user in users:
+		sendAnnouncement(user, body, subject)
 
 
 def checkAPIToken(token):
 	"""
 	Checks API token, returns dict or error
 	"""
-	vk = VK()
+	vk = VK(token)
 	try:
-		auth = vk.auth(token, True, False)
+		auth = vk.auth()
 		if not auth:  # in case if VK() won't raise an exception
 			raise api.AuthError("Auth failed")
 		else:
@@ -166,13 +182,18 @@ def commands_handler(cl, iq):
 
 				elif node == "Global message":
 					if not form:
-						simpleForm = buildForm(simpleForm, 
-							fields=[{"var": "text", "type": "text-multi", "label": _("Message"), "required": True}], 
+						simpleForm = buildForm(simpleForm,
+							fields=[
+								{"var": "subject", "type": "text-single", "label": _("Subject"), "value": "Announcement"},
+								{"var": "body", "type": "text-multi", "label": _("Message"), "required": True},
+								{"var": "online", "type": "boolean", "label": "Online users only"}
+							],
 							title=_("Enter the message text"))
 					else:
-						if dictForm.has_key("text"):
-							text = "\n".join(dictForm["text"])
-							utils.runThread(sendGlobalMessage, (text,))
+						body = "\n".join(dictForm["body"])
+						subject = dictForm["subject"]
+						online = dictForm["online"]
+						utils.runThread(sendGlobalMessage, (body, subject, online))
 						note = "The message was sent."
 						simpleForm = None
 						completed = True

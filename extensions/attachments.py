@@ -6,6 +6,7 @@ import urllib
 
 VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
 
+
 def parseAttachments(self, msg, spacer=""):
 	"""
 	This function “parses” attachments from json to a string

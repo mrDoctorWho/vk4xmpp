@@ -5,7 +5,7 @@
 Manages VK API requests
 Provides password login and direct VK API calls
 Designed for huge number of clients (per ip)
-Which is why it has request retries
+Which is why it has that lot of code
 """
 
 __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
@@ -283,13 +283,15 @@ class APIBinding(RequestProcessor):
 	Translates VK errors to python exceptions
 	Allows to make a password authorization
 	"""
-	def __init__(self, token, debug=[]):
+	def __init__(self, token, debug=[], logline=""):
 		self.token = token
 		self.debug = debug
 		self.last = []
 		self.captcha = {}
 		self.lastMethod = ()
 		self.timeout = 1.00
+		# to use it in logs witout showing the token
+		self.logline = logline
 		RequestProcessor.__init__(self)
 
 	def method(self, method, values=None):
@@ -315,8 +317,8 @@ class APIBinding(RequestProcessor):
 			if (self.last.pop() - self.last.pop(0)) <= self.timeout:
 				time.sleep(self.timeout / 3.0)
 
+		start = time.time()
 		if method in self.debug or self.debug == "all":
-			start = time.time()
 			print "issuing method %s with values %s in thread: %s" % (method,
 				str(values), threading.currentThread().name)
 
@@ -328,10 +330,15 @@ class APIBinding(RequestProcessor):
 					body = json.loads(body)
 				except ValueError:
 					return {}
-
+			end = time.time()
 			if method in self.debug or self.debug == "all":
-				print "response for method %s: %s in thread: %s (%0.2fs)" % (method,
-					str(body), threading.currentThread().name, (time.time() - start))
+				print "response for method %s: %s in thread: %s (%0.2fs) for %s" % (method,
+					str(body), threading.currentThread().name, (end - start), self.logline)
+
+			if self.debug == "slow":
+				if (end - start) > 3:
+					print "(slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % (method,
+						str(body), threading.currentThread().name, (end - start), self.logline)
 
 			if "response" in body:
 				return body["response"] or {}
@@ -342,26 +349,33 @@ class APIBinding(RequestProcessor):
 				eCode = error["error_code"]
 				eMsg = error.get("error_msg", "")
 				logger.error("vkapi: error occured on executing method"
-					" (%(method)s, code: %(eCode)s, msg: %(eMsg)s)" % vars())
+					" (%s, code: %s, msg: %s), (for: %s)" % (method, eCode, eMsg, self.logline))
 
 				if eCode == 7:  # not allowed
 					raise NotAllowed(eMsg)
+
 				elif eCode == 10:  # internal server error
 					raise InternalServerError(eMsg)
+
 				elif eCode == 13:  # runtime error
 					raise RuntimeError(eMsg)
+
 				elif eCode == 14:  # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 						raise CaptchaNeeded()
+
 				elif eCode == 15:
 					raise AccessDenied(eMsg)
+
 				# 1 - unknown error / 100 - wrong method or parameters loss
 				elif eCode in (1, 6, 9, 100):
 					if eCode in (6, 9):   # 6 - too fast / 9 - flood control
 						self.timeout += 0.05
-						logger.warning("vkapi: got code 9, increasing timeout to %0.2f",
-							self.timeout)
+						# logger doesn't seem to support %0.2f
+						logger.warning("vkapi: got code %s, increasing timeout to %0.2f (for: %s)" %
+							(eCode, self.timeout, self.logline))
+						# waiting a bit and trying to execute te method again
 						time.sleep(self.timeout)
 						return self.method(method, values)
 					return {"error": eCode}

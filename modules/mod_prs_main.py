@@ -58,7 +58,7 @@ def presence_handler(cl, prs):
 			if destination == TransportID and resource in user.resources:
 				user.resources.remove(resource)
 				if user.resources:
-					user.sendOutPresence(source)
+					user.sendOutPresence(jidFrom)
 			if not user.resources:
 				sendPresence(source, TransportID, "unavailable")
 				if transportSettings.send_unavailable:

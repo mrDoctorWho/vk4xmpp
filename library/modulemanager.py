@@ -89,9 +89,9 @@ class ModuleManager:
 		return modules
 
 	@classmethod
-	def __load(cls, name, reload=False):
+	def __load(cls, name, reload_=False):
 		try:
-			if reload:
+			if reload_:
 				module = sys.modules[name]
 				cls.__unregister(module)
 				module = reload(module)

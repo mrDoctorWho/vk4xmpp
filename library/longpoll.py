@@ -5,7 +5,7 @@
 # to write a single-threaded longpoll client
 
 __authors__ = ("AlKorgun <alkorgun@gmail.com>", "mrDoctorWho <mrdoctorwho@gmail.com>")
-__version__ = "2.2"
+__version__ = "2.2.1"
 __license__ = "MIT"
 
 """
@@ -18,7 +18,7 @@ import vkapi as api
 import select
 import socket
 import utils
-from __main__ import Transport, logger, ALIVE, DEBUG_POLL
+from __main__ import Transport, logger, ALIVE, DEBUG_POLL, crashLog
 
 class Poll:
 	"""
@@ -125,7 +125,7 @@ class Poll:
 			try:
 				ready, error = select.select(socks, [], socks, 2)[::2]
 			except (select.error, socket.error) as e:
-				logger.error("longpoll: %s" % (e.message))  # debug?
+				logger.error("longpoll: %s", e.message)  # debug?
 
 			for sock in error:
 				with cls.__lock:
@@ -145,18 +145,17 @@ class Poll:
 
 					# Check if user is still in the memory
 					user = Transport.get(user.source)
-					if not user:
-						continue
 					# Check if the user haven't left yet
-					if not user.vk.online:
+					if not hasattr(user, "vk") or not user.vk.online:
 						continue
+
 					utils.runThread(cls.processResult, (user, opener),
 						"poll.processResult-%s" % user.source)
 
 			with cls.__lock:
 				for sock, (user, opener) in cls.__list.items():
-					if not user.vk.online:
-						logger.debug("longpoll: user is not online, so removing their from poll"
+					if hasattr(user, "vk") and not user.vk.online:
+						logger.debug("longpoll: user is not online, so removing them from poll"
 							" (jid: %s)" % user.source)
 						try:
 							del cls.__list[sock]
@@ -172,7 +171,7 @@ class Poll:
 		"""
 		result = utils.execute(user.processPollResult, (opener,))
 		if DEBUG_POLL:
-			logger.debug("longpoll: result=%d (jid: %s)" % (result, user.source))
+			logger.debug("longpoll: result=%s (jid: %s)" % (result, user.source))
 		if result == -1:
 			return None
 		# if we'll set user.vk.pollInitialized to False

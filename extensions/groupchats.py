@@ -23,11 +23,6 @@ Handles VK Multi-Dialogs
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
 
-try:
-	import mod_xhtml
-except ImportError:
-	mod_xhtml = None
-
 
 def setAffiliation(chat, role, jid, jidFrom=TransportID, reason=None):
 	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
@@ -69,14 +64,14 @@ def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 	else:
 		message.setSubject(text)
 	message.setFrom(jidFrom)
+	executeHandlers("msg03g", (message, chat, jidFrom))
 	sender(Component, message)
 
 
 def outgoingChatMessageHandler(self, vkChat):
 	"""
-	Handles outging messages (VK) and sends them to XMPP
+	Handles outging VK messages and sends them to XMPP
 	"""
-
 	if vkChat.has_key("chat_id"):
 		if not self.settings.groupchats:
 			return None
@@ -96,10 +91,10 @@ def outgoingChatMessageHandler(self, vkChat):
 
 		if chatJID not in self.chats:
 			chat = self.chats[chatJID] = Chat(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
-			chat.create(self) ## we can add self, vkChat to the create() function to prevent losing or messing up the messages
+			chat.create(self)  # we can add self, vkChat to the create() function to prevent losing or messing up the messages
 		else:
 			chat = self.chats[chatJID]
-		## read the comments above the handleMessage function
+		# read the comments above the handleMessage function
 		if not chat.created:
 			time.sleep(1.5)
 		chat.handleMessage(self, vkChat)
@@ -123,7 +118,6 @@ class Chat(object):
 			created: flag if the chat was created successfully
 			invited: flag if the user was invited
 			topic: chat's topic
-			errors: list of chat's errors (not needed at this moment)
 			creation_date: hell knows
 		"""
 		self.id = id
@@ -136,7 +130,6 @@ class Chat(object):
 		self.exists = False
 		self.owner_nickname = None
 		self.topic = topic
-		self.errors = []
 		self.creation_date = date
 
 	def create(self, user):	
@@ -145,13 +138,11 @@ class Chat(object):
 		"""
 		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" %\
 			 		(self.jid, self.raw_users, self.owner, user.source))
-		
 		exists = runDatabaseQuery("select user from groupchats where jid=?", (self.jid,), many=True)
 		if exists:
 			self.exists = True
 			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" %\
 						(self.jid, user.source))
-
 		else:
 			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" %\
 			 			(self.jid, user.source))
@@ -160,7 +151,7 @@ class Chat(object):
 
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
-		## We join to the chat with the room owner's name to set the room topic from their name.
+		# We join to the chat with the room owner's name to set the room topic from their name.
 		joinChat(self.jid, name, TransportID, "Lost in time.")
 		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user})
 
@@ -177,7 +168,7 @@ class Chat(object):
 		if not self.raw_users:
 			vkChat = self.getVKChat(user, self.id)
 			if not vkChat and not self.invited:
-				logger.error("groupchats: damn vk didn't answer to chat list"\
+				logger.error("groupchats: damn vk didn't answer for chat list"\
 							"request, starting timer to try again (jid: %s)" % user.source)
 				utils.runThread(self.initialize, (user, chat), delay=10)
 				return False
@@ -190,7 +181,7 @@ class Chat(object):
 			self.invited = True
 		logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, user.source))
 		chatMessage(chat, self.topic, TransportID, True, self.creation_date)
-		joinChat(chat, name, TransportID, "Lost in time.") ## let's rename ourselves
+		joinChat(chat, name, TransportID, "Lost in time.")  # let's rename ourselves
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
 	def update(self, userObject, vkChat):
@@ -204,18 +195,15 @@ class Chat(object):
 			users = self.getVKChat(userObject, self.id)
 			if users:
 				all_users = users.get("users", [])
-
 		old_users = self.users.keys()
 		buddies = all_users + old_users
 		if TransportID in buddies:
 			buddies.remove(TransportID)
-
 		for user in buddies:
 			jid = vk2xmpp(user)
 			if user not in old_users:
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)",
 					user, self.jid, userObject.source)
-
 				name = userObject.vk.getUserData(user)["name"]
 				self.users[int(user)] = {"name": name, "jid": jid}
 				setAffiliation(self.jid, "member", jid)
@@ -268,7 +256,7 @@ class Chat(object):
 
 	# here is a possibility to get messed up if many messages were sent before we created the chat 
 	# we have to send the messages immendiately as soon as possible, so delay can mess the messages up
-	def handleMessage(self, user, vkChat, retry=10):
+	def handleMessage(self, user, vkChat, retry=True):
 		if self.created:
 			self.update(user, vkChat)
 			body = escape("", uhtml(vkChat["body"]))
@@ -284,10 +272,10 @@ class Chat(object):
 			userObject = self.getUserObject(self.jid)
 			if userObject:
 				source = userObject.source
-			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)" % (self.jid, source))
+			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", self.jid, source)
 			logger.warning("groupchats: is there any groupchat limit on the server?")
 			if retry:
-				utils.runThread(self.handleMessage, (user, vkChat, (retry - 1)), delay=(10 - retry))
+				self.handleMessage(user, vkChat, False)
 
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
@@ -305,7 +293,7 @@ class Chat(object):
 		Split the source and returns required parts
 		"""
 		node, domain = source.split("@")
-		if "_chat#" in node:  # Custom chat name?
+		if "_chat#" in node:
 			creator, id = node.split("_chat#")
 		else:
 			return (None, None, None)
@@ -372,7 +360,7 @@ def incomingChatMessageHandler(msg):
 				send = ((nick == owner_nickname and user.settings.tie_chat_to_nickname)
 					or user.settings.force_vk_date_group)
 
-				if html and html.getTag("body"): ## XHTML-IM!
+				if html and html.getTag("body"):
 					logger.debug("groupchats: fetched xhtml image (jid: %s)" % source)
 					try:
 						mod_xhtml.parseXHTML(user, html, source, source, "chat_id")
@@ -483,7 +471,7 @@ def exterminateChats(user=None, chats=[]):
 		userChats = []
 
 	for (jid, owner, source) in chats:
-		joinChat(jid, "Dalek", owner)
+		joinChat(jid, "Dalek", owner, "Exterminate!")
 		logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)" % (jid, owner, source))
 		Chat.setConfig(jid, owner, True, exterminated, {"jid": jid})
 		if jid in userChats:
@@ -524,6 +512,11 @@ def cleanTheChatsUp():
 
 
 def initChatExtension():
+	global mod_xhtml
+	try:
+		import mod_xhtml
+	except ImportError:
+		mod_xhtml = None
 	if initChatsTable():
 		if isdef("CHAT_LIFETIME_LIMIT"):
 			cleanTheChatsUp()
@@ -532,6 +525,9 @@ def initChatExtension():
 
 
 if isdef("ConferenceServer") and ConferenceServer:
+	# G is for Groupchats. That's it.
+	Handlers["msg03g"] = []
+
 	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
 		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
 

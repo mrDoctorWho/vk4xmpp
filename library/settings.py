@@ -35,7 +35,7 @@ class Settings(object):
 		Uses GLOBAL_USER_SETTINGS variable as default user's settings
 		and updates it using settings read from the file
 		"""
-		self.filename = "%s/%s/settings.txt" % (settingsDir, source)
+		self.filename = ("%s/%s/settings.txt" % (settingsDir, source)).lower()
 		if user:
 			self.settings = deepcopy(GLOBAL_USER_SETTINGS)
 		else:

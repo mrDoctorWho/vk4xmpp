@@ -167,7 +167,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 300, 0
+	number, hash = 304, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -218,6 +218,7 @@ class VK(object):
 		self.userID = 0
 		self.lists = []
 		self.friends_fields = set(["screen_name"])
+		self.cache = {}
 		logger.debug("VK initialized (jid: %s)", source)
 
 	getToken = lambda self: self.engine.token
@@ -234,7 +235,7 @@ class VK(object):
 
 	def auth(self, username=None, password=None):
 		logger.debug("VK going to authenticate (jid: %s)", self.source)
-		self.engine = api.APIBinding(self.token, debug=DEBUG_API)
+		self.engine = api.APIBinding(self.token, DEBUG_API, self.source)
 		if not self.checkToken():
 			raise api.TokenError("The token is invalid (jid: %s, token: %s)" % (self.source, self.token))
 		self.online = True
@@ -387,16 +388,17 @@ class VK(object):
 	def getUserData(self, uid, fields=None):
 		"""
 		Gets user data. Such as name, photo, etc
-		If the user exist in friends list,
+		If the user exists in friends list,
 		And if no advanced fields issued will return friends[uid]
 		Otherwise will request method users.get
 		Default fields are ["screen_name"]
 		"""
 		if not fields:
-			if self.source in Transport:
-				user = Transport[self.source]
-				if uid in user.friends:
-					return user.friends[uid]
+			user = Transport.get(self.source)
+			if user and uid in user.friends:
+				return user.friends[uid]
+			if uid in self.cache:
+				return self.cache[uid]
 			fields = ["screen_name"]
 		data = self.method("users.get",
 			{"fields": str.join(chr(44), fields), "user_ids": uid}) or {}
@@ -408,6 +410,7 @@ class VK(object):
 			data = {"name": "None"}
 			for key in fields:
 				data[key] = "None"
+		self.cache[uid] = data
 		return data
 
 	def sendMessage(self, body, id, mType="user_id", more={}):
@@ -434,7 +437,6 @@ class User(object):
 	"""
 	Main class.
 	Makes a “bridge” between VK & XMPP.
-
 	"""
 	def __init__(self, source=""):
 		self.friends = {}
@@ -527,8 +529,8 @@ class User(object):
 		if resource:
 			self.resources.add(resource)
 		utils.runThread(self.vk.getUserID)
-		Poll.add(self)
 		self.sendMessages(True)
+		Poll.add(self)
 		utils.runThread(executeHandlers, ("evt05", (self,)))
 
 	def sendInitPresence(self):
@@ -578,7 +580,7 @@ class User(object):
 		if dist:
 			self.markRosterSet()
 
-	def sendMessages(self, init=False):
+	def sendMessages(self, init=False, messages=None):
 		"""
 		Sends messages from vk to xmpp and call message01 handlers
 		Paramteres:
@@ -591,7 +593,8 @@ class User(object):
 		"""
 		with self.sync:
 			date = 0
-			messages = self.vk.getMessages(20, self.lastMsgID)
+			if not messages:
+				messages = self.vk.getMessages(200, self.lastMsgID)
 			if not messages or not messages[0]:
 				return None
 			messages = sorted(messages[1:], sortMsg)
@@ -643,12 +646,18 @@ class User(object):
 		data = None
 		try:
 			data = opener.read()
+		except (httplib.BadStatusLine, socket.error) as e:
+			logger.warning("longpoll: got error `%s` (jid: %s)", e.__class__.__name__,
+				self.source)
+			return 0
+		try:
 			data = json.loads(data)
-		except (ValueError, httplib.BadStatusLine, socket.error):
+		except ValueError:
 			return 1
 
 		if not data:
-			logger.error("longpoll: no data. Gonna request again")
+			logger.error("longpoll: no data. Gonna request again (jid: %s)",
+				self.source)
 			return 1
 
 		if "failed" in data:
@@ -657,11 +666,22 @@ class User(object):
 			return 0
 
 		self.vk.pollConfig["ts"] = data["ts"]
+
 		for evt in data.get("updates", ()):
 			typ = evt.pop(0)
 
+			if DEBUG_POLL:
+				logger.debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)", typ, str(evt), self.source)
+
 			if typ == 4:  # new message
-				utils.runThread(self.sendMessages, name="sendMessages-%s" % self.source)
+				message = []
+				if len(evt) == 7:
+					mid, flags, uid, date, subject, body, attachments = evt
+					out = flags & 2 == 2
+					chat = flags & 16 == 16
+					if not attachments and not chat:
+						message = [1, {"out": int(out), "uid": uid, "mid": mid, "date": date, "body": body}]
+				utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
 
 			elif typ == 8:  # user has joined
 				if not self.settings.i_am_ghost:
@@ -688,7 +708,7 @@ class User(object):
 		Sends only if last typing activity in VK was more than 10 seconds ago
 		"""
 		for user, last in self.typing.items():
-			if cTime - last > 10:
+			if cTime - last > 7:
 				del self.typing[user]
 				sendMessage(Component, self.source, vk2xmpp(user), typ="paused")
 
@@ -730,10 +750,9 @@ class User(object):
 	def captchaChallenge(self, key):
 		engine = self.vk.engine
 		engine.captcha["key"] = key
-		logger.debug("retrying for user %s" % self.source)
+		logger.debug("retrying for user %s", self.source)
 		if engine.retry():
 			self.reauth()
-		return True
 
 
 def sendPresence(destination, source, pType=None, nick=None,
@@ -886,7 +905,7 @@ def getPid():
 
 def loadExtensions(dir):
 	"""
-	Read and exec files located in dir
+	Loads extensions
 	"""
 	for file in os.listdir(dir):
 		if not file.startswith(".") and file.endswith(".py"):
@@ -895,14 +914,14 @@ def loadExtensions(dir):
 
 def connect():
 	"""
-	Just makes a connection to the jabber-server
-	Returns False if faled, True if completed
+	Just makes a connection to the jabber server
+	Returns False if failed, True if completed
 	"""
 	global Component
 	Component = xmpp.Component(Host, debug=DEBUG_XMPPPY)
 	Print("\n#-# Connecting: ", False)
 	if not Component.connect((Server, Port)):
-		Print("fail.\n", False)
+		Print("failed.\n", False)
 		return False
 	else:
 		Print("ok.\n", False)

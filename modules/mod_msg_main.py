@@ -29,18 +29,22 @@ def acceptCaptcha(key, source, destination):
 		2. User sent an IQ with the captcha value
 	"""
 	if args:
-		answer = _("Captcha invalid.")
 		user = Transport[source]
 		logger.debug("user %s called captcha challenge" % source)
 		try:
 			user.captchaChallenge(key)
+			valid = True
 		except api.CaptchaNeeded:
-			pass
+			valid = False
+			answer = _("Captcha invalid.")
 		else:
 			logger.debug("retry for user %s successed!" % source)
 			answer = _("Captcha valid.")
 			sendPresence(source, TransportID, caps=True)
+
 		sendMessage(Component, source, destination, answer)
+		if not valid:
+			executeHandlers("evt04", (user, user.vk.engine.captcha["img"]))
 
 
 @utils.threaded
