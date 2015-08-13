@@ -1,65 +1,83 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 import urllib
 
 VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
 
+GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
+
 
 def parseAttachments(self, msg, spacer=""):
 	"""
-	This function “parses” attachments from json to a string
+	“parses” attachments from the json to a string
 	"""
 	result = ""
 	if msg.has_key("attachments"):
 
 		# Add new line and "Attachments" if there some text added
-		if msg["body"]:
+		if msg.has_key("body") or msg.has_key("text"):
 			result += chr(10) + spacer + _("Attachments:") + chr(10)
+		else:
+			result += "\n"
 
 		attachments = msg["attachments"]
-		for num, att in enumerate(attachments):
-			typ = att.get("type")
+		for num, attachment in enumerate(attachments):
 			body = spacer
-			if num:
+			type = attachment.get("type")
+			current = attachment[type]
+			if num > 0:
 				body = chr(10) + spacer
 
-			if typ == "wall":
+			if type == "wall":
+				if self.settings.parse_wall:
+					body += "Wall post:\n"
+					if current.has_key("text"):
+						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"]))
+					body += "\n" + spacer + parseAttachments(self, current, spacer) + "\n" + spacer
 				body += "Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
 
-			elif typ == "photo":
+			elif type == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 				for key in keys:
-					if key in att[typ]:
-						body += att[typ][key]  # No new line needed if we have just one photo and no text
+					if key in current:
+						body += current[key]  # No new line needed if we have just one photo and no text
 						break
 
-			elif typ == "video":
-				body += "Video: http://vk.com/video%(owner_id)s_%(vid)s — %(title)s"
+			elif type == "video":
+				body += "Video: %(title)s — https://vk.com/video%(owner_id)s_%(vid)s"
 
-			elif typ == "audio":
+			elif type == "audio":
 				for key in ("performer", "title"):
-					if att[typ].has_key(key):
-						att[typ][key] = uhtml(att[typ][key])
+					if current.has_key(key):
+						current[key] = uhtml(current[key])
 
-				url = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % att[typ]))
-				att[typ]["url"] = url
-				body += "Audio: %(performer)s — %(title)s — %(url)s"
+				url = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % att[type]))
+				current["url"] = url
+				body += "Audio: %(performer)s — “%(title)s“ — %(url)s"
 
-			elif typ == "doc":
-				body += "Document: %(title)s — %(url)s"
+			elif type == "doc":
+				body += "Document: “%(title)s” — %(url)s"
 
-			elif typ == "sticker":
+			elif type == "sticker":
 				keys = ("photo_256", "photo_128", "photo_64")
 				for key in keys:
-					if key in att[typ]:
-						body += "Sticker: " + att[typ][key]
+					if key in current:
+						body += "Sticker: " + current[key]
 						break
 
+			elif type == "wall_reply":
+				current["name"] = self.vk.getUserData(current["uid"])["name"]
+				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
+				current["url"] = "https://vk.com/feed?w=wall%(owner_id)s_%(post_id)s" % current
+				body += "Commentary to the post on a community wall:\n"
+				body += spacer + "<%(name)s> %(text)s\n"
+				body += spacer + "Community: %(url)s"
+
 			else:
-				body += "Unknown attachment: " + str(att[typ])
-			result += body % att.get(typ, {})
+				body += "Unknown attachment: %s\n%s" % (type, str(current))
+			result += body % current
 	return result
 
 registerHandler("msg01", parseAttachments)

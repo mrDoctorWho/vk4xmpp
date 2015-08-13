@@ -674,14 +674,16 @@ class User(object):
 				logger.debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)", typ, str(evt), self.source)
 
 			if typ == 4:  # new message
-				message = []
 				if len(evt) == 7:
+					message = None
 					mid, flags, uid, date, subject, body, attachments = evt
 					out = flags & 2 == 2
 					chat = flags & 16 == 16
-					if not attachments and not chat:
-						message = [1, {"out": int(out), "uid": uid, "mid": mid, "date": date, "body": body}]
-				utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
+					if not attachments and not chat and not out:
+						message = [1, {"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
+					utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
+				else:
+					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)
 
 			elif typ == 8:  # user has joined
 				if not self.settings.i_am_ghost:
