@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2014.
+# © simpleApps, 2013 — 2015.
 
 from datetime import datetime
 
@@ -19,7 +19,7 @@ def parseForwardedMessages(self, msg, depth=0):
 		for fwd in fwd_messages:
 			source = fwd["uid"]
 			date = fwd["date"]
-			fwdBody = escape("", uhtml(fwd["body"]))
+			fwdBody = escape("", uhtml(compile_eol.sub("\n" + spacer + BASE_SPACER, fwd["body"])))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
 			name = self.vk.getUserData(source)["name"]
 			body += "\n%s[%s] <%s> %s" % (spacer + BASE_SPACER, date, name, fwdBody)

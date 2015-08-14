@@ -16,24 +16,20 @@ def initializeUser(source, resource, prs):
 	"""
 	Initializes user for a first time after he have registered
 	"""
-	logger.debug("User not in the transport, but a presence received. Searching in database (jid: %s)" % source)
-	data = runDatabaseQuery("select jid,username from users where jid=?", (source,), many=False)
-	if data:
-		sendPresence(source, TransportID, None, IDENTIFIER["name"], caps=True,
-			reason=_("You are being initialized, please wait..."), show="xa")
-		logger.debug("User has been found in database (jid: %s)" % source)
-		jid, phone = data
-		Transport[jid] = user = User(jid)
-		try:
-			connect = user.connect()
-		except Exception:
-			sendMessage(Component, jid, TransportID, 
-				_("Auth failed! If this error repeated, "
-					"please register again. This incident will be reported."))
-			crashLog("user.connect")
-		else:
-			user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
-			utils.runThread(executeHandlers, ("prs01", (source, prs)))
+	logger.debug("Got a presence. Searching jid in the database. (jid: %s)", source)
+	user = User(source)
+	try:
+		connect = user.connect()
+	except RuntimeError:
+		pass
+	except Exception:
+		sendMessage(Component, source, TransportID, 
+			_("Auth failed! If this error repeated, "
+				"please register again. This incident will be reported."))
+		crashLog("user.connect")
+	else:
+		user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
+		utils.runThread(executeHandlers, ("prs01", (source, prs)))
 
 	if source in USERS_ON_INIT:
 		USERS_ON_INIT.remove(source)

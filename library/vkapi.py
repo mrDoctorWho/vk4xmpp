@@ -22,8 +22,8 @@ import urllib
 import urllib2
 import webtools
 
-SOCKET_TIMEOUT = 30
-REQUEST_RETRIES = 6
+SOCKET_TIMEOUT = 20
+REQUEST_RETRIES = 3
 
 # VK APP ID
 APP_ID = 3789129
@@ -80,7 +80,11 @@ def attemptTo(maxRetries, resultType, *errors):
 				if hasattr(exc, "errno") and exc.errno == 101:
 					raise NetworkNotFound()
 				data = resultType()
-				logger.warning("vkapi: Error %s occurred on executing %s", exc, func)
+				logger.warning("vkapi: Error %s occurred on executing %s(*%s, **%s)",
+					exc,
+					func.func_name,
+					str(args),
+					str(kwargs))
 			return data
 
 		wrapper.__name__ = func.__name__

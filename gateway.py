@@ -515,7 +515,7 @@ class User(object):
 			send: needed to know if need to send init presence or not
 			resource: add resource in self.resources to prevent unneeded stanza sending
 		"""
-		logger.debug("User: called init for user %s", self.source)
+		logger.debug("User: beginning user initialization (jid: %s)", self.source)
 		Transport[self.source] = self
 		if not self.friends:
 			self.friends = self.vk.getFriends()
@@ -646,7 +646,7 @@ class User(object):
 		data = None
 		try:
 			data = opener.read()
-		except (httplib.BadStatusLine, socket.error) as e:
+		except (httplib.BadStatusLine, socket.error, socket.timeout) as e:
 			logger.warning("longpoll: got error `%s` (jid: %s)", e.__class__.__name__,
 				self.source)
 			return 0
@@ -982,6 +982,7 @@ def main():
 	if connect():
 		initializeUsers()
 		runMainActions()
+		logger.info("transport initialized at %s", TransportID)
 	else:
 		disconnectHandler(False)
 

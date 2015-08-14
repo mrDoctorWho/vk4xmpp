@@ -15,14 +15,13 @@ def parseAttachments(self, msg, spacer=""):
 	"""
 	result = ""
 	if msg.has_key("attachments"):
-
+		attachments = msg["attachments"]
 		# Add new line and "Attachments" if there some text added
-		if msg.has_key("body") or msg.has_key("text"):
+		if msg.get("body") and len(attachments) > 1:
 			result += chr(10) + spacer + _("Attachments:") + chr(10)
 		else:
 			result += "\n"
 
-		attachments = msg["attachments"]
 		for num, attachment in enumerate(attachments):
 			body = spacer
 			type = attachment.get("type")
@@ -33,10 +32,10 @@ def parseAttachments(self, msg, spacer=""):
 			if type == "wall":
 				if self.settings.parse_wall:
 					body += "Wall post:\n"
-					if current.has_key("text"):
-						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"]))
-					body += "\n" + spacer + parseAttachments(self, current, spacer) + "\n" + spacer
-				body += "Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
+					if current.get("text"):
+						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"])) + "\n"
+					body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
+				body += spacer + "Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
 
 			elif type == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
@@ -53,7 +52,7 @@ def parseAttachments(self, msg, spacer=""):
 					if current.has_key(key):
 						current[key] = uhtml(current[key])
 
-				url = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % att[type]))
+				url = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % current))
 				current["url"] = url
 				body += "Audio: %(performer)s — “%(title)s“ — %(url)s"
 
