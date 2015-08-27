@@ -49,7 +49,7 @@ def user_activity_remove():
 				logger.info("user_activity: user has been removed from " \
 				"the database because of inactivity more than %s (jid: %s)" % (LA, jid))
 			else:
-				sendMessage(Component, jid, TransportID, 
+				sendMessage(jid, TransportID, 
 					_("Your last activity was more than %s seconds ago."
 						" Relogin or you'll be exterminated.") % LA, LA)
 	utils.runThread(user_activity_remove, delay=(60*60*24))

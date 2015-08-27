@@ -19,7 +19,7 @@ def parseAttachments(self, msg, spacer=""):
 		# Add new line and "Attachments" if there some text added
 		if msg.get("body") and len(attachments) > 1:
 			result += chr(10) + spacer + _("Attachments:") + chr(10)
-		else:
+		if spacer:
 			result += "\n"
 
 		for num, attachment in enumerate(attachments):
@@ -35,7 +35,7 @@ def parseAttachments(self, msg, spacer=""):
 					if current.get("text"):
 						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"])) + "\n"
 					body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
-				body += spacer + "Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s"
+				body += spacer + ("Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s" % current)
 
 			elif type == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
@@ -45,38 +45,40 @@ def parseAttachments(self, msg, spacer=""):
 						break
 
 			elif type == "video":
-				body += "Video: %(title)s — https://vk.com/video%(owner_id)s_%(vid)s"
+				body += "Video: %(title)s — https://vk.com/video%(owner_id)s_%(vid)s" % current
 
 			elif type == "audio":
 				for key in ("performer", "title"):
 					if current.has_key(key):
 						current[key] = uhtml(current[key])
 
-				url = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % current))
-				current["url"] = url
-				body += "Audio: %(performer)s — “%(title)s“ — %(url)s"
+				current["url"] = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % current))
+				body += "Audio: %(performer)s — “%(title)s“ — %(url)s" % current
 
 			elif type == "doc":
-				body += "Document: “%(title)s” — %(url)s"
+				body += "Document: “%(title)s” — %(url)s" % current
 
 			elif type == "sticker":
 				keys = ("photo_256", "photo_128", "photo_64")
 				for key in keys:
 					if key in current:
-						body += "Sticker: " + current[key]
+						body += "Sticker: %s" % current[key]
 						break
+
+			elif type == "link":
+				body += "URL: %(url)s — %(title)s" % current
 
 			elif type == "wall_reply":
 				current["name"] = self.vk.getUserData(current["uid"])["name"]
 				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
 				current["url"] = "https://vk.com/feed?w=wall%(owner_id)s_%(post_id)s" % current
 				body += "Commentary to the post on a community wall:\n"
-				body += spacer + "<%(name)s> %(text)s\n"
-				body += spacer + "Community: %(url)s"
+				body += spacer + "<%(name)s> %(text)s\n" % current
+				body += spacer + "Community: %(url)s" % current
 
 			else:
 				body += "Unknown attachment: %s\n%s" % (type, str(current))
-			result += body % current
+			result += body
 	return result
 
 registerHandler("msg01", parseAttachments)

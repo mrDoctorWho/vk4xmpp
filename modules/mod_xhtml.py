@@ -46,7 +46,7 @@ def sendPhoto(user, data, type, address, mType):
 	else:
 		answer = _("Something went wrong. We are so sorry.")
 	if send:
-		sendMessage(Component, user.source, destination, answer, timestamp=1)
+		sendMessage(user.source, destination, answer, timestamp=1)
 
 
 def parseXHTML(user, html, source, destination, mType="user_id"):

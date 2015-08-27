@@ -19,7 +19,7 @@ def interpreter_msg02(msg):
 						result = unicode(eval(args))
 					except Exception:
 						result = returnExc()
-					sendMessage(Component, source, destination, result)
+					sendMessage(source, destination, result)
 
 				elif text == "!exec" and args and source in ADMIN_JIDS:
 					try:
@@ -28,6 +28,6 @@ def interpreter_msg02(msg):
 						result = returnExc()
 					else:
 						result = "Done."
-					sendMessage(Component, source, destination, result)
+					sendMessage(source, destination, result)
 
 registerHandler("msg02", interpreter_msg02)

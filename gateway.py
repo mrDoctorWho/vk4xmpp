@@ -305,7 +305,7 @@ class VK(object):
 
 			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
-					sendMessage(Component, self.source,
+					sendMessage(self.source,
 						vk2xmpp(args.get("user_id", TransportID)),
 						_("You're not allowed to perform this action."))
 
@@ -320,7 +320,7 @@ class VK(object):
 				if m == "User authorization failed: user revoke access for this token.":
 					roster = True
 				elif m == "User authorization failed: invalid access_token.":
-					sendMessage(Component, self.source, TransportID,
+					sendMessage(self.source, TransportID,
 						m + " Please, register again")
 				utils.runThread(removeUser, (self.source, roster))
 				logger.error("VK: apiError %s (jid: %s)", m, self.source)
@@ -355,8 +355,7 @@ class VK(object):
 		for friend in raw:
 			uid = friend["uid"]
 			online = friend["online"]
-			name = escape("", str.join(chr(32), (friend["first_name"],
-				friend["last_name"])))
+			name = escape("", "%(first_name)s %(last_name)s" % friend)
 			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
 			for key in fields:
 				friends[uid][key] = friend.get(key)
@@ -404,8 +403,8 @@ class VK(object):
 			{"fields": str.join(chr(44), fields), "user_ids": uid}) or {}
 		if data:
 			data = data.pop()
-			data["name"] = escape("", str.join(chr(32),
-				(data.pop("first_name"), data.pop("last_name"))))
+			data["name"] = escape("", "%(first_name)s %(last_name)s" % data)
+			del data["first_name"], data["last_name"]  # We don't need them anymore.
 		else:
 			data = {"name": "None"}
 			for key in fields:
@@ -472,6 +471,7 @@ class User(object):
 			raise RuntimeError("Either no token or password was given!")
 
 		if password:
+			logger.debug("Going to authenticate via password (jid: %s)", self.source)
 			pwd = api.PasswordLogin(username, password).login()
 			token = pwd.confirm()
 
@@ -621,7 +621,7 @@ class User(object):
 					else:
 						if self.settings.force_vk_date or init:
 							date = message["date"]
-						sendMessage(Component, self.source, fromjid, escape("", body), date)
+						sendMessage(self.source, fromjid, escape("", body), date)
 		if messages:
 			self.lastMsgID = messages[-1]["mid"]
 			runDatabaseQuery("update users set lastMsgID=? where jid=?",
@@ -652,10 +652,9 @@ class User(object):
 			return 0
 		try:
 			data = json.loads(data)
+			if not data:
+				raise ValueError()
 		except ValueError:
-			return 1
-
-		if not data:
 			logger.error("longpoll: no data. Gonna request again (jid: %s)",
 				self.source)
 			return 1
@@ -679,9 +678,9 @@ class User(object):
 					mid, flags, uid, date, subject, body, attachments = evt
 					out = flags & 2 == 2
 					chat = flags & 16 == 16
-					if not attachments and not chat:
-						message = [1, {"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
 					if not out:
+						if not attachments and not chat:
+							message = [1, {"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
 						utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
 				else:
 					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)
@@ -701,7 +700,7 @@ class User(object):
 
 			elif typ == 61:  # user is typing
 				if evt[0] not in self.typing:
-					sendMessage(Component, self.source, vk2xmpp(evt[0]), typ="composing")
+					sendMessage(self.source, vk2xmpp(evt[0]), typ="composing")
 				self.typing[evt[0]] = time.time()
 		return 1
 
@@ -713,7 +712,7 @@ class User(object):
 		for user, last in self.typing.items():
 			if cTime - last > 7:
 				del self.typing[user]
-				sendMessage(Component, self.source, vk2xmpp(user), typ="paused")
+				sendMessage(self.source, vk2xmpp(user), typ="paused")
 
 	def updateFriends(self, cTime):
 		"""
@@ -784,7 +783,7 @@ def sendPresence(destination, source, pType=None, nick=None,
 	sender(Component, presence)
 
 
-def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
+def sendMessage(destination, source, body=None, timestamp=0, typ="active"):
 	"""
 	Sends message to destination from source
 	Parameters:
@@ -801,7 +800,7 @@ def sendMessage(cl, destination, source, body=None, timestamp=0, typ="active"):
 		timestamp = time.gmtime(timestamp)
 		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
 	executeHandlers("msg03", (msg, destination, source))
-	sender(cl, msg)
+	sender(Component, msg)
 
 
 def sender(cl, stanza, cb=None, args={}):
@@ -860,7 +859,7 @@ def removeUser(user, roster=False, notify=True):
 	user = Transport.get(source)
 	if notify:
 		# Would russians understand the joke?
-		sendMessage(Component, source, TransportID,
+		sendMessage(source, TransportID,
 			_("Your record was EXTERMINATED from the database."
 				" Let us know if you feel exploited."), -1)
 	logger.debug("User: removing user from db (jid: %s)" % source)
@@ -991,7 +990,7 @@ def main():
 def disconnectHandler(crash=True):
 	"""
 	Handles disconnect
-	And writes a crashlog if crash parameter equals True
+	And writes a crash log if crash parameter is True
 	"""
 	executeHandlers("evt02")
 	if crash:

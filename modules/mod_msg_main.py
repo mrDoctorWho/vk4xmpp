@@ -42,7 +42,7 @@ def acceptCaptcha(key, source, destination):
 			answer = _("Captcha valid.")
 			sendPresence(source, TransportID, caps=True)
 
-		sendMessage(Component, source, destination, answer)
+		sendMessage(source, destination, answer)
 		if not valid:
 			executeHandlers("evt04", (user, user.vk.engine.captcha["img"]))
 

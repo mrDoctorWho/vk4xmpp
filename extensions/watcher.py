@@ -8,7 +8,7 @@ def watcherMsg(text):
 	Send message to jids in watchers list
 	"""
 	for jid in WatcherList:
-		sendMessage(Component, jid, TransportID, text)
+		sendMessage(jid, TransportID, text)
 
 def watch_unregistered(source):
 	watcherMsg(_("User has removed registration: %s") % source)

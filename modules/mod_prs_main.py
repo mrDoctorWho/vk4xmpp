@@ -23,7 +23,7 @@ def initializeUser(source, resource, prs):
 	except RuntimeError:
 		pass
 	except Exception:
-		sendMessage(Component, source, TransportID, 
+		sendMessage(source, TransportID, 
 			_("Auth failed! If this error repeated, "
 				"please register again. This incident will be reported."))
 		crashLog("user.connect")

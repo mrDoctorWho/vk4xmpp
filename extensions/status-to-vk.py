@@ -25,7 +25,7 @@ def statustovk_prs01(source, prs, retry=3):
 							else:
 								user.vk.method("status.set", {"text": status})
 						else:
-							sendMessage(Component, source, TransportID, _("Not enough permissions to publish your status on the site. Please, register again."))
+							sendMessage(source, TransportID, _("Not enough permissions to publish your status on the site. Please, register again."))
 							logger.error("not changing user's status on the site 'cause we do not have enough permissions (jid: %s)" % source)
 					user.last_status = status
 				else:
