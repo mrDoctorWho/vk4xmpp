@@ -547,9 +547,13 @@ class User(object):
 				key = "screen_name"
 			for uid, value in self.friends.iteritems():
 				if value["online"]:
-					sendPresence(self.source, vk2xmpp(uid), None,
-						value.get(key, "Unknown"), caps=True)
-			sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
+					sendPresence(self.source, vk2xmpp(uid), caps=True)
+				sendPresence(self.source, TransportID, caps=True)
+
+# Not sure if this required
+#					sendPresence(self.source, vk2xmpp(uid), None,
+#						value.get(key, "Unknown"), caps=True)
+#			sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
 
 	def sendOutPresence(self, destination, reason=None, all=False):
 		"""
@@ -691,8 +695,9 @@ class User(object):
 					key = "name"
 					if self.settings.use_nicknames:
 						key = "screen_name"
-					sendPresence(self.source, vk2xmpp(uid),
-						nick=self.vk.getUserData(uid)[key], caps=True)
+					sendPresence(self.source, vk2xmpp(uid), caps=True)
+					#sendPresence(self.source, vk2xmpp(uid),
+					#	nick=self.vk.getUserData(uid)[key], caps=True)
 
 			elif typ == 9:  # user has left
 				uid = abs(evt[0])

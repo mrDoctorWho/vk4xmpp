@@ -4,6 +4,9 @@
 
 from hashlib import sha1
 
+"""
+Implements XEP-0153: vCard-Based Avatars
+"""
 
 def makePhotoHash(user, list=None):
 	"""

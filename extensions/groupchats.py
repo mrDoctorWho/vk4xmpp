@@ -18,6 +18,7 @@
 
 """
 Handles VK Multi-Dialogs
+Implements XEP-0045: Multi-User Chat (over an exsisting chat)
 """
 
 if not require("attachments") or not require("forwarded_messages"):

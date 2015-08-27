@@ -4,6 +4,10 @@
 
 from hashlib import sha1
 
+"""
+Implements XEP-0158: CAPTCHA Forms
+"""
+
 def sendCaptcha(user, url):
 	logger.debug("VK: sending message with captcha to %s", user.source)
 	body = _("WARNING: VK has sent you a CAPTCHA."
