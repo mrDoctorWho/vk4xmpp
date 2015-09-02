@@ -46,6 +46,8 @@ class Poll:
 			cls.__addToBuff(user)
 			return False
 		else:
+			if DEBUG_POLL:
+				logger.debug("longpoll: user has been added to poll (jid: %s)", user.source)
 			cls.__list[opener.sock] = (user, opener)
 		return opener
 

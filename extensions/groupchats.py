@@ -311,7 +311,7 @@ class Chat(object):
 		if domain == ConferenceServer and creator:
 			jid = cls.getJIDByID(id)
 		if not jid:
-			jid = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False, semph=None)
+			jid = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False)
 			if jid:
 				jid = jid[0]
 		if jid and jid in Transport:
@@ -407,7 +407,7 @@ def handleChatErrors(source, prs):
 				if jid == user.source:
 					chat.owner_nickname = prs.getNick()
 					runDatabaseQuery("update groupchats where jid=? set nick=?",
-									(source, chat.owner_nickname), set=True, semph=None)
+									(source, chat.owner_nickname), set=True)
 			else:
 				logger.debug("groupchats: presence error (error #%s, status #%s)" \
 					"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
@@ -435,11 +435,11 @@ def handleChatPresences(source, prs):
 
 				if (prs.getRole(), prs.getAffiliation()) == ("moderator", "owner"):
 					if jid != TransportID:
-						runDatabaseQuery("update groupchats set owner=? where jid=?", (source, jid), set=True, semph=None)
+						runDatabaseQuery("update groupchats set owner=? where jid=?", (source, jid), set=True)
 
 			if jid.split("/")[0] == user.source:
 				chat.owner_nickname = prs.getFrom().getResource()
-				runDatabaseQuery("update groupchats set nick=? where jid=? ", (chat.owner_nickname, source), set=True, semph=None)
+				runDatabaseQuery("update groupchats set nick=? where jid=? ", (chat.owner_nickname, source), set=True)
 
 			if prs.getType() == "unavailable" and jid == user.source:
 				if transportSettings.destroy_on_leave:
@@ -458,14 +458,14 @@ def exterminateChats(user=None, chats=[]):
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)" % (chat, jid))
-			runDatabaseQuery("delete from groupchats where jid=?", (chat,), set=True, semph=None)
+			runDatabaseQuery("delete from groupchats where jid=?", (chat,), set=True)
 		else:
 			logger.debug("groupchats: explain! Explain! " \
 				"The chat wasn't exterminated well! target:%s (jid: %s)" % (chat, jid))
 			logger.error("groupchats: got stanza: %s (jid: %s)" % (str(stanza), jid))
 
 	if user:
-		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,), semph=None)
+		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,))
 		source = user.source
 		userChats = getattr(user, "chats", {})
 	else:
@@ -484,15 +484,15 @@ def initChatsTable():
 	Initializes database if it doesn't exist
 	"""
 	def checkColumns():
-		info = runDatabaseQuery("pragma table_info(groupchats)", semph=Semaphore)
+		info = runDatabaseQuery("pragma table_info(groupchats)")
 		names = [col[1] for col in info]
 		if not "nick" in names:
 			logger.warning("groupchats: adding \"nick\" column to groupchats table")
-			runDatabaseQuery("alter table groupchats add column nick text", set=True, semph=Semaphore)
+			runDatabaseQuery("alter table groupchats add column nick text", set=True)
 
 	runDatabaseQuery("create table if not exists groupchats " \
 		"(jid text, owner text," \
-		"user text, last_used integer, nick text)", set=True, semph=Semaphore)
+		"user text, last_used integer, nick text)", set=True)
 	checkColumns()
 	return True
 

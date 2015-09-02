@@ -14,7 +14,7 @@ USERS_ON_INIT = set([])
 
 def initializeUser(source, resource, prs):
 	"""
-	Initializes user for a first time after he have registered
+	Initializes user for the first time after they connected
 	"""
 	logger.debug("Got a presence. Searching jid in the database. (jid: %s)", source)
 	user = User(source)

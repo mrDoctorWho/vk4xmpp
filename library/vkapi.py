@@ -353,7 +353,7 @@ class APIBinding(RequestProcessor):
 				eCode = error["error_code"]
 				eMsg = error.get("error_msg", "")
 				logger.error("vkapi: error occured on executing method"
-					" (%s, code: %s, msg: %s), (for: %s)" % (method, eCode, eMsg, self.logline))
+					" (%s(%s), code: %s, msg: %s), (for: %s)" % (method, values, eCode, eMsg, self.logline))
 
 				if eCode == 7:  # not allowed
 					raise NotAllowed(eMsg)

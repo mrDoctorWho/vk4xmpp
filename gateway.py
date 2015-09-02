@@ -116,10 +116,14 @@ Stats = {"msgin": 0,  # from vk
 		"method": 0}
 
 
-def runDatabaseQuery(query, args=(), set=False, many=True, semph=Semaphore):
+def runDatabaseQuery(query, args=(), set=False, many=True):
 	"""
 	Executes sql to the database
 	"""
+	if threading.currentThread() == "MainThread":
+		semph = None
+	else:
+		semph = Semaphore
 	with Database(DatabaseFile, semph) as db:
 		db(query, args)
 		if set:
@@ -139,7 +143,7 @@ def initDatabase(filename):
 	if not os.path.exists(filename):
 		runDatabaseQuery("create table users "
 			"(jid text, username text, token text, "
-				"lastMsgID integer, rosterSet bool)", set=True, semph=None)
+				"lastMsgID integer, rosterSet bool)", set=True)
 	return True
 
 
@@ -167,7 +171,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 304, 0
+	number, hash = 310, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -216,6 +220,7 @@ class VK(object):
 		self.pollInitialzed = False
 		self.online = False
 		self.userID = 0
+		self.methods = 0
 		self.lists = []
 		self.friends_fields = set(["screen_name"])
 		self.cache = {}
@@ -288,6 +293,7 @@ class VK(object):
 		"""
 		args = args or {}
 		result = {}
+		self.methods += 1
 		Stats["method"] += 1
 		if not self.engine.captcha and (self.online or force):
 			try:
@@ -548,12 +554,7 @@ class User(object):
 			for uid, value in self.friends.iteritems():
 				if value["online"]:
 					sendPresence(self.source, vk2xmpp(uid), caps=True)
-				sendPresence(self.source, TransportID, caps=True)
-
-# Not sure if this required
-#					sendPresence(self.source, vk2xmpp(uid), None,
-#						value.get(key, "Unknown"), caps=True)
-#			sendPresence(self.source, TransportID, None, IDENTIFIER["name"], caps=True)
+			sendPresence(self.source, TransportID, caps=True)
 
 	def sendOutPresence(self, destination, reason=None, all=False):
 		"""
@@ -696,8 +697,6 @@ class User(object):
 					if self.settings.use_nicknames:
 						key = "screen_name"
 					sendPresence(self.source, vk2xmpp(uid), caps=True)
-					#sendPresence(self.source, vk2xmpp(uid),
-					#	nick=self.vk.getUserData(uid)[key], caps=True)
 
 			elif typ == 9:  # user has left
 				uid = abs(evt[0])
@@ -752,7 +751,7 @@ class User(object):
 		logger.debug("calling reauth for user %s", self.source)
 		if not self.vk.online:
 			self.connect()
-		self.initialize(True)
+		self.initialize()
 
 	def captchaChallenge(self, key):
 		engine = self.vk.engine
@@ -949,7 +948,7 @@ def initializeUsers():
 	Initializes users by sending them "probe" presence
 	"""
 	Print("#-# Initializing users", False)
-	users = runDatabaseQuery("select jid from users", semph=None)
+	users = runDatabaseQuery("select jid from users")
 	for user in users:
 		Print(".", False)
 		sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))

@@ -18,8 +18,10 @@ def parseAttachments(self, msg, spacer=""):
 		attachments = msg["attachments"]
 		# Add new line and "Attachments" if there some text added
 		if msg.get("body") and len(attachments) > 1:
-			result += chr(10) + spacer + _("Attachments:") + chr(10)
+			result += chr(10) + spacer + _("Attachments:")
 		if spacer:
+			result += "\n"
+		if not spacer and msg.get("body"):
 			result += "\n"
 
 		for num, attachment in enumerate(attachments):
@@ -41,7 +43,7 @@ def parseAttachments(self, msg, spacer=""):
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 				for key in keys:
 					if key in current:
-						body += current[key]  # No new line needed if we have just one photo and no text
+						body += "Photo: %s" % current[key]  # No new line needed if we have just one photo and no text
 						break
 
 			elif type == "video":
@@ -65,8 +67,14 @@ def parseAttachments(self, msg, spacer=""):
 						body += "Sticker: %s" % current[key]
 						break
 
+			elif type == "page":
+				body += "Page: %(view_url)s — %(title)s" % current
+
 			elif type == "link":
 				body += "URL: %(url)s — %(title)s" % current
+
+			elif type == "poll":
+				body += "Poll: %(question)s" % current
 
 			elif type == "wall_reply":
 				current["name"] = self.vk.getUserData(current["uid"])["name"]
