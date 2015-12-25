@@ -1,5 +1,5 @@
 [Unit]
-Description=VK4XMPP is an Vk.com transport for Jabber/XMPP
+Description=VK4XMPP is an Vk.com gateway for Jabber/XMPP
 After=prosody.service
 Wants=prosody.service
 

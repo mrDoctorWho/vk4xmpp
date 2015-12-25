@@ -14,6 +14,7 @@ from writer import *
 
 from __main__ import Component, TransportFeatures, UserFeatures
 
+
 def proxy(func):
 	def wrapper(type, *args):
 		if type:

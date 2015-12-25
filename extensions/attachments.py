@@ -33,7 +33,14 @@ def parseAttachments(self, msg, spacer=""):
 
 			if type == "wall":
 				if self.settings.parse_wall:
-					body += "Wall post:\n"
+					body += "Wall post"
+					# TODO: Rewrite me
+					if current.get("to_id", 0) < 0:
+						name = self.vk.method("groups.getById", {"group_id": abs(current.get("to_id", 0)), "fields": "name"})
+						if name:
+							name = name[0].get("name")
+							body += " in community “%s”:" % name
+					body += "\n"
 					if current.get("text"):
 						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"])) + "\n"
 					body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"

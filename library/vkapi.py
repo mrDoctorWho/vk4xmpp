@@ -298,7 +298,7 @@ class APIBinding(RequestProcessor):
 		self.logline = logline
 		RequestProcessor.__init__(self)
 
-	def method(self, method, values=None):
+	def method(self, method, values=None, notoken=False):
 		"""
 		Issues a VK method
 		Parameters:
@@ -307,7 +307,8 @@ class APIBinding(RequestProcessor):
 		"""
 		url = "https://api.vk.com/method/%s" % method
 		values = values or {}
-		values["access_token"] = self.token
+		if not notoken:
+			values["access_token"] = self.token
 		values["v"] = "3.0"
 
 		if "key" in self.captcha:

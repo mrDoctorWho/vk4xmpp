@@ -11,7 +11,7 @@ def version_handler(cl, iq):
 		query = result.getTag("query")
 		query.setTagData("name", IDENTIFIER["name"])
 		query.setTagData("version", REVISION)
-		query.setTagData("os", "%s / %s" % (OS, Python))
+		query.setTagData("os", "%s / %s" % (OS, PYTHON_VERSION))
 		sender(cl, result)
 
 

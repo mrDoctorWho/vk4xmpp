@@ -60,7 +60,7 @@ def vcard_handler(cl, iq):
 					screen_name = name
 				values["NICKNAME"] = screen_name
 				values["FN"] = name
-				values["URL"] = "http://vk.com/id%s" % id
+				values["URL"] = "https://vk.com/id%s" % id
 				if id in user.friends.keys():
 					values["PHOTO"] = data.get(PhotoSize) or URL_VCARD_NO_IMAGE
 				vCard = buildVcard(values)

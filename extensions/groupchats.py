@@ -69,6 +69,24 @@ def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
 	sender(Component, message)
 
 
+def setChatConfig(chat, jidFrom, exterminate=False, cb=None, args={}):
+	"""
+	Sets the chat config
+	"""
+	iq = xmpp.Iq("set", to=chat, frm=jidFrom)
+	query = iq.addChild("query", namespace=xmpp.NS_MUC_OWNER)
+	if exterminate:
+		query.addChild("destroy")
+	else:
+		form = utils.buildDataForm(fields=[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
+			{"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
+			{"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
+			{"var": "muc#roomconfig_persistentroom", "type": "boolean", "value": "1"},
+			{"var": "muc#roomconfig_whois", "value": "anyone"}],
+			type="submit")
+		query.addChild(node=form)
+	sender(Component, iq, cb, args)
+
 def outgoingChatMessageHandler(self, vkChat):
 	"""
 	Handles outging VK messages and sends them to XMPP
@@ -91,10 +109,13 @@ def outgoingChatMessageHandler(self, vkChat):
 			return None
 
 		if chatJID not in self.chats:
-			chat = self.chats[chatJID] = Chat(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
-			chat.create(self)  # we can add self, vkChat to the create() function to prevent losing or messing up the messages
+			chat = self.chats[chatJID] = Chat()
 		else:
 			chat = self.chats[chatJID]
+		if not chat.initialized:
+			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
+		if not chat.created:
+			chat.create(self)  # we can add self, vkChat to the create() function to prevent losing or messing up the messages
 		# read the comments above the handleMessage function
 		if not chat.created:
 			time.sleep(1.5)
@@ -107,54 +128,56 @@ class Chat(object):
 	"""
 	Class used for Chat handling
 	"""
-	def __init__(self, owner, id, jid, topic, date, users=[]):
+	def __init__(self):
+		self.created = False
+		self.invited = False
+		self.initialized = False
+		self.exists = False
+		self.owner_nickname = None
+		self.users = {}
+
+	def init(self, owner, id, jid, topic, date, users=[]):
 		"""
-		Initializes Chat class.
+		Assigns an id and other needed attributes to the class object
 		Not obvious attributes:
 			id: chat's id (int)
 			jid: chat's jid (str)
 			owner: owner's id (str)
 			users: dictionary of ids, id: {"name": nickname, "jid": jid}
 			raw_users: vk id's (list of str or int, hell knows)
-			created: flag if the chat was created successfully
-			invited: flag if the user was invited
 			topic: chat's topic
 			creation_date: hell knows
 		"""
 		self.id = id
 		self.jid = jid
 		self.owner = owner
-		self.users = {}
 		self.raw_users = users
-		self.created = False
-		self.invited = False
-		self.exists = False
-		self.owner_nickname = None
 		self.topic = topic
 		self.creation_date = date
+		self.initialized = True
 
-	def create(self, user):	
+	def create(self, user):
 		"""
 		Creates a chat, joins it and sets the config
 		"""
-		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" %\
-			 		(self.jid, self.raw_users, self.owner, user.source))
+		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" %
+			(self.jid, self.raw_users, self.owner, user.source))
 		exists = runDatabaseQuery("select user from groupchats where jid=?", (self.jid,), many=True)
 		if exists:
 			self.exists = True
-			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" %\
-						(self.jid, user.source))
+			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" %
+				(self.jid, user.source))
 		else:
-			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" %\
-			 			(self.jid, user.source))
-			runDatabaseQuery("insert into groupchats (jid, owner, user, last_used) values (?,?,?,?)", 
-							(self.jid, TransportID, user.source, time.time()), True)
+			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" %
+				(self.jid, user.source))
+			runDatabaseQuery("insert into groupchats (jid, owner, user, last_used) values (?,?,?,?)",
+				(self.jid, TransportID, user.source, time.time()), True)
 
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 		# We join to the chat with the room owner's name to set the room topic from their name.
 		joinChat(self.jid, name, TransportID, "Lost in time.")
-		self.setConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user})
+		setChatConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user})
 
 	def initialize(self, user, chat):
 		"""
@@ -169,7 +192,7 @@ class Chat(object):
 		if not self.raw_users:
 			vkChat = self.getVKChat(user, self.id)
 			if not vkChat and not self.invited:
-				logger.error("groupchats: damn vk didn't answer for chat list"\
+				logger.error("groupchats: damn vk didn't answer to the chat list"\
 							"request, starting timer to try again (jid: %s)" % user.source)
 				utils.runThread(self.initialize, (user, chat), delay=10)
 				return False
@@ -179,8 +202,8 @@ class Chat(object):
 		setAffiliation(chat, "member", user.source)
 		if not self.invited:
 			inviteUser(chat, user.source, TransportID, user.vk.getUserData(self.owner)["name"])
+			logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, user.source))
 			self.invited = True
-		logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, user.source))
 		chatMessage(chat, self.topic, TransportID, True, self.creation_date)
 		joinChat(chat, name, TransportID, "Lost in time.")  # let's rename ourselves
 		self.users[TransportID] = {"name": name, "jid": TransportID}
@@ -200,6 +223,9 @@ class Chat(object):
 		buddies = all_users + old_users
 		if TransportID in buddies:
 			buddies.remove(TransportID)
+		if userObject.vk.getUserID() in buddies:
+			buddies.remove(userObject.vk.getUserID())
+
 		for user in buddies:
 			jid = vk2xmpp(user)
 			if user not in old_users:
@@ -208,7 +234,7 @@ class Chat(object):
 				name = userObject.vk.getUserData(user)["name"]
 				self.users[int(user)] = {"name": name, "jid": jid}
 				setAffiliation(self.jid, "member", jid)
-				joinChat(self.jid, name, jid) 
+				joinChat(self.jid, name, jid)
 
 			elif user not in all_users:
 				logger.debug("groupchats: user %s has left the chat %s (jid: %s)",
@@ -217,29 +243,10 @@ class Chat(object):
 				del self.users[user]
 
 		topic = vkChat["title"]
-		if topic != self.topic:
+		if topic and topic != self.topic:
 			chatMessage(self.jid, topic, TransportID, True)
 			self.topic = topic
 		self.raw_users = all_users
-
-	@classmethod
-	def setConfig(cls, chat, jidFrom, exterminate=False, cb=None, args={}):
-		"""
-		Sets the chat config
-		"""
-		iq = xmpp.Iq("set", to=chat, frm=jidFrom)
-		query = iq.addChild("query", namespace=xmpp.NS_MUC_OWNER)
-		if exterminate:
-			query.addChild("destroy")
-		else:
-			form = utils.buildDataForm(fields=[{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
-				{"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
-				{"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
-				{"var": "muc#roomconfig_persistentroom", "type": "boolean", "value": "1"},
-				{"var": "muc#roomconfig_whois", "value": "anyone"}], 
-				type="submit")
-			query.addChild(node=form)
-		sender(Component, iq, cb, args)
 
 	def onConfigSet(self, cl, stanza, user):
 		"""
@@ -276,6 +283,7 @@ class Chat(object):
 			logger.debug("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", self.jid, source)
 			logger.warning("groupchats: is there any groupchat limit on the server?")
 			if retry:
+				# TODO: We repeat it twice on each message. We shouldn't.
 				self.handleMessage(user, vkChat, False)
 
 	@api.attemptTo(3, dict, RuntimeError)
@@ -381,8 +389,8 @@ def handleChatErrors(source, prs):
 	"""
 	Handles error presences from groupchats
 	"""
-	## todo: leave on 401, 403, 405
-	## and rejoin timer on 404, 503
+	# todo: leave on 401, 403, 405
+	# and rejoin timer on 404, 503
 	destination = prs.getTo().getStripped()
 	error = prs.getErrorCode()
 	status = prs.getStatusCode()
@@ -444,6 +452,12 @@ def handleChatPresences(source, prs):
 			if prs.getType() == "unavailable" and jid == user.source:
 				if transportSettings.destroy_on_leave:
 					exterminateChats(chats=[source])
+		elif user and prs.getType() != "unavailable":
+			chat = Chat()
+			if not hasattr(user, "chats"):
+				user.chats = {}
+			user.chats[source] = chat
+			chat.invited = True  # the user has joined themselves and we don't need to intvite them
 
 
 def exterminateChats(user=None, chats=[]):
@@ -474,7 +488,7 @@ def exterminateChats(user=None, chats=[]):
 	for (jid, owner, source) in chats:
 		joinChat(jid, "Dalek", owner, "Exterminate!")
 		logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)" % (jid, owner, source))
-		Chat.setConfig(jid, owner, True, exterminated, {"jid": jid})
+		setChatConfig(jid, owner, True, exterminated, {"jid": jid})
 		if jid in userChats:
 			del userChats[jid]
 
@@ -486,12 +500,12 @@ def initChatsTable():
 	def checkColumns():
 		info = runDatabaseQuery("pragma table_info(groupchats)")
 		names = [col[1] for col in info]
-		if not "nick" in names:
+		if "nick" not in names:
 			logger.warning("groupchats: adding \"nick\" column to groupchats table")
 			runDatabaseQuery("alter table groupchats add column nick text", set=True)
 
-	runDatabaseQuery("create table if not exists groupchats " \
-		"(jid text, owner text," \
+	runDatabaseQuery("create table if not exists groupchats "
+		"(jid text, owner text,"
 		"user text, last_used integer, nick text)", set=True)
 	checkColumns()
 	return True
@@ -533,19 +547,19 @@ if isdef("ConferenceServer") and ConferenceServer:
 		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
 
 	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users", 
-		"desc": "If set, transport will show ALL users in a conference, even you", "value": 0}
+		"desc": "If set, transport will show ALL users in a conference", "value": 0}
 
 	GLOBAL_USER_SETTINGS["tie_chat_to_nickname"] = {"label": "Tie chat to my nickname (tip: enable timestamp for groupchats)",
 		"desc": "If set, your messages will be sent only from your nickname\n"\
-		"(there is no way to determine whether a message was sent\nfrom you or from the transport, so this setting might help,\nbut"\
-		" it will bring one bug: you wont be able to send any message if chat is not initialized). "
+		"(there is no way to determine whether message was sent\nfrom you or from the transport, so this setting might help,\nbut"\
+		" there's one problem comes up: you wouldn't be able to send messages until the chat is initialized). "
 		"\nChat initializes when first message received after transport's boot", "value": 1}
 
 	GLOBAL_USER_SETTINGS["force_vk_date_group"] = {"label": "Force VK timestamp for groupchat messages", "value": 1}
 
 	TRANSPORT_SETTINGS["destroy_on_leave"] = {"label": "Destroy groupchat if user leaves it", "value": 0}
 
-	TransportFeatures.add(xmpp.NS_GROUPCHAT)
+	TransportFeatures.add(xmpp.NS_MUC)
 	registerHandler("msg01", outgoingChatMessageHandler)
 	registerHandler("msg02", incomingChatMessageHandler)
 	registerHandler("prs01", handleChatErrors)

@@ -14,8 +14,6 @@ import os
 
 GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online",
 										"value": 1},
-						"i_am_ghost": {"label": "I am a ghost",
-										"value": 0},
 						"force_vk_date": {"label": "Force VK timestamp for private messages",
 										"value": 0},
 						"use_nicknames": {"label": "Use nicknames instead of real names", 

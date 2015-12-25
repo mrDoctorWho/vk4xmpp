@@ -9,15 +9,13 @@ __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
 __license__ = "MIT"
 __version__ = "3.0"
 
-import gc
+import hashlib
 import httplib
 import logging
 import os
 import re
-import select
 import signal
 import socket
-import sqlite3
 import sys
 import threading
 import time
@@ -100,7 +98,7 @@ else:
 	import platform
 	OS = "Windows {0}".format(*platform.win32_ver())
 
-Python = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
+PYTHON_VERSION = "{0} {1}.{2}.{3}".format(sys.subversion[0], *sys.version_info)
 
 # See extensions/.example.py for more information about handlers
 Handlers = {"msg01": [], "msg02": [],
@@ -136,6 +134,7 @@ def runDatabaseQuery(query, args=(), set=False, many=True):
 	return result
 
 
+# TODO: remove me
 def initDatabase(filename):
 	"""
 	Initializes database if it doesn't exist
@@ -206,6 +205,7 @@ sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
 findUserInDB = lambda source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
+
 
 class VK(object):
 	"""
@@ -279,7 +279,7 @@ class VK(object):
 			raise api.LongPollError("Poll request failed")
 		return opener
 
-	def method(self, method, args=None, force=False):
+	def method(self, method, args=None, force=False, notoken=False):
 		"""
 		This is a duplicate function of self.engine.method
 		Needed to handle errors properly exactly in __main__
@@ -297,7 +297,7 @@ class VK(object):
 		Stats["method"] += 1
 		if not self.engine.captcha and (self.online or force):
 			try:
-				result = self.engine.method(method, args)
+				result = self.engine.method(method, args, notoken=notoken)
 			except (api.InternalServerError, api.AccessDenied) as e:
 				if force:
 					raise
@@ -469,8 +469,10 @@ class User(object):
 		user = findUserInDB(self.source)
 		if user:
 			exists = True
-			_, _, token, self.lastMsgID, self.rosterSet = user
-			logger.debug("User was found in the database. (jid: %s)", self.source)
+			logger.debug("User was found in the database... (jid: %s)", self.source)
+			if not token:
+				logger.debug("... but no token was given. Using the one from the database (jid: %s)", self.source)
+				_, _, token, self.lastMsgID, self.rosterSet = user
 
 		if not (token or password):
 			logger.warning("User wasn't found in the database and no token or password was given!")
@@ -541,20 +543,17 @@ class User(object):
 
 	def sendInitPresence(self):
 		"""
-		Sends init presence (available) to the user from all them online friends
+		Sends available presence to the user from all online friends
 		"""
-		if not self.settings.i_am_ghost and not self.vk.engine.captcha:
+		if not self.vk.engine.captcha:
 			if not self.friends:
 				self.friends = self.vk.getFriends()
 			logger.debug("User: sending init presence (friends count: %s) (jid %s)",
 				len(self.friends), self.source)
-			key = "name"
-			if self.settings.use_nicknames:
-				key = "screen_name"
 			for uid, value in self.friends.iteritems():
 				if value["online"]:
-					sendPresence(self.source, vk2xmpp(uid), caps=True)
-			sendPresence(self.source, TransportID, caps=True)
+					sendPresence(self.source, vk2xmpp(uid), hash=USER_CAPS_HASH)
+			sendPresence(self.source, TransportID, hash=TRANSPORT_CAPS_HASH)
 
 	def sendOutPresence(self, destination, reason=None, all=False):
 		"""
@@ -582,6 +581,7 @@ class User(object):
 		for uid, value in dist.iteritems():
 			sendPresence(self.source, vk2xmpp(uid), "subscribe", value["name"])
 		sendPresence(self.source, TransportID, "subscribe", IDENTIFIER["name"])
+		# TODO: Only mark roster set when we received authorized/subscribed event from the user
 		if dist:
 			self.markRosterSet()
 
@@ -631,7 +631,6 @@ class User(object):
 			self.lastMsgID = messages[-1]["mid"]
 			runDatabaseQuery("update users set lastMsgID=? where jid=?",
 				(self.lastMsgID, self.source), True)
-
 
 	def processPollResult(self, opener):
 		"""
@@ -691,12 +690,8 @@ class User(object):
 					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)
 
 			elif typ == 8:  # user has joined
-				if not self.settings.i_am_ghost:
-					uid = abs(evt[0])
-					key = "name"
-					if self.settings.use_nicknames:
-						key = "screen_name"
-					sendPresence(self.source, vk2xmpp(uid), caps=True)
+				uid = abs(evt[0])
+				sendPresence(self.source, vk2xmpp(uid), hash=USER_CAPS_HASH)
 
 			elif typ == 9:  # user has left
 				uid = abs(evt[0])
@@ -725,23 +720,22 @@ class User(object):
 		Sends unsubscribe presences if some friends disappeared
 		"""
 		if (cTime - self.last_udate) > 360 and not self.vk.engine.captcha:
-			if not self.settings.i_am_ghost:
-				if self.settings.keep_online:
-					self.vk.method("account.setOnline")
-				self.last_udate = cTime
-				friends = self.vk.getFriends()
-				if not friends:
-					logger.error("updateFriends: no friends received (jid: %s).",
-						self.source)
-					return None
+			if self.settings.keep_online:
+				self.vk.method("account.setOnline")
+			self.last_udate = cTime
+			friends = self.vk.getFriends()
+			if not friends:
+				logger.error("updateFriends: no friends received (jid: %s).",
+					self.source)
+				return None
 
-				for uid in friends:
-					if uid not in self.friends:
-						self.sendSubPresence({uid: friends[uid]})
-				for uid in self.friends:
-					if uid not in friends:
-						sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
-				self.friends = friends
+			for uid in friends:
+				if uid not in self.friends:
+					self.sendSubPresence({uid: friends[uid]})
+			for uid in self.friends:
+				if uid not in friends:
+					sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
+			self.friends = friends
 
 	def reauth(self):
 		"""
@@ -762,16 +756,16 @@ class User(object):
 
 
 def sendPresence(destination, source, pType=None, nick=None,
-	reason=None, caps=None, show=None):
+	reason=None, hash=None, show=None):
 	"""
 	Sends presence to destination from source
 	Parameters:
 		destination: to whom send the presence
 		source: from who send the presence
 		pType: the presence type
-		nick: add <nick> tag to stanza or not
-		reason: set status message or not
-		caps: add caps into stanza or not
+		nick: add <nick> tag to stanza
+		reason: set status message
+		hash: add caps hash
 		show: add status show
 	"""
 	presence = xmpp.Presence(destination, pType,
@@ -779,15 +773,17 @@ def sendPresence(destination, source, pType=None, nick=None,
 	if nick:
 		presence.setTag("nick", namespace=xmpp.NS_NICK)
 		presence.setTagData("nick", nick)
-	if caps:
+	if hash:
 		presence.setTag("c",
-			{"node": "http://simpleapps.ru/caps/vk4xmpp", "ver": REVISION},
+			{"node": CAPS_NODE,
+				"ver": hash, "hash": "sha-1"},
 			xmpp.NS_CAPS)
 	executeHandlers("prs02", (presence, destination, source))
 	sender(Component, presence)
 
 
-def sendMessage(destination, source, body=None, timestamp=0, typ="active"):
+# todo: answer type:normal from transport if it was from captcha challenge passed through forms
+def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype="chat"):
 	"""
 	Sends message to destination from source
 	Parameters:
@@ -798,7 +794,7 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active"):
 		timestamp: message timestamp (XEP-0091)
 		typ: xmpp chatstates type (XEP-0085)
 	"""
-	msg = xmpp.Message(destination, body, "chat", frm=source)
+	msg = xmpp.Message(destination, body, mtype, frm=source)
 	msg.setTag(typ, namespace=xmpp.NS_CHATSTATES)
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
@@ -807,6 +803,14 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active"):
 	sender(Component, msg)
 
 
+def computeCapsHash(features=TransportFeatures):
+	result = "%(category)s/%(type)s//%(name)s<" % IDENTIFIER
+	features = sorted(features)
+	result += str.join("<", features) + "<"
+	return hashlib.sha1(result).digest().encode("base64")
+
+
+# TODO: rename me
 def sender(cl, stanza, cb=None, args={}):
 	"""
 	Sends stanza. Writes a crashlog on error
@@ -854,7 +858,7 @@ def removeUser(user, roster=False, notify=True):
 		roster: remove vk contacts from user's roster
 			(only if User class object was in the first param)
 	"""
-	if isinstance(user, (str, unicode)):  # unicode is default, but... who knows
+	if isinstance(user, (str, unicode)):  # unicode is the default, but... who knows
 		source = user
 	elif user:
 		source = user.source
@@ -952,7 +956,7 @@ def initializeUsers():
 	for user in users:
 		Print(".", False)
 		sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
-	Print("\n#-# Transport %s initialized well." % TransportID)
+	Print("\n#-# Component %s initialized well." % TransportID)
 
 
 def runMainActions():
@@ -968,6 +972,9 @@ def runMainActions():
 	import modulemanager
 	Manager = modulemanager.ModuleManager
 	Manager.load(Manager.list())
+	global USER_CAPS_HASH, TRANSPORT_CAPS_HASH
+	USER_CAPS_HASH = computeCapsHash(UserFeatures)
+	TRANSPORT_CAPS_HASH = computeCapsHash(TransportFeatures)
 
 
 def main():
@@ -1027,8 +1034,11 @@ def makeMeKnown():
 		WhiteList.append(VK4XMPP_MONITOR_SERVER)
 	if TransportID.split(".")[1] != "localhost":
 		RIP = api.RequestProcessor()
-		RIP.post(VK4XMPP_MONITOR_URL, {"add": TransportID})
-		Print("#! Information about this transport has been successfully published.")
+		try:
+			RIP.post(VK4XMPP_MONITOR_URL, {"add": TransportID})
+			Print("#! Information about this transport has been successfully published.")
+		except Exception:
+			Print("#! Unable to publish information about the transport!")
 
 
 def exit(signal=None, frame=None):

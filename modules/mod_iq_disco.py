@@ -10,16 +10,32 @@ from utils import buildDataForm as buildForm
 from xmpp import DataForm as getForm
 import modulemanager
 
-NODES = {"admin": ("Delete users", 
-					"Global message", 
-					"Show crash logs", 
-					"Reload config", 
-					"Global Transport settings", 
+NODES = {"admin": ("Delete users",
+					"Global message",
+					"Show crash logs",
+					"Reload config",
+					"Global Transport settings",
 					"Check an API token",
 					"Unload modules",
 					"(Re)load modules",
-					"Reload extensions"), 
+					"Reload extensions"),
 		"user": ("Edit settings",)}
+
+
+def getFeatures(destination, source, ns, disco=False):
+	if destination == TransportID:
+		features = TransportFeatures
+	else:
+		features = UserFeatures
+	payload = [xmpp.Node("identity", IDENTIFIER)]
+	if source in ADMIN_JIDS and disco:
+		payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID}))
+		payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID}))
+	if ns == xmpp.NS_DISCO_INFO:
+		for key in features:
+			node = xmpp.Node("feature", {"var": key})
+			payload.append(node)
+	return payload
 
 
 def disco_handler(cl, iq):
@@ -27,53 +43,37 @@ def disco_handler(cl, iq):
 	destination = iq.getTo().getStripped()
 	ns = iq.getQueryNS()
 	node = iq.getTagAttr("query", "node")
-	if not node:
-		payload = []
-		if destination == TransportID:
-			features = TransportFeatures
-		else:
-			features = UserFeatures
-
-		result = iq.buildReply("result")
-		payload.append(xmpp.Node("identity", IDENTIFIER))
-		if source in ADMIN_JIDS:
-			payload.append(xmpp.Node("item", {"node": "Online users", "name": "Online users", "jid": TransportID}))
-			payload.append(xmpp.Node("item", {"node": "All users", "name": "All users", "jid": TransportID}))
-		if ns == xmpp.NS_DISCO_INFO:
-			for key in features:
-				xNode = xmpp.Node("feature", {"var": key})
-				payload.append(xNode)
-			result.setQueryPayload(payload)
-
-		elif ns == xmpp.NS_DISCO_ITEMS:
-			result.setQueryPayload(payload)
-
-	elif node:
+	if node:
 		result = iq.buildReply("result")
 		payload = []
 		if node == "Online users" and source in ADMIN_JIDS:
 			users = Transport.keys()
 			for user in users:
-				payload.append(xmpp.Node("item", { "name": user, "jid": user }))
-			result.setQueryPayload(payload)
+				payload.append(xmpp.Node("item", {"name": user, "jid": user}))
 
 		elif node == "All users" and source in ADMIN_JIDS:
 			users = getUsersList()
 			for user in users:
 				user = user[0]
-				payload.append(xmpp.Node("item", { "name": user, "jid": user }))
-			result.setQueryPayload(payload)
+				payload.append(xmpp.Node("item", {"name": user, "jid": user}))
 
 		elif node == xmpp.NS_COMMANDS:
+			nodes = NODES["user"]
 			if source in ADMIN_JIDS:
-				for node in NODES["admin"]:
-					payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID}))
-			for node in NODES["user"]:
+				nodes += NODES["admin"]
+			for node in nodes:
 				payload.append(xmpp.Node("item", {"node": node, "name": node, "jid": TransportID}))
-			result.setQueryPayload(payload)
 
+		elif CAPS_NODE in node:
+			payload = getFeatures(destination, source, ns)
 		else:
 			raise xmpp.NodeProcessed()
+
+		result.setQueryPayload(payload)
+
+	else:
+		result = iq.buildReply("result")
+		result.setQueryPayload(getFeatures(destination, source, ns, True))
 
 	sender(cl, result)
 
@@ -126,7 +126,6 @@ def dictToDataForm(_dict, _fields=None):
 	"""
 	_fields = _fields or []
 	for key, value in _dict.iteritems():
-		result = {"var": key, "value": value}
 		if isinstance(value, int) and not isinstance(value, bool):
 			type = "text-signle"
 
@@ -172,7 +171,7 @@ def commands_handler(cl, iq):
 			if source in ADMIN_JIDS:
 				if node == "Delete users":
 					if not form:
-						simpleForm = buildForm(simpleForm, 
+						simpleForm = buildForm(simpleForm,
 							fields=[{"var": "jids", "type": "jid-multi", "label": _("Jabber ID's"), "required": True}])
 					else:
 						if dictForm.get("jids"):
@@ -201,8 +200,8 @@ def commands_handler(cl, iq):
 				elif node == "Show crash logs":
 					if not form:
 						simpleForm = buildForm(simpleForm, 
-							fields=[{"var": "filename", "type": "list-single", "label": "Filename", 
-								"options": os.listdir("crash") if os.path.exists("crash") else []}], 
+							fields=[{"var": "filename", "type": "list-single", "label": "Filename",
+								"options": os.listdir("crash") if os.path.exists("crash") else []}],
 							title="Choose wisely")
 
 					else:
@@ -217,7 +216,7 @@ def commands_handler(cl, iq):
 
 				elif node == "Check an API token":
 					if not form:
-						simpleForm = buildForm(simpleForm, 
+						simpleForm = buildForm(simpleForm,
 							fields=[{"var": "token", "type": "text-single", "label": "API Token"}],
 							title=_("Enter the API token"))
 					else:
@@ -232,7 +231,7 @@ def commands_handler(cl, iq):
 
 							simpleForm = buildForm(simpleForm, fields=_fields)
 							completed = True
-	
+
 				elif node == "Reload config":
 					simpleForm = None
 					completed = True
@@ -269,7 +268,7 @@ def commands_handler(cl, iq):
 					modules = Manager.list()
 					if not form:
 						_fields = dictToDataForm(dict([(mod, mod in Manager.loaded) for mod in modules]))
-						simpleForm = buildForm(simpleForm, fields=_fields, title="(Re)load modules", 
+						simpleForm = buildForm(simpleForm, fields=_fields, title="(Re)load modules",
 							data=[_("Modules can be loaded or reloaded if they already loaded")])
 
 					elif form:
@@ -315,12 +314,10 @@ def commands_handler(cl, iq):
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
 						completed = True
 
-
 			if node == "Edit settings" and source in Transport:
 				logger.info("user want to edit their settings (jid: %s)" % source)
 				config = Transport[source].settings
 				if not form:
-					user = Transport[source]
 					simpleForm = buildForm(simpleForm, fields=getConfigFields(config), title="Choose wisely")
 
 				elif form:
@@ -330,7 +327,7 @@ def commands_handler(cl, iq):
 					note = "The settings were changed."
 					simpleForm = None
 					completed = True
-			
+
 			if completed:
 				commandTag = result.setTag("command", {"status": "completed", 
 					"node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
@@ -349,5 +346,6 @@ def commands_handler(cl, iq):
 
 MOD_TYPE = "iq"
 MOD_FEATURES = [xmpp.NS_COMMANDS, xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS, xmpp.NS_DATA]
+MOD_FEATURES_USER = [xmpp.NS_DISCO_INFO]
 MOD_HANDLERS = ((disco_handler, "get", [xmpp.NS_DISCO_INFO, xmpp.NS_DISCO_ITEMS], False), (commands_handler, "set", "", False))
 FORM_TYPES = ("text-single", "text-multi", "jid-multi")

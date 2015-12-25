@@ -18,7 +18,7 @@ if not isdef("STICKER_SIZE"):
 	STICKER_SIZE = "128"
 
 GLOBAL_USER_SETTINGS["send_stickers"] = {"label": "Send stickers with XHTML-IM", 
-		"desc": "If set, transport would send images for stickers instead of URLs (requires client-side support)", "value": 0}
+	"desc": "If set, transport would send images for stickers instead of URLs (requires client-side support)", "value": 0}
 
 
 def convertImage(data):
@@ -40,8 +40,8 @@ def sendSticker(msg, destination, source):
 		if msg.getType() == "groupchat":
 			user = Chat.getUserObject(destination)
 		else:
-			user = Transport[destination]
-		if user.settings.send_stickers:
+			user = Transport.get(destination)
+		if user and user.settings.send_stickers:
 			url = sticker_url.search(body)
 			if url:
 				url = url.group(1).replace("256b", STICKER_SIZE)

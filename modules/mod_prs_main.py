@@ -19,7 +19,7 @@ def initializeUser(source, resource, prs):
 	logger.debug("Got a presence. Searching jid in the database. (jid: %s)", source)
 	user = User(source)
 	try:
-		connect = user.connect()
+		user.connect()
 	except RuntimeError:
 		pass
 	except Exception:
@@ -64,7 +64,7 @@ def presence_handler(cl, prs):
 					del Transport[source]
 				except (AttributeError, KeyError):
 					pass
-	
+
 		elif pType == "error":
 			if prs.getErrorCode() == "404":
 				user.vk.disconnect()
@@ -75,10 +75,10 @@ def presence_handler(cl, prs):
 				id = vk2xmpp(destination)
 				if id in user.friends:
 					if user.friends[id]["online"]:
-						sendPresence(source, destination)
+						sendPresence(source, destination, hash=USER_CAPS_HASH)
 			if destination == TransportID:
-				sendPresence(source, destination)
-	
+				sendPresence(source, destination, hash=TRANSPORT_CAPS_HASH)
+
 		elif pType == "unsubscribe":
 			if destination == TransportID:
 				removeUser(user, True, False)
