@@ -356,10 +356,10 @@ class VK(object):
 		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
-		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)}) or ()
+		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)})
 		friends = {}
-		for friend in raw:
-			uid = friend["uid"]
+		for friend in raw.get("items", []):
+			uid = friend["id"]
 			online = friend["online"]
 			name = escape("", "%(first_name)s %(last_name)s" % friend)
 			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
@@ -1020,7 +1020,7 @@ def disconnectHandler(crash=True):
 		os.execl(sys.executable, sys.executable, *sys.argv)
 	else:
 		logger.info("the transport is shutting down!")
-		sys.exit(-1)
+		os._exit(-1)
 
 
 def makeMeKnown():
@@ -1056,15 +1056,10 @@ def exit(signal=None, frame=None):
 		os.remove(pidFile)
 	except OSError:
 		pass
-	os._exit(1)
+	os._exit(0)
 
 
-if __name__ == "__main__":
-	signal.signal(signal.SIGTERM, exit)
-	signal.signal(signal.SIGINT, exit)
-	loadExtensions("extensions")
-	transportSettings = Settings(TransportID, user=False)
-	main()
+def loop():
 	while ALIVE:
 		try:
 			Component.iter(6)
@@ -1072,5 +1067,18 @@ if __name__ == "__main__":
 			logger.critical("disconnected")
 			crashLog("component.iter")
 			disconnectHandler(True)
+
+
+if __name__ == "__main__":
+	signal.signal(signal.SIGTERM, exit)
+	signal.signal(signal.SIGINT, exit)
+	loadExtensions("extensions")
+	transportSettings = Settings(TransportID, user=False)
+	try:
+		main()
+	except Exception:
+		crashLog("main")
+		os._exit(1)
+	loop()
 
 # This is the end!

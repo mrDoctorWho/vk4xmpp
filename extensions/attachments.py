@@ -9,6 +9,14 @@ VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
 
 
+# The attachments that don't require any special movements
+SIMPLE_ATTACHMENTS = {"doc": "Document: “%(title)s” — %(url)s",
+	"link": "URL: %(title)s — %(url)s",
+	"poll": "Poll: %(question)s",
+	"page": "Page: %(title)s — %(view_url)s",
+	"video": "Video: %(title)s — https://vk.com/video%(owner_id)s_%(vid)s"}
+
+
 def parseAttachments(self, msg, spacer=""):
 	"""
 	“parses” attachments from the json to a string
@@ -21,7 +29,7 @@ def parseAttachments(self, msg, spacer=""):
 			result += chr(10) + spacer + _("Attachments:")
 		if spacer:
 			result += "\n"
-		if not spacer and msg.get("body"):
+		elif msg.get("body"):
 			result += "\n"
 
 		for num, attachment in enumerate(attachments):
@@ -53,9 +61,6 @@ def parseAttachments(self, msg, spacer=""):
 						body += "Photo: %s" % current[key]  # No new line needed if we have just one photo and no text
 						break
 
-			elif type == "video":
-				body += "Video: %(title)s — https://vk.com/video%(owner_id)s_%(vid)s" % current
-
 			elif type == "audio":
 				for key in ("performer", "title"):
 					if current.has_key(key):
@@ -64,24 +69,12 @@ def parseAttachments(self, msg, spacer=""):
 				current["url"] = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % current))
 				body += "Audio: %(performer)s — “%(title)s“ — %(url)s" % current
 
-			elif type == "doc":
-				body += "Document: “%(title)s” — %(url)s" % current
-
 			elif type == "sticker":
 				keys = ("photo_256", "photo_128", "photo_64")
 				for key in keys:
 					if key in current:
 						body += "Sticker: %s" % current[key]
 						break
-
-			elif type == "page":
-				body += "Page: %(view_url)s — %(title)s" % current
-
-			elif type == "link":
-				body += "URL: %(url)s — %(title)s" % current
-
-			elif type == "poll":
-				body += "Poll: %(question)s" % current
 
 			elif type == "wall_reply":
 				current["name"] = self.vk.getUserData(current["uid"])["name"]
@@ -90,6 +83,9 @@ def parseAttachments(self, msg, spacer=""):
 				body += "Commentary to the post on a community wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current
 				body += spacer + "Community: %(url)s" % current
+
+			elif type in SIMPLE_ATTACHMENTS:
+				body += SIMPLE_ATTACHMENTS[type] % current
 
 			else:
 				body += "Unknown attachment: %s\n%s" % (type, str(current))

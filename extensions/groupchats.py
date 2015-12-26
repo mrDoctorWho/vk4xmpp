@@ -126,7 +126,7 @@ def outgoingChatMessageHandler(self, vkChat):
 
 class Chat(object):
 	"""
-	Class used for Chat handling
+	Class used to handle multi-user dialogs
 	"""
 	def __init__(self):
 		self.created = False
@@ -415,7 +415,7 @@ def handleChatErrors(source, prs):
 				if jid == user.source:
 					chat.owner_nickname = prs.getNick()
 					runDatabaseQuery("update groupchats where jid=? set nick=?",
-									(source, chat.owner_nickname), set=True)
+						(source, chat.owner_nickname), set=True)
 			else:
 				logger.debug("groupchats: presence error (error #%s, status #%s)" \
 					"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))

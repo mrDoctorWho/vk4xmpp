@@ -294,7 +294,7 @@ class APIBinding(RequestProcessor):
 		self.captcha = {}
 		self.lastMethod = ()
 		self.timeout = 1.00
-		# to use it in logs witout showing the token
+		# to use it in logs without showing the token
 		self.logline = logline
 		RequestProcessor.__init__(self)
 
@@ -309,7 +309,7 @@ class APIBinding(RequestProcessor):
 		values = values or {}
 		if not notoken:
 			values["access_token"] = self.token
-		values["v"] = "3.0"
+		values["v"] = "5.42"
 
 		if "key" in self.captcha:
 			values["captcha_sid"] = self.captcha["sid"]
@@ -317,6 +317,7 @@ class APIBinding(RequestProcessor):
 			self.captcha = {}
 
 		self.lastMethod = (method, values)
+		# prevent “too fast” errors
 		self.last.append(time.time())
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) <= self.timeout:
@@ -335,15 +336,16 @@ class APIBinding(RequestProcessor):
 					body = json.loads(body)
 				except ValueError:
 					return {}
-			end = time.time()
-			if method in self.debug or self.debug == "all":
-				print "response for method %s: %s in thread: %s (%0.2fs) for %s" % (method,
-					str(body), threading.currentThread().name, (end - start), self.logline)
 
-			if self.debug == "slow":
-				if (end - start) > 3:
-					print "(slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % (method,
-						str(body), threading.currentThread().name, (end - start), self.logline)
+			if self.debug:
+				end = time.time()
+				dbg = (method, str(body), threading.currentThread().name, (end - start), self.logline)
+				if method in self.debug or self.debug == "all":
+					print "response for method %s: %s in thread: %s (%0.2fs) for %s" % dbg
+
+				if self.debug == "slow":
+					if (end - start) > 3:
+						print "(slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % dbg
 
 			if "response" in body:
 				return body["response"] or {}

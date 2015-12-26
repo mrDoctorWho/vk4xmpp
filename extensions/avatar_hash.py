@@ -80,7 +80,6 @@ class AvatarHash(object):
 
 	def updateHashes(self, user):
 		hashes, date = self.getHashes(user, list(self.pending))
-		sql = ""
 		for uid, hash in hashes.iteritems():
 			runDatabaseQuery("update avatar_hash set sha=?, updated=? where id=?", (hash, date, uid), set=True)
 
