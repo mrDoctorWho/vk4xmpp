@@ -41,7 +41,7 @@ def acceptCaptcha(key, source, destination):
 		else:
 			logger.debug("retry for user %s successed!" % source)
 			answer = _("Captcha valid.")
-			sendPresence(source, TransportID, caps=True)
+			sendPresence(source, TransportID, hash=TRANSPORT_CAPS_HASH)
 
 		sendMessage(source, destination, answer, mtype="normal")
 		if not valid:
