@@ -4,6 +4,7 @@
 
 from __main__ import *
 
+
 def gateway_handler(cl, iq):
 	jidTo = iq.getTo()
 	itype = iq.getType()

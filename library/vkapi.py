@@ -21,6 +21,7 @@ import threading
 import urllib
 import urllib2
 import webtools
+from printer import *
 
 SOCKET_TIMEOUT = 20
 REQUEST_RETRIES = 3
@@ -93,7 +94,7 @@ def attemptTo(maxRetries, resultType, *errors):
 	return decorator
 
 
-class AsyncHTTPRequest(httplib.HTTPConnection):
+class AsyncHTTPRequest(httplib.HTTPSConnection):
 	"""
 	A method to make asynchronous http request
 	Provides a way to get a socket object to use in select()
@@ -101,7 +102,7 @@ class AsyncHTTPRequest(httplib.HTTPConnection):
 
 	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
-		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
+		httplib.HTTPSConnection.__init__(self, host, timeout=timeout)
 		self.url = url
 		self.data = data
 		self.headers = headers or {}
@@ -197,7 +198,6 @@ class RequestProcessor(object):
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(REQUEST_RETRIES, tuple, *ERRORS)
 	def get(self, url, query={}):
 		"""
 		GET request
@@ -325,8 +325,8 @@ class APIBinding(RequestProcessor):
 
 		start = time.time()
 		if method in self.debug or self.debug == "all":
-			print "issuing method %s with values %s in thread: %s" % (method,
-				str(values), threading.currentThread().name)
+			Print("SENT: method %s with values %s in thread: %s" % (method,
+				colorizeJSON(str(values)), threading.currentThread().name))
 
 		response = self.post(url, values)
 		if response:
@@ -339,13 +339,13 @@ class APIBinding(RequestProcessor):
 
 			if self.debug:
 				end = time.time()
-				dbg = (method, str(body), threading.currentThread().name, (end - start), self.logline)
+				dbg = (method, colorizeJSON(str(body)), threading.currentThread().name, (end - start), self.logline)
 				if method in self.debug or self.debug == "all":
-					print "response for method %s: %s in thread: %s (%0.2fs) for %s" % dbg
+					Print("GOT: for method %s: %s in thread: %s (%0.2fs) for %s" % dbg)
 
 				if self.debug == "slow":
 					if (end - start) > 3:
-						print "(slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % dbg
+						Print("GOT: (slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % dbg)
 
 			if "response" in body:
 				return body["response"] or {}

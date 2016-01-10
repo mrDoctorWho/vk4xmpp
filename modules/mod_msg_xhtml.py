@@ -24,5 +24,5 @@ def xhtml_handler(cl, msg):
 
 MOD_TYPE = "message"
 MOD_HANDLERS = ((xhtml_handler, "", "", True),)
-MOD_FEATURES = []
+MOD_FEATURES = [xmpp.NS_XHTML_IM]
 MOD_FEATURES_USER = [xmpp.NS_XHTML_IM]

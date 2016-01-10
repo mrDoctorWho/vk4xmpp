@@ -17,7 +17,7 @@ def parseForwardedMessages(self, msg, depth=0):
 		body += _("Forwarded messages:")
 		fwd_messages = sorted(msg["fwd_messages"], sortMsg)
 		for fwd in fwd_messages:
-			source = fwd["uid"]
+			source = fwd["user_id"]
 			date = fwd["date"]
 			fwdBody = escape("", uhtml(compile_eol.sub("\n" + spacer + BASE_SPACER, fwd["body"])))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
@@ -29,7 +29,7 @@ def parseForwardedMessages(self, msg, depth=0):
 	return body
 
 if not isdef("MAXIMUM_FORWARD_DEPTH"):
-	MAXIMUM_FORWARD_DEPTH = 28
+	MAXIMUM_FORWARD_DEPTH = 29
 
 registerHandler("msg01", parseForwardedMessages)
 

@@ -11,6 +11,7 @@ import xmpp
 import utils
 import mod_msg_main as mod_msg
 
+
 @utils.threaded
 def captcha_handler(cl, iq):
 	if iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:

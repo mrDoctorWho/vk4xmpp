@@ -1,12 +1,12 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2014 — 2015.
-# Warning: This module contain non-optimal and really bad code.
+# Warning: This module contains not optimal and really ugly code.
 
 
 from __main__ import *
 from __main__ import _
-from utils import buildDataForm as buildForm
+from utils import buildDataForm as buildForm, buildIQError
 from xmpp import DataForm as getForm
 import modulemanager
 
@@ -43,21 +43,21 @@ def disco_handler(cl, iq):
 	destination = iq.getTo().getStripped()
 	ns = iq.getQueryNS()
 	node = iq.getTagAttr("query", "node")
+	result = iq.buildReply("result")
 	if node:
-		result = iq.buildReply("result")
 		payload = []
-		if node == "Online users" and source in ADMIN_JIDS:
-			users = Transport.keys()
+		if source in ADMIN_JIDS:
+			users = []
+			if node == "Online users":
+				users = Transport.keys()
+			elif node == "All users":
+				users = getUsersList()
+				users = [user[0] for user in users]
+
 			for user in users:
 				payload.append(xmpp.Node("item", {"name": user, "jid": user}))
 
-		elif node == "All users" and source in ADMIN_JIDS:
-			users = getUsersList()
-			for user in users:
-				user = user[0]
-				payload.append(xmpp.Node("item", {"name": user, "jid": user}))
-
-		elif node == xmpp.NS_COMMANDS:
+		if node == xmpp.NS_COMMANDS:
 			nodes = NODES["user"]
 			if source in ADMIN_JIDS:
 				nodes += NODES["admin"]
@@ -66,13 +66,12 @@ def disco_handler(cl, iq):
 
 		elif CAPS_NODE in node:
 			payload = getFeatures(destination, source, ns)
+
 		else:
-			raise xmpp.NodeProcessed()
+			result = buildIQError(iq, xmpp.ERR_BAD_REQUEST)
 
 		result.setQueryPayload(payload)
-
 	else:
-		result = iq.buildReply("result")
 		result.setQueryPayload(getFeatures(destination, source, ns, True))
 
 	sender(cl, result)
@@ -107,7 +106,7 @@ def checkAPIToken(token):
 	try:
 		auth = vk.auth()
 		if not auth:  # in case if VK() won't raise an exception
-			raise api.AuthError("Auth failed")
+			raise api.AuthError("Auth failed!")
 		else:
 			vk.online = True
 			userID = vk.getUserID()
@@ -147,9 +146,9 @@ def dictToDataForm(_dict, _fields=None):
 def getConfigFields(config):
 	fields = []
 	for key, values in config.items():
-		fields.append({"var": key, "label": _(values["label"]), 
+		fields.append({"var": key, "label": _(values["label"]),
 			"type": values.get("type", "boolean"),
-			 "value": values["value"], "desc": _(values.get("desc"))})
+			"value": values["value"], "desc": _(values.get("desc"))})
 	return fields
 
 
@@ -210,7 +209,7 @@ def commands_handler(cl, iq):
 							body = None
 							if os.path.exists(filename):
 								body = rFile(filename)
-							simpleForm = buildForm(simpleForm, 
+							simpleForm = buildForm(simpleForm,
 								fields=[{"var": "body", "type": "text-multi", "label": "Error body", "value": body}])
 							completed = True
 
@@ -329,7 +328,7 @@ def commands_handler(cl, iq):
 					completed = True
 
 			if completed:
-				commandTag = result.setTag("command", {"status": "completed", 
+				commandTag = result.setTag("command", {"status": "completed",
 					"node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
 				if simpleForm:
 					commandTag.addChild(node=simpleForm)
@@ -338,7 +337,7 @@ def commands_handler(cl, iq):
 					commandTag.setTagData("note", note)
 
 			elif not form and simpleForm:
-				commandTag = result.setTag("command", {"status": "executing", 
+				commandTag = result.setTag("command", {"status": "executing",
 					"node": node, "sessionid": sessionid}, namespace=xmpp.NS_COMMANDS)
 				commandTag.addChild(node=simpleForm)
 		sender(cl, result)

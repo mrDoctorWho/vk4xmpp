@@ -18,6 +18,7 @@ VCARD_FIELDS = {"NICKNAME": IDENTIFIER["name"],
 	"PHOTO": URL_VCARD_NO_IMAGE,
 	"URL": GITHUB_URL}
 
+
 def buildVcard(tags):
 	vCard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
 	for key in tags.keys():

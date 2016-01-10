@@ -6,7 +6,7 @@ import base64
 from tempfile import mktemp
 from cStringIO import StringIO
 
-sticker_url = re.compile(r"^Sticker\:\s(http\:\/\/[a-zA-Z0-9\._\/]+)$")
+sticker_url = re.compile(r"^Sticker\:\s(http[s]?\:\/\/[a-zA-Z0-9\._\/]+)$")
 
 try:
 	from PIL import Image

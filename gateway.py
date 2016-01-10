@@ -118,9 +118,8 @@ def runDatabaseQuery(query, args=(), set=False, many=True):
 	"""
 	Executes sql to the database
 	"""
-	if threading.currentThread() == "MainThread":
-		semph = None
-	else:
+	semph = None
+	if threading.currentThread() != "MainThread":
 		semph = Semaphore
 	with Database(DatabaseFile, semph) as db:
 		db(query, args)
@@ -134,15 +133,13 @@ def runDatabaseQuery(query, args=(), set=False, many=True):
 	return result
 
 
-# TODO: remove me
 def initDatabase(filename):
 	"""
 	Initializes database if it doesn't exist
 	"""
-	if not os.path.exists(filename):
-		runDatabaseQuery("create table users "
-			"(jid text, username text, token text, "
-				"lastMsgID integer, rosterSet bool)", set=True)
+	runDatabaseQuery("create table if not exists users"
+		"(jid text, username text, token text, "
+			"lastMsgID integer, rosterSet bool)", set=True)
 	return True
 
 
@@ -157,7 +154,7 @@ def executeHandlers(type, list=()):
 
 def registerHandler(type, func):
 	"""
-	Registers handlers and remove if the same is already exists
+	Registers handlers
 	"""
 	logger.info("main: add \"%s\" to handle type %s", func.func_name, type)
 	for handler in Handlers[type]:
@@ -170,7 +167,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 310, 0
+	number, hash = 315, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -201,7 +198,7 @@ badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars),
 	re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 
-sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
+sortMsg = lambda first, second: first.get("id", 0) - second.get("id", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
 findUserInDB = lambda source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
@@ -230,7 +227,7 @@ class VK(object):
 
 	def checkToken(self):
 		"""
-		Checks the api token
+		Checks the token
 		"""
 		try:
 			int(self.engine.method("isAppUser"))
@@ -239,6 +236,9 @@ class VK(object):
 		return True
 
 	def auth(self, username=None, password=None):
+		"""
+		Initializes the APIBinding object and checks the token
+		"""
 		logger.debug("VK going to authenticate (jid: %s)", self.source)
 		self.engine = api.APIBinding(self.token, DEBUG_API, self.source)
 		if not self.checkToken():
@@ -254,13 +254,13 @@ class VK(object):
 		self.pollInitialzed = False
 		logger.debug("longpoll: requesting server address (jid: %s)", self.source)
 		try:
-			response = self.method("messages.getLongPollServer")
+			response = self.method("messages.getLongPollServer", {"use_ssl": 1, "need_pts": 0})
 		except Exception:
-			return False
+			response = None
 		if not response:
 			logger.warning("longpoll: no response!")
 			return False
-		self.pollServer = "http://%s" % response.pop("server")
+		self.pollServer = "https://%s" % response.pop("server")
 		self.pollConfig.update(response)
 		logger.debug("longpoll: server: %s (jid: %s)",
 			self.pollServer, self.source)
@@ -275,8 +275,6 @@ class VK(object):
 		if not self.pollInitialzed:
 			raise api.LongPollError("The Poll wasn't initialized yet")
 		opener = api.AsyncHTTPRequest.getOpener(self.pollServer, self.pollConfig)
-		if not opener:
-			raise api.LongPollError("Poll request failed")
 		return opener
 
 	def method(self, method, args=None, force=False, notoken=False):
@@ -319,7 +317,7 @@ class VK(object):
 				# There are several types of VkApiError
 				# But the user defenitely must be removed.
 				# The question is: how?
-				# Are they should be completely exterminated or just removed?
+				# Should we completely exterminate them or just remove?
 				roster = False
 				m = e.message
 				# Probably should be done in vkapi.py by status codes
@@ -348,6 +346,13 @@ class VK(object):
 		executeHandlers("evt06", (self,))
 		self.method("account.setOffline")
 
+	@staticmethod
+	def formatName(data):
+		name = escape("", "%(first_name)s %(last_name)s" % data)
+		del data["first_name"]
+		del data["last_name"]
+		return name
+
 	def getFriends(self, fields=None):
 		"""
 		Executes friends.get and formats it in key-value style
@@ -356,16 +361,21 @@ class VK(object):
 		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
-		raw = self.method("friends.get", {"fields": str.join(chr(44), fields)})
+		raw = self.method("friends.get", {"fields": str.join(",", fields)})
 		friends = {}
 		for friend in raw.get("items", []):
 			uid = friend["id"]
 			online = friend["online"]
-			name = escape("", "%(first_name)s %(last_name)s" % friend)
+			name = self.formatName(friend)
 			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
 			for key in fields:
 				friends[uid][key] = friend.get(key)
 		return friends
+
+	def getLists(self):
+		if not self.lists:
+			self.lists = self.method("friends.getLists")
+		return self.lists
 
 	def getMessages(self, count=5, mid=0):
 		"""
@@ -373,7 +383,8 @@ class VK(object):
 		"""
 		values = {"out": 0, "filters": 1, "count": count}
 		if mid:
-			del values["count"], values["filters"]
+			del values["count"]
+			del values["filters"]
 			values["last_message_id"] = mid
 		return self.method("messages.get", values)
 
@@ -382,50 +393,44 @@ class VK(object):
 		Gets user id
 		"""
 		if not self.userID:
-			self.userID = self.method("execute.getUserID")
+			self.userID = self.method("execute.getUserID_new")
 		return self.userID
 
-	def getLists(self):
-		if not self.lists:
-			self.lists = self.method("friends.getLists")
-		return self.lists
+	@utils.cache
+	def getGroupData(self, gid, fields=None):
+		"""
+		Gets group data (only name so far)
+		"""
+		fields = fields or ["name"]
+		data = self.method("groups.getById", {"group_id": abs(gid), "fields": str.join(",", fields)})
+		if data:
+			data = data[0]
+		return data
 
+	@utils.cache
 	def getUserData(self, uid, fields=None):
 		"""
 		Gets user data. Such as name, photo, etc
-		If the user exists in friends list,
-		And if no advanced fields issued will return friends[uid]
-		Otherwise will request method users.get
-		Default fields are ["screen_name"]
 		"""
 		if not fields:
 			user = Transport.get(self.source)
 			if user and uid in user.friends:
 				return user.friends[uid]
-			if uid in self.cache:
-				return self.cache[uid]
 			fields = ["screen_name"]
-		data = self.method("users.get",
-			{"fields": str.join(chr(44), fields), "user_ids": uid}) or {}
+		data = self.method("users.get", {"user_ids": uid, "fields": str.join(",", fields)})
 		if data:
-			data = data.pop()
-			data["name"] = escape("", "%(first_name)s %(last_name)s" % data)
-			del data["first_name"], data["last_name"]  # We don't need them anymore.
-		else:
-			data = {"name": "None"}
-			for key in fields:
-				data[key] = "None"
-		self.cache[uid] = data
+			data = data[0]
+			data["name"] = self.formatName(data)
 		return data
 
 	def sendMessage(self, body, id, mType="user_id", more={}):
 		"""
 		Sends message to VK id
 		Parameters:
-			body: obviously the message body
+			body: message body
 			id: user id
 			mType: message type (user_id is for dialogs, chat_id is for chats)
-			more: for advanced features such as photos (attachments)
+			more: for advanced fields such as attachments
 		"""
 		Stats["msgout"] += 1
 		values = {mType: id, "message": body, "type": 0}
@@ -465,8 +470,7 @@ class User(object):
 		"""
 		logger.debug("User connecting (jid: %s)", self.source)
 		exists = False
-		# check if user registered
-		user = findUserInDB(self.source)
+		user = findUserInDB(self.source)  # check if user registered
 		if user:
 			exists = True
 			logger.debug("User was found in the database... (jid: %s)", self.source)
@@ -485,7 +489,7 @@ class User(object):
 
 		self.vk = vk = VK(token, self.source)
 		try:
-			auth = vk.auth()
+			vk.auth()
 		except api.CaptchaNeeded:
 			self.sendSubPresence()
 			logger.error("User: running captcha challenge (jid: %s)", self.source)
@@ -527,7 +531,7 @@ class User(object):
 		Transport[self.source] = self
 		if not self.friends:
 			self.friends = self.vk.getFriends()
-		if self.friends and not self.rosterSet or force:
+		if force or self.rosterSet:
 			logger.debug("User: sending subscription presence with force:%s (jid: %s)",
 				force, self.source)
 			import rostermanager
@@ -599,15 +603,15 @@ class User(object):
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(200, self.lastMsgID)
-			if not messages or not messages[0]:
+				messages = self.vk.getMessages(200, self.lastMsgID).get("items")
+			if not messages:
 				return None
-			messages = sorted(messages[1:], sortMsg)
+			messages = sorted(messages, sortMsg)
 			for message in messages:
 				# If message wasn't sent by our user
 				if not message["out"]:
 					Stats["msgin"] += 1
-					fromjid = vk2xmpp(message["uid"])
+					fromjid = vk2xmpp(message["user_id"])
 					body = uhtml(message["body"])
 					iter = Handlers["msg01"].__iter__()
 					for func in iter:
@@ -628,7 +632,7 @@ class User(object):
 							date = message["date"]
 						sendMessage(self.source, fromjid, escape("", body), date)
 		if messages:
-			self.lastMsgID = messages[-1]["mid"]
+			self.lastMsgID = messages[-1]["id"]
 			runDatabaseQuery("update users set lastMsgID=? where jid=?",
 				(self.lastMsgID, self.source), True)
 
@@ -681,10 +685,10 @@ class User(object):
 					message = None
 					mid, flags, uid, date, subject, body, attachments = evt
 					out = flags & 2 == 2
-					chat = flags & 16 == 16
+					chat = uid > 2000000000  # a groupchat always has uid > 2000000000
 					if not out:
 						if not attachments and not chat:
-							message = [1, {"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
+							message = [{"out": 0, "user_id": uid, "id": mid, "date": date, "body": body}]
 						utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
 				else:
 					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)
@@ -763,7 +767,7 @@ def sendPresence(destination, source, pType=None, nick=None,
 		destination: to whom send the presence
 		source: from who send the presence
 		pType: the presence type
-		nick: add <nick> tag to stanza
+		nick: add <nick> tag
 		reason: set status message
 		hash: add caps hash
 		show: add status show
@@ -774,15 +778,11 @@ def sendPresence(destination, source, pType=None, nick=None,
 		presence.setTag("nick", namespace=xmpp.NS_NICK)
 		presence.setTagData("nick", nick)
 	if hash:
-		presence.setTag("c",
-			{"node": CAPS_NODE,
-				"ver": hash, "hash": "sha-1"},
-			xmpp.NS_CAPS)
+		presence.setTag("c", {"node": CAPS_NODE, "ver": hash, "hash": "sha-1"}, xmpp.NS_CAPS)
 	executeHandlers("prs02", (presence, destination, source))
 	sender(Component, presence)
 
 
-# todo: answer type:normal from transport if it was from captcha challenge passed through forms
 def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype="chat"):
 	"""
 	Sends message to destination from source
@@ -862,8 +862,6 @@ def removeUser(user, roster=False, notify=True):
 		source = user
 	elif user:
 		source = user.source
-	else:
-		raise ValueError("No user or source was given")
 	user = Transport.get(source)
 	if notify:
 		# Would russians understand the joke?
@@ -889,10 +887,10 @@ def removeUser(user, roster=False, notify=True):
 		user.vk.online = False
 
 
-def getPid():
+def checkPID():
 	"""
 	Gets a new PID and kills the previous PID
-	by signals 15 and 9
+	by signal 15 and then by 9
 	"""
 	pid = os.getpid()
 	if os.path.exists(pidFile):
@@ -955,7 +953,7 @@ def initializeUsers():
 	users = runDatabaseQuery("select jid from users")
 	for user in users:
 		Print(".", False)
-		sender(Component, xmpp.Presence(user[0], "probe", frm=TransportID))
+		sendPresence(user[0], TransportID, "probe")
 	Print("\n#-# Component %s initialized well." % TransportID)
 
 
@@ -963,12 +961,10 @@ def runMainActions():
 	"""
 	Running the main actions to make the transport work
 	"""
-	if allowBePublic:
-		makeMeKnown()
 	for num, event in enumerate(Handlers["evt01"]):
-		utils.runThread(event, (), "extension-%d" % num)
-	utils.runThread(Poll.process, (), "longPoll")
-	utils.runThread(updateCron, (), "updateCron")
+		utils.runThread(event, name=("extension-%d" % num))
+	utils.runThread(Poll.process, name="longPoll")
+	utils.runThread(updateCron)
 	import modulemanager
 	Manager = modulemanager.ModuleManager
 	Manager.load(Manager.list())
@@ -987,8 +983,7 @@ def main():
 		uid = pwd.getpwnam(RUN_AS).pw_uid
 		logger.warning("switching to user %s:%s", RUN_AS, uid)
 		os.setuid(uid)
-
-	getPid()
+	checkPID()
 	initDatabase(DatabaseFile)
 	if connect():
 		initializeUsers()
@@ -1021,24 +1016,6 @@ def disconnectHandler(crash=True):
 	else:
 		logger.info("the transport is shutting down!")
 		os._exit(-1)
-
-
-def makeMeKnown():
-	"""
-	That's such a weird function just makes a post request
-	to the vk4xmpp monitor which is located on http://xmppserv.ru/xmpp-monitor
-	You can check out the source of The VK4XMPP Monitor utilty
-		over there: https://github.com/aawray/xmpp-monitor
-	"""
-	if WhiteList:
-		WhiteList.append(VK4XMPP_MONITOR_SERVER)
-	if TransportID.split(".")[1] != "localhost":
-		RIP = api.RequestProcessor()
-		try:
-			RIP.post(VK4XMPP_MONITOR_URL, {"add": TransportID})
-			Print("#! Information about this transport has been successfully published.")
-		except Exception:
-			Print("#! Unable to publish information about the transport!")
 
 
 def exit(signal=None, frame=None):

@@ -8,12 +8,13 @@ def interpreter_msg02(msg):
 	destination = msg.getTo().getStripped()
 	source = msg.getFrom().getStripped()
 	if body:
-		answer = None
 		if destination == TransportID:
 			raw = body.split(None, 1)
 			if len(raw) > 1:
 				text, args = raw
 				args = args.strip()
+				if source in Transport:
+					user = Transport[source]
 				if text == "!eval" and args and source in ADMIN_JIDS:
 					try:
 						result = unicode(eval(args))

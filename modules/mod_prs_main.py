@@ -23,7 +23,7 @@ def initializeUser(source, resource, prs):
 	except RuntimeError:
 		pass
 	except Exception:
-		sendMessage(source, TransportID, 
+		sendMessage(source, TransportID,
 			_("Auth failed! If this error repeated, "
 				"please register again. This incident will be reported."))
 		crashLog("user.connect")
@@ -83,7 +83,6 @@ def presence_handler(cl, prs):
 			if destination == TransportID:
 				removeUser(user, True, False)
 				executeHandlers("evt09", (source,))
-
 
 	elif pType in ("available", None) and destination == TransportID:
 		# It's possible to receive more than one presence from @gmail.com

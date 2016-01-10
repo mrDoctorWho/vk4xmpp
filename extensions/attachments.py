@@ -3,6 +3,7 @@
 # © simpleApps, 2013 — 2015.
 
 import urllib
+from printer import *
 
 VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
 
@@ -14,7 +15,7 @@ SIMPLE_ATTACHMENTS = {"doc": "Document: “%(title)s” — %(url)s",
 	"link": "URL: %(title)s — %(url)s",
 	"poll": "Poll: %(question)s",
 	"page": "Page: %(title)s — %(view_url)s",
-	"video": "Video: %(title)s — https://vk.com/video%(owner_id)s_%(vid)s"}
+	"video": "Video: %(title)s (%(description)s, %(views)d views) — https://vk.com/video%(owner_id)s_%(id)s"}  # TODO: Add duration
 
 
 def parseAttachments(self, msg, spacer=""):
@@ -41,33 +42,30 @@ def parseAttachments(self, msg, spacer=""):
 
 			if type == "wall":
 				if self.settings.parse_wall:
-					body += "Wall post"
-					# TODO: Rewrite me
-					if current.get("to_id", 0) < 0:
-						name = self.vk.method("groups.getById", {"group_id": abs(current.get("to_id", 0)), "fields": "name"})
-						if name:
-							name = name[0].get("name")
-							body += " in community “%s”:" % name
-					body += "\n"
+					tid = current.get("to_id", 1)
+					if tid > 0:
+						name = "%s's" % self.vk.getUserData(tid)["name"]
+					else:
+						name = "“%s”" % self.vk.getGroupData(tid)["name"]
+					body += "Post on %s wall:\n" % name
 					if current.get("text"):
-						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"])) + "\n"
+						body += spacer + uhtml(current["text"].replace("\n", "\n" + spacer)) + "\n"
 					body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
 				body += spacer + ("Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s" % current)
 
 			elif type == "photo":
-				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
+				keys = ("photo_2560", "photo_1280", "photo_807", "photo_604", "photo_130", "photo_75")
 				for key in keys:
 					if key in current:
 						body += "Photo: %s" % current[key]  # No new line needed if we have just one photo and no text
 						break
 
 			elif type == "audio":
-				for key in ("performer", "title"):
-					if current.has_key(key):
-						current[key] = uhtml(current[key])
-
-				current["url"] = VK_AUDIO_SEARCH % urllib.quote(str("%(performer)s %(title)s" % current))
-				body += "Audio: %(performer)s — “%(title)s“ — %(url)s" % current
+				current["performer"] = uhtml(current.get("performer", ""))
+				current["title"] = uhtml(current.get("title", ""))
+				current["url"] = VK_AUDIO_SEARCH % urllib.quote(str("%(artist)s %(title)s" % current))
+				current["time"] = current["duration"] / 60.0
+				body += "Audio: %(artist)s — “%(title)s“ (%(time)s min) — %(url)s" % current
 
 			elif type == "sticker":
 				keys = ("photo_256", "photo_128", "photo_64")
@@ -77,12 +75,13 @@ def parseAttachments(self, msg, spacer=""):
 						break
 
 			elif type == "wall_reply":
-				current["name"] = self.vk.getUserData(current["uid"])["name"]
-				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
+				current["name"] = self.vk.getUserData(current["from_id"])["name"]  # TODO: What if it's a community? from_id will be negative.
+				# TODO: Remove "[idxxx|Name]," from the text
+				current["text"] = uhtml(current["text"].replace("\n", "\n" + spacer))
 				current["url"] = "https://vk.com/feed?w=wall%(owner_id)s_%(post_id)s" % current
-				body += "Commentary to the post on a community wall:\n"
+				body += "Commentary to the post on a wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current
-				body += spacer + "Community: %(url)s" % current
+				body += spacer + "Post URL: %(url)s" % current
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current

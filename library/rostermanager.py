@@ -2,11 +2,11 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2015.
 
-findListByID = lambda id, list: [key for key in list if key["lid"] == id]
-
 from __main__ import *
 from __main__ import _
 
+# Finds list name by id
+findListByID = lambda id, list: [key for key in list if key["id"] == id]
 RosterSemaphore = threading.Semaphore()
 
 
@@ -29,13 +29,13 @@ class Roster:
 		# should we send requests for each 100 friends to prevent transport disconnect?
 		lists = user.vk.getLists()
 		iq = xmpp.Iq("set", to=jid, frm=TransportID)
-		node = xmpp.Node("x", {"xmlns": xmpp.NS_ROSTERX}) 
+		node = xmpp.Node("x", {"xmlns": xmpp.NS_ROSTERX})
 		items = [cls.getNode(TransportID, action=action)]
 		dist = dist or user.friends
 		for uid, value in dist.iteritems():
 			item = cls.getNode(vk2xmpp(uid), value["name"], action)
 			if lists and value["lists"]:
-				list = findListByID(value["lists"][0], lists)
+				list = findListByID(value["lists"][0], lists["items"])
 				if list:
 					item.setTagData("group", list[0]["name"])
 			items.append(item)
@@ -56,6 +56,7 @@ class Roster:
 		sendPresence(jid, TransportID, "subscribe", IDENTIFIER["name"])
 		sendPresence(jid, TransportID, nick=IDENTIFIER["name"],
 			reason=_("You are being initialized, please wait..."), show="xa")
+
 		def answer(cl, stanza):
 			if xmpp.isResultNode(stanza):
 				query = stanza.getTag("query")
