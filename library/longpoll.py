@@ -37,18 +37,10 @@ class Poll:
 		"""
 		if DEBUG_POLL:
 			logger.debug("longpoll: really adding user to poll (jid: %s)", user.source)
-		try:
-			opener = user.vk.makePoll()
-		except Exception as e:
-			if not isinstance(e, api.LongPollError):
-				crashLog("poll.add")
-			logger.error("longpoll: failed to make poll (jid: %s)", user.source)
-			cls.__addToBuff(user)
-			return False
-		else:
-			if DEBUG_POLL:
-				logger.debug("longpoll: user has been added to poll (jid: %s)", user.source)
-			cls.__list[opener.sock] = (user, opener)
+		opener = user.vk.makePoll()
+		if DEBUG_POLL:
+			logger.debug("longpoll: user has been added to poll (jid: %s)", user.source)
+		cls.__list[opener.sock] = (user, opener)
 		return opener
 
 	@classmethod
@@ -76,7 +68,13 @@ class Poll:
 				if some_user == user:
 					break
 			else:
-				cls.__add(some_user)
+				try:
+					cls.__add(some_user)
+				except Exception as e:
+					if not isinstance(e, api.LongPollError):
+						crashLog("poll.add")
+					logger.error("longpoll: failed to make poll (jid: %s)", user.source)
+					cls.__addToBuff(user)
 
 	clear = staticmethod(__list.clear)
 

@@ -375,6 +375,9 @@ class APIBinding(RequestProcessor):
 				elif eCode == 15:
 					raise AccessDenied(eMsg)
 
+				elif eCode == 17:
+					raise ValidationRequired(eMsg)
+
 				# 1 - unknown error / 100 - wrong method or parameters loss
 				elif eCode in (1, 6, 9, 100):
 					if eCode in (6, 9):   # 6 - too fast / 9 - flood control
@@ -466,5 +469,14 @@ class AccessDenied(VkApiError):
 	"""
 	This one should be ignored as well.
 	Happens for an unknown reason with any method
+	"""
+	pass
+
+
+class ValidationRequired(VkApiError):
+	"""
+	New in API v4
+	Happens if VK thinks we're
+	logging in from an unusual location
 	"""
 	pass

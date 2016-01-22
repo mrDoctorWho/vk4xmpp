@@ -269,8 +269,8 @@ class VK(object):
 
 	def makePoll(self):
 		"""
+		Returns a socket connected to a poll server
 		Raises api.LongPollError if poll not yet initialized (self.pollInitialzed)
-		Else returns socket object connected to poll server
 		"""
 		if not self.pollInitialzed:
 			raise api.LongPollError("The Poll wasn't initialized yet")
@@ -303,6 +303,9 @@ class VK(object):
 			except api.CaptchaNeeded as e:
 				executeHandlers("evt04", (self, self.engine.captcha["img"]))
 				self.online = False
+
+			except api.ValidationRequired:
+				raise
 
 			except api.NetworkNotFound as e:
 				self.online = False
@@ -723,7 +726,7 @@ class User(object):
 		Sends subscribe presences if new friends found
 		Sends unsubscribe presences if some friends disappeared
 		"""
-		if (cTime - self.last_udate) > 360 and not self.vk.engine.captcha:
+		if (cTime - self.last_udate) > 300 and not self.vk.engine.captcha:
 			if self.settings.keep_online:
 				self.vk.method("account.setOnline")
 			self.last_udate = cTime
@@ -746,15 +749,18 @@ class User(object):
 		Tries to execute self.initialize() again and connect() if needed
 		Usually needed after captcha challenge is done
 		"""
-		logger.debug("calling reauth for user %s", self.source)
+		logger.debug("calling reauth for user (jid: %s)", self.source)
 		if not self.vk.online:
 			self.connect()
 		self.initialize()
 
 	def captchaChallenge(self, key):
+		"""
+		Sets the captcha key and sends it to VK
+		"""
 		engine = self.vk.engine
 		engine.captcha["key"] = key
-		logger.debug("retrying for user %s", self.source)
+		logger.debug("retrying for user (jid: %s)", self.source)
 		if engine.retry():
 			self.reauth()
 
@@ -804,6 +810,9 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype
 
 
 def computeCapsHash(features=TransportFeatures):
+	"""
+	Computes a hash which will be placed in all presence stanzas
+	"""
 	result = "%(category)s/%(type)s//%(name)s<" % IDENTIFIER
 	features = sorted(features)
 	result += str.join("<", features) + "<"
@@ -1037,6 +1046,9 @@ def exit(signal=None, frame=None):
 
 
 def loop():
+	"""
+	The main loop which is used to call the stanza parser
+	"""
 	while ALIVE:
 		try:
 			Component.iter(6)
