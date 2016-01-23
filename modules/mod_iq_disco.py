@@ -44,8 +44,8 @@ def disco_handler(cl, iq):
 	ns = iq.getQueryNS()
 	node = iq.getTagAttr("query", "node")
 	result = iq.buildReply("result")
+	payload = []
 	if node:
-		payload = []
 		if source in ADMIN_JIDS:
 			users = []
 			if node == "Online users":
@@ -67,13 +67,14 @@ def disco_handler(cl, iq):
 		elif CAPS_NODE in node:
 			payload = getFeatures(destination, source, ns)
 
-		else:
+		elif not payload:
 			result = buildIQError(iq, xmpp.ERR_BAD_REQUEST)
 
-		result.setQueryPayload(payload)
 	else:
-		result.setQueryPayload(getFeatures(destination, source, ns, True))
+		payload = getFeatures(destination, source, ns, True)
 
+	if payload:
+		result.setQueryPayload(payload)
 	sender(cl, result)
 
 

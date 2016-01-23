@@ -73,8 +73,8 @@ class Poll:
 				except Exception as e:
 					if not isinstance(e, api.LongPollError):
 						crashLog("poll.add")
-					logger.error("longpoll: failed to make poll (jid: %s)", user.source)
-					cls.__addToBuff(user)
+					logger.error("longpoll: failed to make poll (jid: %s)", some_user.source)
+					cls.__addToBuff(some_user)
 
 	clear = staticmethod(__list.clear)
 
