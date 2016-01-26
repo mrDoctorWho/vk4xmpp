@@ -305,6 +305,7 @@ class VK(object):
 				self.online = False
 
 			except api.ValidationRequired:
+				# TODO
 				raise
 
 			except api.NetworkNotFound as e:
@@ -534,7 +535,7 @@ class User(object):
 		Transport[self.source] = self
 		if not self.friends:
 			self.friends = self.vk.getFriends()
-		if force or self.rosterSet:
+		if force or not self.rosterSet:
 			logger.debug("User: sending subscription presence with force:%s (jid: %s)",
 				force, self.source)
 			import rostermanager

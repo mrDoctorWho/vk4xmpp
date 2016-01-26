@@ -19,16 +19,30 @@
 """
 Handles VK Multi-Dialogs
 Implements XEP-0045: Multi-User Chat (over an exsisting chat)
+Note: This file contains only outgoing-specific stuff (vk->xmpp)
+along with the Chat class and other useful functions
+The code which handles incoming stuff (xmpp->vk) is placed in the following modules:
+mod_groupchat_prs for presence handling
+mod_groupchat_msg for message handling
 """
 
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
 
 
-def setAffiliation(chat, role, jid, jidFrom=TransportID, reason=None):
+def setAffiliation(chat, afl, jid, jidFrom=TransportID, reason=None):
+	"""
+	Set user affiliation in a chat.
+	Parameters:
+		* chat - the chat to set affiliation in
+		* afl - the affiliation to set to
+		* jid - the user's jid whose affiliation needs to be changed
+		* jidFrom - the chat's owner jid (or anyone who can set users roles)
+		* reason - special reason
+	"""
 	stanza = xmpp.Iq("set", to=chat, frm=jidFrom)
 	query = xmpp.Node("query", {"xmlns": xmpp.NS_MUC_ADMIN})
-	arole = query.addChild("item", {"jid": jid, "affiliation": role})
+	arole = query.addChild("item", {"jid": jid, "affiliation": afl})
 	if reason:
 		arole.setTagData("reason", reason)
 	stanza.addChild(node=query)
@@ -36,6 +50,14 @@ def setAffiliation(chat, role, jid, jidFrom=TransportID, reason=None):
 
 
 def inviteUser(chat, jidTo, jidFrom, name):
+	"""
+	Invite user to a chat.
+	Parameters:
+		* chat - the chat to invite to
+		* jidTo - the user's jid who needs to be invited
+		* jidFrom - the inviter's jid
+		* name - the inviter's name
+	"""
 	invite = xmpp.Message(to=chat, frm=jidFrom)
 	x = xmpp.Node("x", {"xmlns": xmpp.NS_MUC_USER})
 	inv = x.addChild("invite", {"to": jidTo})
@@ -45,6 +67,14 @@ def inviteUser(chat, jidTo, jidFrom, name):
 
 
 def joinChat(chat, name, jidFrom, status=None):
+	"""
+	Join a chat.
+	Parameters:
+		* chat - the chat to join in
+		* name - nickname
+		* jidFrom - jid which will be displayed when joined
+		* status - special status
+	"""
 	prs = xmpp.Presence("%s/%s" % (chat, name), frm=jidFrom, status=status)
 	prs.setTag("c", {"node": TRANSPORT_CAPS_HASH, "ver": hash, "hash": "sha-1"},
 		xmpp.NS_CAPS)
@@ -52,6 +82,13 @@ def joinChat(chat, name, jidFrom, status=None):
 
 
 def leaveChat(chat, jidFrom, reason=None):
+	"""
+	Leave chat.
+	Parameters:
+		* chat - chat to leave from
+		* jidFrom - jid to leave with
+		* reason - special reason
+	"""
 	prs = xmpp.Presence(chat, "unavailable", frm=jidFrom, status=reason)
 	sender(Component, prs)
 
@@ -391,6 +428,9 @@ def initChatsTable():
 	Initializes database if it doesn't exist
 	"""
 	def checkColumns():
+		"""
+		Checks and adds additional column(s) into the groupchats table
+		"""
 		info = runDatabaseQuery("pragma table_info(groupchats)")
 		names = [col[1] for col in info]
 		if "nick" not in names:
@@ -420,6 +460,9 @@ def cleanTheChatsUp():
 
 
 def initChatExtension():
+	"""
+	Initializes the extension"
+	"""
 	global mod_xhtml
 	try:
 		import mod_xhtml
@@ -439,7 +482,7 @@ if isdef("ConferenceServer") and ConferenceServer:
 	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
 		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
 
-	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users", 
+	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users",
 		"desc": "If set, transport will show ALL users in a conference", "value": 0}
 
 	GLOBAL_USER_SETTINGS["tie_chat_to_nickname"] = {"label": "Tie chat to my nickname (tip: enable timestamp for groupchats)",
@@ -454,9 +497,6 @@ if isdef("ConferenceServer") and ConferenceServer:
 
 	TransportFeatures.add(xmpp.NS_MUC)
 	registerHandler("msg01", handleOutgoingChatMessage)
-#	registerHandler("msg02", handleIncomingChatMessage)
-#	registerHandler("prs01", handleChatErrors)
-#	registerHandler("prs01", handleChatPresences)
 	registerHandler("evt01", initChatExtension)
 	registerHandler("evt03", exterminateChats)
 	logger.info("extension groupchats is loaded")
@@ -464,5 +504,4 @@ if isdef("ConferenceServer") and ConferenceServer:
 else:
 	del setAffiliation, inviteUser, joinChat, leaveChat, \
 		handleOutgoingChatMessage, chatMessage, Chat, \
-		handleIncomingChatMessage, handleChatErrors, handleChatPresences, exterminateChats, \
-		cleanTheChatsUp, initChatExtension
+		exterminateChats, cleanTheChatsUp, initChatExtension
