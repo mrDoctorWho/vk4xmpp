@@ -11,6 +11,6 @@ if [ "$1" = configure ]; then
         --gecos "Vkontakte XMPP Transport" --group vk4xmpp
     fi
 
-    update-rc.d vk4xmpp defaults
+	systemctl daemon-reload
 
 fi
