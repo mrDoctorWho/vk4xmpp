@@ -13,10 +13,10 @@ DEBTARGET=vk4xmpp_$(VERSION)-$(PACKAGE_VERSION)_all.deb
 TARGET=vk4xmpp-$(VERSION)
 
 default:
-	@echo "options are 'snapshot', 'clean'"
+	@echo "options are 'snapshot', 'clean', 'debian_package_initd', 'debian_package_systemd'"
 
 
-debian_package:
+debian_package_initd:
 	rm -rf $(SOURCE)
 	mkdir -p $(SOURCE)
 	mkdir -p $(SOURCE)/usr/share/vk4xmpp
@@ -25,6 +25,17 @@ debian_package:
 	mkdir -p $(SOURCE)/etc
 	mv $(SOURCE)/usr/share/vk4xmpp/DEBIAN $(SOURCE)
 	mv $(SOURCE)/usr/share/vk4xmpp/init.d $(SOURCE)/etc/init.d
+	fakeroot $(PROG) $(FLAGS) $(SOURCE) $(DEBTARGET)
+
+debian_package_systemd:
+	rm -rf $(SOURCE)
+	mkdir -p $(SOURCE)
+	mkdir -p $(SOURCE)/usr/share/vk4xmpp
+	cp -r . $(SOURCE)/usr/share/vk4xmpp
+	rm -rf $(SOURCE)/usr/share/vk4xmpp/.git
+	mkdir -p $(SOURCE)/etc
+	mv $(SOURCE)/usr/share/vk4xmpp/DEBIAN $(SOURCE)
+	mv $(SOURCE)/usr/share/vk4xmpp/systemd/vk4xmpp.service.debian $(SOURCE)/etc/systemd/system/vk4xmpp.service
 	fakeroot $(PROG) $(FLAGS) $(SOURCE) $(DEBTARGET)
 
 clean:
