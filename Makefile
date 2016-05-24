@@ -35,6 +35,7 @@ debian_package_systemd:
 	rm -rf $(SOURCE)/usr/share/vk4xmpp/.git
 	mkdir -p $(SOURCE)/etc
 	mv $(SOURCE)/usr/share/vk4xmpp/DEBIAN $(SOURCE)
+	mkdir -p $(SOURCE)/etc/systemd/system
 	mv $(SOURCE)/usr/share/vk4xmpp/systemd/vk4xmpp.service.debian $(SOURCE)/etc/systemd/system/vk4xmpp.service
 	fakeroot $(PROG) $(FLAGS) $(SOURCE) $(DEBTARGET)
 
