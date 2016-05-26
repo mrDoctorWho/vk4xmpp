@@ -16,7 +16,7 @@ DOCS=LICENSE README.md extensions.README.md
 
 .PHONy: default
 default:
-	@echo "options are 'snapshot', 'clean', 'vk4xmpp-systemd-deb', 'vk4xmpp-initd-deb'"
+	@echo "options are 'clean', 'vk4xmpp-systemd-deb', 'vk4xmpp-initd-deb'"
 
 .PHONY: hierarchy
 hierarchy:
