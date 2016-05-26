@@ -3,14 +3,10 @@
 set -e
 
 if [ "$1" = configure ]; then
-   #update-rc.d vk4xmpp start 99 0 1 6 . stop 01 0 1 6 .
 
    if ! getent passwd vk4xmpp >/dev/null; then
       adduser --disabled-password --quiet --system \
         --home "/usr/share/vk4xmpp" --no-create-home \
         --gecos "Vkontakte XMPP Transport" --group vk4xmpp
     fi
-
-    update-rc.d vk4xmpp defaults
-
 fi

@@ -1,0 +1,2 @@
+These files are the VK stored functions which are used to save time between queries (the code being run directly in the VK servers)
+Each folder corresponds it's version API. The files which are not in any folder should work for all versions.

@@ -64,14 +64,44 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 
 def safe(func):
 	"""
-	A decorator.
 	Executes func(*args) safely
 	"""
 	def wrapper(*args):
 		try:
 			func(*args)
+		except xmpp.NodeProcessed:
+			pass
 		except Exception:
 			crashLog(func.func_name)
+	wrapper.__name__ = func.__name__
+	return wrapper
+
+
+def cache(func):
+	"""
+	Caches user/group ids for future usage
+	"""
+	def wrapper(self, uid, fields=None):
+		fields = fields or []
+		call = False
+		if uid in self.cache:
+			for field in fields:
+				if field not in self.cache[uid]:
+					call = True
+					break
+		else:
+			call = True
+		if call:
+			result = func(self, uid, fields)
+			if "id" in result:
+				del result["id"]
+			if uid in self.cache:
+				self.cache[uid].update(result)
+			else:
+				self.cache[uid] = result
+		else:
+			result = self.cache[uid]
+		return result
 	wrapper.__name__ = func.__name__
 	return wrapper
 

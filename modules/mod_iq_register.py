@@ -31,7 +31,6 @@ def initializeUser(user, cl, iq, kwargs):
 def register_handler(cl, iq):
 	source = iq.getFrom().getStripped()
 	destination = iq.getTo().getStripped()
-	iType = iq.getType()
 	result = iq.buildReply("result")
 	if USER_LIMIT:
 		count = calcStats()[0]
@@ -89,7 +88,6 @@ def register_handler(cl, iq):
 				executeHandlers("evt09", (source,))
 	if result:
 		sender(cl, result)
-
 
 
 def sendRegisterForm(cl, iq):

@@ -21,4 +21,3 @@ def typingreader_init(user):
 
 registerHandler("msg02", typingreader_watch)
 registerHandler("evt07", typingreader_init)
- 

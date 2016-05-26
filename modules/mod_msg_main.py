@@ -10,6 +10,7 @@ from __main__ import *
 from __main__ import _
 import utils
 
+
 def reportReceived(msg, jidFrom, jidTo):
 	"""
 	Reports if message is received
@@ -40,9 +41,9 @@ def acceptCaptcha(key, source, destination):
 		else:
 			logger.debug("retry for user %s successed!" % source)
 			answer = _("Captcha valid.")
-			sendPresence(source, TransportID, caps=True)
+			sendPresence(source, TransportID, hash=TRANSPORT_CAPS_HASH)
 
-		sendMessage(source, destination, answer)
+		sendMessage(source, destination, answer, mtype="normal")
 		if not valid:
 			executeHandlers("evt04", (user, user.vk.engine.captcha["img"]))
 
@@ -54,7 +55,7 @@ def message_handler(cl, msg):
 	destination = jidTo.getStripped()
 	jidFrom = msg.getFrom()
 	source = jidFrom.getStripped()
-	
+
 	if msg.getType() == "chat" and source in Transport:
 		user = Transport[source]
 		if msg.getTag("composing"):
@@ -62,7 +63,6 @@ def message_handler(cl, msg):
 			if target != TransportID:
 				with user.sync:
 					user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
-
 		if body:
 			answer = None
 			if jidTo == TransportID:
@@ -85,5 +85,6 @@ def message_handler(cl, msg):
 
 
 MOD_TYPE = "message"
-MOD_FEATURES = [xmpp.NS_RECEIPTS]
+MOD_FEATURES = []
+MOD_FEATURES_USER = [xmpp.NS_RECEIPTS]
 MOD_HANDLERS = ((message_handler, "", "", False),)

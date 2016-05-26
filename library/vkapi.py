@@ -21,6 +21,7 @@ import threading
 import urllib
 import urllib2
 import webtools
+from printer import *
 
 SOCKET_TIMEOUT = 20
 REQUEST_RETRIES = 3
@@ -93,7 +94,7 @@ def attemptTo(maxRetries, resultType, *errors):
 	return decorator
 
 
-class AsyncHTTPRequest(httplib.HTTPConnection):
+class AsyncHTTPRequest(httplib.HTTPSConnection):
 	"""
 	A method to make asynchronous http request
 	Provides a way to get a socket object to use in select()
@@ -101,7 +102,7 @@ class AsyncHTTPRequest(httplib.HTTPConnection):
 
 	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
-		httplib.HTTPConnection.__init__(self, host, timeout=timeout)
+		httplib.HTTPSConnection.__init__(self, host, timeout=timeout)
 		self.url = url
 		self.data = data
 		self.headers = headers or {}
@@ -197,7 +198,6 @@ class RequestProcessor(object):
 		body = resp.read()
 		return (body, resp)
 
-	@attemptTo(REQUEST_RETRIES, tuple, *ERRORS)
 	def get(self, url, query={}):
 		"""
 		GET request
@@ -294,11 +294,11 @@ class APIBinding(RequestProcessor):
 		self.captcha = {}
 		self.lastMethod = ()
 		self.timeout = 1.00
-		# to use it in logs witout showing the token
+		# to use it in logs without showing the token
 		self.logline = logline
 		RequestProcessor.__init__(self)
 
-	def method(self, method, values=None):
+	def method(self, method, values=None, notoken=False):
 		"""
 		Issues a VK method
 		Parameters:
@@ -307,8 +307,9 @@ class APIBinding(RequestProcessor):
 		"""
 		url = "https://api.vk.com/method/%s" % method
 		values = values or {}
-		values["access_token"] = self.token
-		values["v"] = "3.0"
+		if not notoken:
+			values["access_token"] = self.token
+		values["v"] = "5.42"
 
 		if "key" in self.captcha:
 			values["captcha_sid"] = self.captcha["sid"]
@@ -316,6 +317,7 @@ class APIBinding(RequestProcessor):
 			self.captcha = {}
 
 		self.lastMethod = (method, values)
+		# prevent “too fast” errors
 		self.last.append(time.time())
 		if len(self.last) > 2:
 			if (self.last.pop() - self.last.pop(0)) <= self.timeout:
@@ -323,8 +325,8 @@ class APIBinding(RequestProcessor):
 
 		start = time.time()
 		if method in self.debug or self.debug == "all":
-			print "issuing method %s with values %s in thread: %s" % (method,
-				str(values), threading.currentThread().name)
+			Print("SENT: method %s with values %s in thread: %s" % (method,
+				colorizeJSON(str(values)), threading.currentThread().name))
 
 		response = self.post(url, values)
 		if response:
@@ -334,15 +336,16 @@ class APIBinding(RequestProcessor):
 					body = json.loads(body)
 				except ValueError:
 					return {}
-			end = time.time()
-			if method in self.debug or self.debug == "all":
-				print "response for method %s: %s in thread: %s (%0.2fs) for %s" % (method,
-					str(body), threading.currentThread().name, (end - start), self.logline)
 
-			if self.debug == "slow":
-				if (end - start) > 3:
-					print "(slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % (method,
-						str(body), threading.currentThread().name, (end - start), self.logline)
+			if self.debug:
+				end = time.time()
+				dbg = (method, colorizeJSON(str(body)), threading.currentThread().name, (end - start), self.logline)
+				if method in self.debug or self.debug == "all":
+					Print("GOT: for method %s: %s in thread: %s (%0.2fs) for %s" % dbg)
+
+				if self.debug == "slow":
+					if (end - start) > 3:
+						Print("GOT: (slow) response for method %s: %s in thread: %s (%0.2fs) for %s" % dbg)
 
 			if "response" in body:
 				return body["response"] or {}
@@ -353,7 +356,7 @@ class APIBinding(RequestProcessor):
 				eCode = error["error_code"]
 				eMsg = error.get("error_msg", "")
 				logger.error("vkapi: error occured on executing method"
-					" (%s, code: %s, msg: %s), (for: %s)" % (method, eCode, eMsg, self.logline))
+					" (%s(%s), code: %s, msg: %s), (for: %s)" % (method, values, eCode, eMsg, self.logline))
 
 				if eCode == 7:  # not allowed
 					raise NotAllowed(eMsg)
@@ -371,6 +374,9 @@ class APIBinding(RequestProcessor):
 
 				elif eCode == 15:
 					raise AccessDenied(eMsg)
+
+				elif eCode == 17:
+					raise ValidationRequired(eMsg)
 
 				# 1 - unknown error / 100 - wrong method or parameters loss
 				elif eCode in (1, 6, 9, 100):
@@ -463,5 +469,14 @@ class AccessDenied(VkApiError):
 	"""
 	This one should be ignored as well.
 	Happens for an unknown reason with any method
+	"""
+	pass
+
+
+class ValidationRequired(VkApiError):
+	"""
+	New in API v4
+	Happens if VK thinks we're
+	logging in from an unusual location
 	"""
 	pass

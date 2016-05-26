@@ -11,8 +11,8 @@ __version__ = "1.1"
 
 import os
 from writer import *
-
 from __main__ import Component, TransportFeatures, UserFeatures
+
 
 def proxy(func):
 	def wrapper(type, *args):

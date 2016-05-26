@@ -14,16 +14,16 @@ USERS_ON_INIT = set([])
 
 def initializeUser(source, resource, prs):
 	"""
-	Initializes user for a first time after he have registered
+	Initializes user for the first time after they connected
 	"""
 	logger.debug("Got a presence. Searching jid in the database. (jid: %s)", source)
 	user = User(source)
 	try:
-		connect = user.connect()
+		user.connect()
 	except RuntimeError:
 		pass
 	except Exception:
-		sendMessage(source, TransportID, 
+		sendMessage(source, TransportID,
 			_("Auth failed! If this error repeated, "
 				"please register again. This incident will be reported."))
 		crashLog("user.connect")
@@ -64,7 +64,7 @@ def presence_handler(cl, prs):
 					del Transport[source]
 				except (AttributeError, KeyError):
 					pass
-	
+
 		elif pType == "error":
 			if prs.getErrorCode() == "404":
 				user.vk.disconnect()
@@ -75,15 +75,14 @@ def presence_handler(cl, prs):
 				id = vk2xmpp(destination)
 				if id in user.friends:
 					if user.friends[id]["online"]:
-						sendPresence(source, destination)
+						sendPresence(source, destination, hash=USER_CAPS_HASH)
 			if destination == TransportID:
-				sendPresence(source, destination)
-	
+				sendPresence(source, destination, hash=TRANSPORT_CAPS_HASH)
+
 		elif pType == "unsubscribe":
 			if destination == TransportID:
 				removeUser(user, True, False)
 				executeHandlers("evt09", (source,))
-
 
 	elif pType in ("available", None) and destination == TransportID:
 		# It's possible to receive more than one presence from @gmail.com

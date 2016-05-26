@@ -478,7 +478,7 @@ class Node(object):
 		if attr == "NT":
 			self.NT = NT(self)
 			return self.NT
-		raise AttributeError()
+		raise AttributeError("Cannot get attribute %s" % attr)
 
 class T:
 	"""

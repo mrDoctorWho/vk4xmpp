@@ -7,4 +7,3 @@ def statstracker_callMethod(user):
 	user.vk.method("stats.trackVisitor")
 
 registerHandler("evt05", statstracker_callMethod)
-

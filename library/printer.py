@@ -10,6 +10,14 @@ import time
 
 __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
 
+# Bold + Inensity
+BIYellow = "\x1b[1;93m" # Yellow
+BICyan = "\x1b[1;96m"  # Cyan
+BIRed = "\x1b[1;91m"  # Red
+BIGreen = "\x1b[1;92m"  # Green
+
+Nocolor = "\x1b[0m"
+
 
 def use_lsd(text):
 	import random
@@ -25,7 +33,7 @@ def use_lsd(text):
 def Print(text, line=True):
 	"""
 	This function is needed to prevent errors
-	like IOError: device is not ready 
+	like IOError: device is not ready
 	which is probably happens when script running under screen
 	"""
 	if (time.gmtime().tm_mon, time.gmtime().tm_mday) == (4, 1):
@@ -37,3 +45,27 @@ def Print(text, line=True):
 		sys.stdout.flush()
 	except (IOError, OSError):
 		pass
+
+
+def colorizeJSON(data):
+	text = ""
+	iter = list(repr(data)).__iter__()
+	for c in iter:
+		if c == "'":
+			text += BIYellow + c
+			for x in iter:
+				text += x
+				if x == "'":
+					text += Nocolor
+					break
+		elif c.isdigit():
+			text += BICyan + c
+			for x in iter:
+				if x.isdigit():
+					text += x
+				else:
+					text += Nocolor + x
+					break
+		else:
+			text += c
+	return text

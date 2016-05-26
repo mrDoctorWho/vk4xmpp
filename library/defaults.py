@@ -23,10 +23,14 @@ VK_ACCESS = 69638
 USER_LIMIT = 0
 RUN_AS = None
 
+IDENTIFIER = {"type": "vk", "category": "gateway", "name": "VK4XMPP Transport"}
 URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"
 VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
 VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
-IDENTIFIER = {"type": "vk", "category": "gateway", "name": "VK4XMPP Transport"}
+CAPS_NODE = "https://simpleapps.ru/caps/vk4xmpp"
+
+USER_CAPS_HASH = None
+TRANSPORT_CAPS_HASH = None
 
 LOG_LEVEL = logging.DEBUG
 ADMIN_JIDS = []
@@ -35,7 +39,7 @@ ADMIN_JIDS = []
 pidFile = "vk4xmpp.pid"
 logFile = "vk4xmpp.log"
 crashDir = "crash"
-settingsDir = "settings" 
+settingsDir = "settings"
 
 
 # extension/module specific

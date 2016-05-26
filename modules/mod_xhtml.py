@@ -4,7 +4,6 @@
 
 from __main__ import *
 from __main__ import _
-from __main__ import Component  # being missed somehow
 import random
 import urllib
 
@@ -22,7 +21,7 @@ def sendPhoto(user, data, type, address, mType):
 	if address == TransportID:
 		answer = _("Are you kidding me?")
 	elif mask:
-		if mask & 4 == 4: # we have enough access?
+		if mask & 4 == 4:  # we have enough access?
 			ext = type.split("/")[1]
 			name = "vk4xmpp_%s.%s" % (random.randint(1000, 9000), ext)
 			server = str(user.vk.method("photos.getMessagesUploadServer")["upload_url"])
@@ -32,14 +31,15 @@ def sendPhoto(user, data, type, address, mType):
 					urlencode=False)[0])
 
 			id = user.vk.method("photos.saveMessagesPhoto", response)
+			print id
 			if id:
-				id = id[0].get("id", 0)
-				user.vk.sendMessage("", address, mType, {"attachment": id})
+				photo = "photo%(owner_id)d_%(id)d" % id[0]
+				user.vk.sendMessage("", address, mType, {"attachment": photo})
 				logger.debug("sendPhoto: image was successfully sent by user %s" % user.source)
 				answer = _("Your image was successfully sent.")
 			else:
 				answer = _("Sorry but we have failed to send this image."
-					" Seems you haven't enough permissions. Your token should be updated, register again.")	
+					" Seems you haven't enough permissions. Your token should be updated, register again.")
 		else:
 			answer = _("Sorry but we have failed to send this image."
 					" Seems you haven't enough permissions. Your token should be updated, register again.")

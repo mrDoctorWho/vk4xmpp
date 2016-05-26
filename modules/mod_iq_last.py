@@ -6,6 +6,7 @@ from __main__ import *
 import xmpp
 import utils
 
+
 @utils.threaded
 def last_handler(cl, iq):
 	jidFrom = iq.getFrom()

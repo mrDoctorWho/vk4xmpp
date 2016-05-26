@@ -72,19 +72,19 @@ URL_VCARD_NO_IMAGE = "https://raw.githubusercontent.com/mrDoctorWho/vk4xmpp/mast
 THREAD_STACK_SIZE = 0
 
 # Database file (anything you like).
-DatabaseFile = "vk4xmpp.db"
+DatabaseFile = "/var/lib/vk4xmpp/vk4xmpp.db"
 
 # File to store PID in.
-pidFile = "vk4xmpp.pid"
+pidFile = "/run/vk4xmpp/vk4xmpp.pid"
 
 # Log file.
-logFile = "vk4xmpp.log"
+logFile = "/var/log/vk4xmpp/vk4xmpp.log"
 
 # Directory where transport will write crash logs.
-crashDir = "crash"
+crashDir = "/var/log/vk4xmpp/crash"
 
 # Directory for users settings.
-settingsDir = "settings"
+settingsDir = "/var/lib/vk4xmpp/settings"
 
 # Stanza send interval (in seconds).
 STANZA_SEND_INTERVAL = 0.03125
@@ -100,7 +100,7 @@ DEBUG_POLL = False
 DEBUG_API = []
 
 # Log level (logging.INFO, logging.DEBUG, logging.ERROR, logging.CRITICAL).
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.ERROR
 
 # VK4XMPP Monitor settings
 # The server where the stats requests will come from
