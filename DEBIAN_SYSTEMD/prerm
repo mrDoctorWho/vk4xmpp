@@ -1,9 +1,0 @@
-#!/bin/sh
-
-case "$1" in
-	remove|purge)
-		# Remove all .pyc files from installation directories
-		DIR="/usr/share/vk4xmpp/"
-		rm -f `find "$DIR" -name *.py`
-		;;
-esac
