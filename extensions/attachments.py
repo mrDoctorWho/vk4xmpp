@@ -5,7 +5,9 @@
 import urllib
 from printer import *
 
-VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
+VK_AUDIO_SEARCH_LINK = "https://vk.com/search?c[q]=%s&c[section]=audio"
+WALL_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s"
+
 
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
 
@@ -51,7 +53,7 @@ def parseAttachments(self, msg, spacer=""):
 					if current.get("text"):
 						body += spacer + uhtml(current["text"].replace("\n", "\n" + spacer)) + "\n"
 					body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
-				body += spacer + ("Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s" % current)
+				body += spacer + ("Wall: %s" % WALL_LINK % current)
 
 			elif type == "photo":
 				keys = ("photo_2560", "photo_1280", "photo_807", "photo_604", "photo_130", "photo_75")
@@ -63,7 +65,7 @@ def parseAttachments(self, msg, spacer=""):
 			elif type == "audio":
 				current["performer"] = uhtml(current.get("performer", ""))
 				current["title"] = uhtml(current.get("title", ""))
-				current["url"] = VK_AUDIO_SEARCH % urllib.quote(str("%(artist)s %(title)s" % current))
+				current["url"] = VK_AUDIO_SEARCH_LINK % urllib.quote(str("%(artist)s %(title)s" % current))
 				current["time"] = current["duration"] / 60.0
 				body += "Audio: %(artist)s — “%(title)s“ (%(time)s min) — %(url)s" % current
 
@@ -78,7 +80,7 @@ def parseAttachments(self, msg, spacer=""):
 				current["name"] = self.vk.getUserData(current["from_id"])["name"]  # TODO: What if it's a community? from_id will be negative.
 				# TODO: Remove "[idxxx|Name]," from the text
 				current["text"] = uhtml(current["text"].replace("\n", "\n" + spacer))
-				current["url"] = "https://vk.com/feed?w=wall%(owner_id)s_%(post_id)s" % current
+				current["url"] = WALL_LINK % current
 				body += "Commentary to the post on a wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current
 				body += spacer + "Post URL: %(url)s" % current
