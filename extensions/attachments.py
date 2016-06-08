@@ -5,7 +5,9 @@
 import urllib
 from printer import *
 
-VK_AUDIO_SEARCH = "https://vk.com/search?c[q]=%s&c[section]=audio"
+VK_AUDIO_SEARCH_LINK = "https://vk.com/search?c[q]=%s&c[section]=audio"
+WALL_LINK = "https://vk.com/wall%(to_id)s_%(id)s"
+
 
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
 
@@ -15,7 +17,7 @@ SIMPLE_ATTACHMENTS = {"doc": "Document: “%(title)s” — %(url)s",
 	"link": "URL: %(title)s — %(url)s",
 	"poll": "Poll: %(question)s",
 	"page": "Page: %(title)s — %(view_url)s",
-	"video": "Video: %(title)s (%(description)s, %(views)d views) — https://vk.com/video%(owner_id)s_%(vid)s"}  # TODO: Add duration
+	"video": "Video: %(title)s (%(description)s, %(views)d views) — https://vk.com/video%(owner_id)s_%(vid)s"}  # TODO: Add duration & fix empty desc
 
 
 def parseAttachments(self, msg, spacer=""):
@@ -49,9 +51,10 @@ def parseAttachments(self, msg, spacer=""):
 						name = "“%s”" % self.vk.getGroupData(tid)["name"]
 					body += "Post on %s wall:\n" % name
 					if current.get("text"):
-						body += spacer + uhtml(current["text"].replace("\n", "\n" + spacer)) + "\n"
-					body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
-				body += spacer + ("Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s" % current)
+						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"])) + "\n"
+					if current.get("attachments"):
+						body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
+				body += spacer + ("Wall: %s" % WALL_LINK % current)
 
 			elif type == "photo":
 				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
@@ -63,7 +66,7 @@ def parseAttachments(self, msg, spacer=""):
 			elif type == "audio":
 				current["performer"] = uhtml(current.get("performer", ""))
 				current["title"] = uhtml(current.get("title", ""))
-				current["url"] = VK_AUDIO_SEARCH % urllib.quote(str("%(artist)s %(title)s" % current))
+				current["url"] = VK_AUDIO_SEARCH_LINK % urllib.quote(str("%(artist)s %(title)s" % current))
 				current["time"] = current["duration"] / 60.0
 				body += "Audio: %(artist)s — “%(title)s“ (%(time)s min) — %(url)s" % current
 
@@ -75,12 +78,12 @@ def parseAttachments(self, msg, spacer=""):
 						break
 
 			elif type == "wall_reply":
-				# current["name"] = self.vk.getUserData(current["from_id"])["name"]  # TODO: What if it's a community? from_id will be negative.
+				# TODO: What if it's a community? from_id will be negative.
 				# TODO: Remove "[idxxx|Name]," from the text
 				current["name"] = self.vk.getUserData(current["uid"])["name"]
 				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
-				# current["text"] = uhtml(current["text"].replace("\n", "\n" + spacer))
-				current["url"] = "https://vk.com/feed?w=wall%(owner_id)s_%(post_id)s" % current
+				current["url"] = WALL_LINK % current
+
 				body += "Commentary to the post on a wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current
 				body += spacer + "Post URL: %(url)s" % current
