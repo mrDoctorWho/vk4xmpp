@@ -17,7 +17,7 @@ def parseForwardedMessages(self, msg, depth=0):
 		body += _("Forwarded messages:")
 		fwd_messages = sorted(msg["fwd_messages"], sortMsg)
 		for fwd in fwd_messages:
-			source = fwd["user_id"]
+			source = fwd["uid"]
 			date = fwd["date"]
 			fwdBody = escape("", uhtml(compile_eol.sub("\n" + spacer + BASE_SPACER, fwd["body"])))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")

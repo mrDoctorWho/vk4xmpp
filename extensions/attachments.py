@@ -15,7 +15,7 @@ SIMPLE_ATTACHMENTS = {"doc": "Document: “%(title)s” — %(url)s",
 	"link": "URL: %(title)s — %(url)s",
 	"poll": "Poll: %(question)s",
 	"page": "Page: %(title)s — %(view_url)s",
-	"video": "Video: %(title)s (%(description)s, %(views)d views) — https://vk.com/video%(owner_id)s_%(id)s"}  # TODO: Add duration
+	"video": "Video: %(title)s (%(description)s, %(views)d views) — https://vk.com/video%(owner_id)s_%(vid)s"}  # TODO: Add duration
 
 
 def parseAttachments(self, msg, spacer=""):
@@ -54,7 +54,7 @@ def parseAttachments(self, msg, spacer=""):
 				body += spacer + ("Wall: https://vk.com/feed?w=wall%(to_id)s_%(id)s" % current)
 
 			elif type == "photo":
-				keys = ("photo_2560", "photo_1280", "photo_807", "photo_604", "photo_130", "photo_75")
+				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 				for key in keys:
 					if key in current:
 						body += "Photo: %s" % current[key]  # No new line needed if we have just one photo and no text
@@ -75,9 +75,11 @@ def parseAttachments(self, msg, spacer=""):
 						break
 
 			elif type == "wall_reply":
-				current["name"] = self.vk.getUserData(current["from_id"])["name"]  # TODO: What if it's a community? from_id will be negative.
+				# current["name"] = self.vk.getUserData(current["from_id"])["name"]  # TODO: What if it's a community? from_id will be negative.
 				# TODO: Remove "[idxxx|Name]," from the text
-				current["text"] = uhtml(current["text"].replace("\n", "\n" + spacer))
+				current["name"] = self.vk.getUserData(current["uid"])["name"]
+				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
+				# current["text"] = uhtml(current["text"].replace("\n", "\n" + spacer))
 				current["url"] = "https://vk.com/feed?w=wall%(owner_id)s_%(post_id)s" % current
 				body += "Commentary to the post on a wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current

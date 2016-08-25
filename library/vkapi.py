@@ -1,5 +1,5 @@
 # coding: utf-8
-# © simpleApps, 2013 — 2015.
+# © simpleApps, 2013 — 2016.
 
 """
 Manages VK API requests
@@ -309,7 +309,7 @@ class APIBinding(RequestProcessor):
 		values = values or {}
 		if not notoken:
 			values["access_token"] = self.token
-		values["v"] = "5.42"
+		values["v"] = "3.0"
 
 		if "key" in self.captcha:
 			values["captcha_sid"] = self.captcha["sid"]

@@ -216,7 +216,7 @@ badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars),
 	re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 
-sortMsg = lambda first, second: first.get("id", 0) - second.get("id", 0)
+sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
 findUserInDB = lambda source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
@@ -334,7 +334,7 @@ class VK(object):
 			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
 					sendMessage(self.source,
-						vk2xmpp(args.get("user_id", TransportID)),
+						vk2xmpp(args.get("uid", TransportID)),
 						_("You're not allowed to perform this action."))
 
 			except api.VkApiError as e:
@@ -389,8 +389,8 @@ class VK(object):
 		fields = fields or self.friends_fields
 		raw = self.method("friends.get", {"fields": str.join(",", fields)})
 		friends = {}
-		for friend in raw.get("items", {}):
-			uid = friend["id"]
+		for friend in raw:
+			uid = friend["uid"]
 			online = friend["online"]
 			name = self.formatName(friend)
 			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
@@ -429,7 +429,7 @@ class VK(object):
 			The current user id
 		"""
 		if not self.userID:
-			self.userID = self.method("execute.getUserID_new")
+			self.userID = self.method("execute.getUserID")
 		return self.userID
 
 	@utils.cache
@@ -653,15 +653,15 @@ class User(object):
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(200, self.lastMsgID).get("items")
-			if not messages:
+				messages = self.vk.getMessages(200, self.lastMsgID)
+			if not messages:  # or not messages[0]:
 				return None
-			messages = sorted(messages, sortMsg)
+			messages = sorted(messages[1:], sortMsg)
 			for message in messages:
 				# If message wasn't sent by our user
 				if not message["out"]:
 					Stats["msgin"] += 1
-					fromjid = vk2xmpp(message["user_id"])
+					fromjid = vk2xmpp(message["uid"])
 					body = uhtml(message["body"])
 					iter = Handlers["msg01"].__iter__()
 					for func in iter:
@@ -682,7 +682,7 @@ class User(object):
 							date = message["date"]
 						sendMessage(self.source, fromjid, escape("", body), date)
 		if messages:
-			self.lastMsgID = messages[-1]["id"]
+			self.lastMsgID = messages[-1]["mid"]
 			runDatabaseQuery("update users set lastMsgID=? where jid=?",
 				(self.lastMsgID, self.source), True)
 
@@ -729,15 +729,16 @@ class User(object):
 			if DEBUG_POLL:
 				logger.debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)", typ, str(evt), self.source)
 
+			# TODO: Make flags and types a constant
 			if typ == 4:  # new message
 				if len(evt) == 7:
 					message = None
 					mid, flags, uid, date, subject, body, attachments = evt
 					out = flags & 2 == 2
-					chat = uid > 2000000000  # a groupchat always has uid > 2000000000
+					chat = (flags & 16 == 16) or (uid > 2000000000)  # a groupchat always has uid > 2000000000
 					if not out:
 						if not attachments and not chat:
-							message = [{"out": 0, "user_id": uid, "id": mid, "date": date, "body": body}]
+							message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
 						utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
 				else:
 					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)

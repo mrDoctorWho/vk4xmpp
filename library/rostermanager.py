@@ -6,7 +6,7 @@ from __main__ import *
 from __main__ import _
 
 # Finds list name by id
-findListByID = lambda id, list: [key for key in list if key["id"] == id]
+findListByID = lambda id, list: [key for key in list if key["lid"] == id]
 RosterSemaphore = threading.Semaphore()
 
 
@@ -35,7 +35,7 @@ class Roster:
 		for uid, value in dist.iteritems():
 			item = cls.getNode(vk2xmpp(uid), value["name"], action)
 			if lists and value["lists"]:
-				list = findListByID(value["lists"][0], lists["items"])
+				list = findListByID(value["lists"][0], lists)
 				if list:
 					item.setTagData("group", list[0]["name"])
 			items.append(item)

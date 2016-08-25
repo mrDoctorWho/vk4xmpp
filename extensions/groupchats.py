@@ -151,7 +151,7 @@ def handleOutgoingChatMessage(self, vkChat):
 		else:
 			chat = self.chats[chatJID]
 		if not chat.initialized:
-			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"])
+			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
 		if not chat.created:
 			if chat.creation_failed:
 				return None
@@ -254,7 +254,7 @@ class Chat(object):
 		Updates chat users and sends messages
 		Uses two users list to prevent losing anyone
 		"""
-		all_users = vkChat["chat_active"]
+		all_users = vkChat["chat_active"].split(",")
 		all_users = [int(user) for user in all_users if user]
 		if userObject.settings.show_all_chat_users:
 			users = self.getVKChat(userObject, self.id)
@@ -319,7 +319,7 @@ class Chat(object):
 				date = 0
 				if user.settings.force_vk_date_group:
 					date = vkChat["date"]
-				chatMessage(self.jid, body, vk2xmpp(vkChat["user_id"]), None, date)
+				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, date)
 		else:
 			source = "unknown"
 			userObject = self.getUserObject(self.jid)

@@ -93,8 +93,8 @@ def cache(func):
 			call = True
 		if call:
 			result = func(self, uid, fields)
-			if "id" in result:
-				del result["id"]
+			if "uid" in result:
+				del result["uid"]
 			if uid in self.cache:
 				self.cache[uid].update(result)
 			else:
