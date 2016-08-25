@@ -7,6 +7,7 @@ from printer import *
 
 VK_AUDIO_SEARCH_LINK = "https://vk.com/search?c[q]=%s&c[section]=audio"
 WALL_LINK = "https://vk.com/wall%(to_id)s_%(id)s"
+WALL_COMMENT_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s?w=wall%(owner_id)s3_%(post_id)s"
 
 
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
@@ -79,10 +80,10 @@ def parseAttachments(self, msg, spacer=""):
 
 			elif type == "wall_reply":
 				# TODO: What if it's a community? from_id will be negative.
-				# TODO: Remove "[idxxx|Name]," from the text
+				# TODO: Remove "[idxxx|Name]," from the text or make it a link if XHTML is allowed
 				current["name"] = self.vk.getUserData(current["uid"])["name"]
 				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
-				current["url"] = WALL_LINK % current
+				current["url"] = WALL_COMMENT_LINK % current
 
 				body += "Commentary to the post on a wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current
