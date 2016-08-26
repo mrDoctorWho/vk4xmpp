@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2015.
+# © simpleApps, 2013 — 2016.
 
 """
 Module purpose is to handle presences from groupchats
@@ -13,6 +13,9 @@ from __main__ import _
 def handleChatErrors(source, prs):
 	"""
 	Handles error presences from groupchats
+	Args:
+		source: the source jid
+		prs: the xmpp.Presence object
 	"""
 	# todo: leave on 401, 403, 405
 	# and rejoin timer on 404, 503
@@ -21,7 +24,6 @@ def handleChatErrors(source, prs):
 	status = prs.getStatusCode()
 	nick = prs.getFrom().getResource()
 	jid = prs.getJid()
-	user = None
 	errorType = prs.getTagAttr("error", "type")
 	user = Chat.getUserObject(source)
 	if user and source in getattr(user, "chats", {}):
@@ -44,7 +46,7 @@ def handleChatErrors(source, prs):
 				chat.owner_nickname = prs.getNick()
 				runDatabaseQuery("update groupchats where jid=? set nick=?",
 					(source, chat.owner_nickname), set=True)
-		else:
+		elif error or status:
 			logger.debug("groupchats: presence error (error #%s, status #%s)"
 				"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
 	raise xmpp.NodeProcessed()
@@ -52,8 +54,8 @@ def handleChatErrors(source, prs):
 
 def handleChatPresences(source, prs):
 	"""
-	Makes old users leave
-	Parameters:
+	Makes the old users leave
+	Args:
 		* source: stanza source
 		* prs: xmpp.Presence object
 	"""
@@ -85,6 +87,12 @@ def handleChatPresences(source, prs):
 
 @utils.safe
 def presence_handler(cl, prs):
+	"""
+	xmpppy presence callback
+	Args:
+		cl: the xmpp.Client object
+		prs: the xmpp.Presence object
+	"""
 	source = prs.getFrom().getStripped()
 	status = prs.getStatus()
 	if status or prs.getType() == "error":

@@ -1,6 +1,6 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2015.
+# © simpleApps, 2013 — 2016.
 
 import urllib
 from printer import *
