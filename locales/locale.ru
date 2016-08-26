@@ -1,4 +1,4 @@
-WARNING: VK sent captcha to you. Please, go to %s and enter text from image to chat. Example: !captcha my_captcha_key. Tnx=Внимание! ВКонтакте отправил Вам капчу. Пожалуйста, перейдите по ссылке %s и введите текст с картинки сюда. Пример: !captcha ключ.
+WARNING: VK has sent you a CAPTCHA. Please, follow the link: %s and enter the text shown on the image to the chat. Example: !captcha my_captcha_key.\nWarning: don't use Firefox to open the link.=Внимание! ВКонтакте отправил Вам капчу. Пожалуйста, перейдите по ссылке %s и введите текст с картинки сюда. Пример: !captcha ключ.\nВнимание: не используйте браузер Firefox для открытия ссылки.
 Captcha valid.=Капча введена верно.
 Captcha invalid.=Капча введена неверно.
 Not now. Ok?=Не сейчас.

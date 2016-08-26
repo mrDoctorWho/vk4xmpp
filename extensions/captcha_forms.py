@@ -11,8 +11,9 @@ Implements XEP-0158: CAPTCHA Forms
 def sendCaptcha(user, url):
 	logger.debug("VK: sending message with captcha to %s", user.source)
 	body = _("WARNING: VK has sent you a CAPTCHA."
-		" Please, follow %s and enter the text shown on the image to the chat."
-		" Example: !captcha my_captcha_key. Tnx") % url
+		" Please, follow the link: %s and enter the text shown on the image to the chat."
+		" Example: !captcha my_captcha_key."
+		"\nWarning: don't use Firefox to open the link.") % url
 	msg = xmpp.Message(user.source, body, "chat", frm=TransportID)
 	x = msg.setTag("x", namespace=xmpp.NS_OOB)
 	x.setTagData("url", url)
