@@ -8,6 +8,7 @@ from hashlib import sha1
 Implements XEP-0158: CAPTCHA Forms
 """
 
+
 def sendCaptcha(user, url):
 	logger.debug("VK: sending message with captcha to %s", user.source)
 	body = _("WARNING: VK has sent you a CAPTCHA."
@@ -15,6 +16,7 @@ def sendCaptcha(user, url):
 		" Example: !captcha my_captcha_key."
 		"\nWarning: don't use Firefox to open the link.") % url
 	msg = xmpp.Message(user.source, body, "chat", frm=TransportID)
+	msg.setID(user.vk.engine.captcha["sid"])
 	x = msg.setTag("x", namespace=xmpp.NS_OOB)
 	x.setTagData("url", url)
 	captcha = msg.setTag("captcha", namespace=xmpp.NS_CAPTCHA)
@@ -22,17 +24,20 @@ def sendCaptcha(user, url):
 	if image:
 		hash = sha1(image).hexdigest()
 		encoded = image.encode("base64")
-		form = utils.buildDataForm(type="form", fields=[{"var": "FORM_TYPE", "value": xmpp.NS_CAPTCHA, "type": "hidden"},
+		form = utils.buildDataForm(type="form", fields=[
+			{"var": "FORM_TYPE", "value": xmpp.NS_CAPTCHA, "type": "hidden"},
 			{"var": "from", "value": TransportID, "type": "hidden"},
+			{"var": "challenge", "value": msg.getID(), "type": "hidden"},
 			{"var": "ocr", "label": _("Enter shown text"),
 			"payload": [xmpp.Node("required"),
-				xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},
-					[xmpp.Node("uri", {"type": "image/jpg"},
-						["cid:sha1+%s@bob.xmpp.org" % hash]
-						)
-					])
-				]}
-			])
+						xmpp.Node("media", {"xmlns": xmpp.NS_MEDIA},
+								[xmpp.Node("uri", {"type": "image/jpg"},
+											["cid:sha1+%s@bob.xmpp.org" % hash]
+											)
+									])
+						]}
+			]
+		)
 		captcha.addChild(node=form)
 		oob = msg.setTag("data", {"cid": "sha1+%s@bob.xmpp.org" % hash, "type": "image/jpg", "max-age": "0"}, xmpp.NS_URN_OOB)
 		oob.setData(encoded)
