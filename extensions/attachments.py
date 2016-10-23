@@ -51,8 +51,8 @@ def parseAttachments(self, msg, spacer=""):
 					else:
 						name = "“%s”" % self.vk.getGroupData(tid)["name"]
 					body += "Post on %s wall:\n" % name
-					if current.get("text"):
-						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"])) + "\n"
+					if current.get("text") or current.get("copy_text"):
+						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"] or current.get("copy_text"))) + "\n"
 					if current.get("attachments"):
 						body += spacer + parseAttachments(self, current, spacer) + "\n" + spacer + "\n"
 				body += spacer + ("Wall: %s" % WALL_LINK % current)
