@@ -738,7 +738,7 @@ class User(object):
 					chat = (flags & 16 == 16) or (uid > 2000000000)  # a groupchat always has uid > 2000000000
 					if not out:
 						if not attachments and not chat:
-							message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
+							message = [1, {"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
 						utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
 				else:
 					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)
