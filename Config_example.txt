@@ -72,19 +72,19 @@ URL_VCARD_NO_IMAGE = "https://raw.githubusercontent.com/mrDoctorWho/vk4xmpp/mast
 THREAD_STACK_SIZE = 0
 
 # Database file (anything you like).
-DatabaseFile = "/var/lib/vk4xmpp/vk4xmpp.db"
+DatabaseFile = "vk4xmpp.sqlite"
 
 # File to store PID in.
-pidFile = "/run/vk4xmpp/vk4xmpp.pid"
+pidFile = "vk4xmpp.pid"
 
 # Log file.
-logFile = "/var/log/vk4xmpp/vk4xmpp.log"
+logFile = "vk4xmpp.log"
 
 # Directory where transport will write crash logs.
-crashDir = "/var/log/vk4xmpp/crash"
+crashDir = "crash"
 
 # Directory for users settings.
-settingsDir = "/var/lib/vk4xmpp/settings"
+settingsDir = "settings"
 
 # Stanza send interval (in seconds).
 STANZA_SEND_INTERVAL = 0.03125

@@ -311,8 +311,7 @@ class VK(object):
 		"""
 		if not self.pollInitialized:
 			raise api.LongPollError("The Poll wasn't initialized yet")
-		opener = api.AsyncHTTPRequest.getOpener(self.pollServer, self.pollConfig)
-		return opener
+		return api.AsyncHTTPRequest.getOpener(self.pollServer, self.pollConfig)
 
 	def method(self, method, args=None, force=False, notoken=False):
 		"""

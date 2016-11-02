@@ -1,12 +1,12 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2015.
+# © simpleApps, 2015 — 2016.
 
 """
 Provides a way to manage user's and transport's settings
 """
 
-__author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
+__author__ = "John Smith <mrdoctorwho@gmail.com>"
 
 from __main__ import settingsDir, rFile, wFile
 from copy import deepcopy
@@ -19,8 +19,8 @@ GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online",
 						"use_nicknames": {"label": "Use nicknames instead of real names", 
 										"value": 0}}
 
-TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from " \
-												"friends when user logs off",
+TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "
+												"friends when a user logs off",
 												"value": 0}}
 
 
@@ -38,7 +38,7 @@ class Settings(object):
 			self.settings = deepcopy(GLOBAL_USER_SETTINGS)
 		else:
 			self.settings = TRANSPORT_SETTINGS
-		userSettings = eval(rFile(self.filename)) or {}
+		userSettings = eval(rFile(self.filename)) or {}  # TODO: json
 		for key, values in userSettings.iteritems():
 			if key in self.settings:
 				self.settings[key]["value"] = values["value"]
@@ -62,10 +62,7 @@ class Settings(object):
 			return self.settings[attr]["value"]
 		elif not hasattr(self, attr):
 			return False
-		elif not self.settings.has_key(attr):
-			return False
-		else:
-			return object.__getattribute__(self, attr)
+		return object.__getattribute__(self, attr)
 
 	def exterminate(self):
 		"""

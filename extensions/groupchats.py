@@ -144,7 +144,7 @@ def handleOutgoingChatMessage(user, vkChat):
 
 		# TODO: make this happen in the kernel, so we don't need to check it here
 		if not user.vk.userID:
-			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % self.source)
+			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % user.source)
 			user.vk.getUserID()
 			utils.runThread(handleOutgoingChatMessage, (user, vkChat), delay=10)
 			return None
@@ -164,7 +164,7 @@ def handleOutgoingChatMessage(user, vkChat):
 		if not chat.created:
 			if chat.creation_failed:
 				return None
-			# we can add self, vkChat to the create() function to prevent losing or messing up the messages
+			# we can add user, vkChat to the create() function to prevent losing or messing up the messages
 			chat.create(user)
 		# read the comments above the handleMessage function
 		if not chat.created:

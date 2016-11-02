@@ -1,11 +1,8 @@
 # coding: utf-8
-# © simpleApps, 2014 — 2015.
+# © simpleApps, 2014 — 2016.
 
-# Big THANKS to AlKogrun who made it possible
-# to write a single-threaded longpoll client
-
-__authors__ = ("AlKorgun <alkorgun@gmail.com>", "mrDoctorWho <mrdoctorwho@gmail.com>")
-__version__ = "2.2.1"
+__authors__ = ("Al Korgun <alkorgun@gmail.com>", "John Smith <mrdoctorwho@gmail.com>")
+__version__ = "2.2.2"
 __license__ = "MIT"
 
 """
@@ -24,6 +21,7 @@ LONGPOLL_RETRY_COUNT = 10
 LONGPOLL_RETRY_TIMEOUT = 10
 
 
+# TODO: make it an abstract, to reuse in Steampunk
 class Poll(object):
 	"""
 	Class used to handle longpoll
@@ -31,6 +29,7 @@ class Poll(object):
 	__list = {}
 	__buff = set()
 	__lock = threading.Lock()
+	clear = staticmethod(__list.clear)
 
 	@classmethod
 	def __add(cls, user):
@@ -39,24 +38,18 @@ class Poll(object):
 		Adds user in buffer on error occurred
 		Adds user in self.__list if no errors
 		"""
-		if DEBUG_POLL:
-			logger.debug("longpoll: really adding user to poll (jid: %s)", user.source)
-		opener = user.vk.makePoll()
-		if DEBUG_POLL:
-			logger.debug("longpoll: user has been added to poll (jid: %s)", user.source)
-		cls.__list[opener.sock] = (user, opener)
-		return opener
-
-	@classmethod
-	def __addToBuff(cls, user):
-		"""
-		Adds user to the list of "bad" users
-		The list is mostly contain users whose poll
-			request was failed for some reasons
-		"""
-		cls.__buff.add(user)
-		logger.debug("longpoll: adding user to the init buffer (jid: %s)", user.source)
-		utils.runThread(cls.__initPoll, (user,), "__initPoll-%s" % user.source)
+		if user.source in Transport:
+			# in case the new instance was created
+			user = Transport[user.source]
+			opener = user.vk.makePoll()
+			if DEBUG_POLL:
+				logger.debug("longpoll: user has been added to poll (jid: %s)", user.source)
+			if opener:
+				cls.__list[opener.sock] = (user, opener)
+				return opener
+			logger.warning("longpoll: got null opener! (jid: %s)", user.source)
+			cls.__addToBuffer(user)
+			return None
 
 	@classmethod
 	def add(cls, some_user):
@@ -68,52 +61,77 @@ class Poll(object):
 		with cls.__lock:
 			if some_user in cls.__buff:
 				return None
+			# check if someone tries to add an already existing user
 			for sock, (user, opener) in cls.__list.iteritems():
 				if some_user == user:
 					break
 			else:
 				try:
 					cls.__add(some_user)
-				except Exception as e:
-					if not isinstance(e, api.LongPollError):
-						crashLog("poll.add")
+				except api.LongPollError:
 					logger.error("longpoll: failed to make poll (jid: %s)", some_user.source)
-					cls.__addToBuff(some_user)
-
-	clear = staticmethod(__list.clear)
+					cls.__addToBuffer(some_user)
+				except Exception:
+					crashLog("poll.add")
 
 	@classmethod
-	def __initPoll(cls, user):
+	def __addToBuffer(cls, user):
 		"""
-		Tries to reinitialize poll if needed in 10 times (each 10 seconds)
-		As soon as poll initialized user will be removed from buffer
+		Adds user to the list of "bad" users
+		The list is mostly contain users whose poll
+			request was failed for some reasons
+		Args:
+			user: the user object
 		"""
-		for x in xrange(LONGPOLL_RETRY_COUNT):
-			if user.source not in Transport:
+		cls.__buff.add(user)
+		logger.debug("longpoll: adding user to the init buffer (jid: %s)", user.source)
+		utils.runThread(cls.handleUser, (user,), "handleBuffer-%s" % user.source)
+
+	@classmethod
+	def __removeFromBuffer(cls, user):
+		"""
+		Instantly removes a user from the buffer
+		Args:
+			user: the user object
+		"""
+		if user in cls.__buff:
+			cls.__buff.remove(user)
+
+	@classmethod
+	def removeFromBuffer(cls, user):
+		"""
+		Removes a user from the buffer
+		Args:
+			user: the user object
+		"""
+		with cls.__lock:
+			cls.__removeFromBuffer(user)
+
+	@classmethod
+	def handleUser(cls, user):
+		"""
+		Tries to reinitialize poll for LONGPOLL_RETRY_COUNT every LONGPOLL_RETRY_TIMEOUT seconds
+		As soon as poll is initialized the user will be removed from buffer
+		Args:
+			user: the user object
+		"""
+		for i in xrange(LONGPOLL_RETRY_COUNT):
+			if user.source in Transport:
+				user = Transport[user.source]  # we  might have a new instance here
+				if user.vk.initPoll():
+					with cls.__lock:
+						logger.debug("longpoll: successfully initialized longpoll (jid: %s)", user.source)
+						cls.__add(user)
+						cls.__removeFromBuffer(user)
+					break
+			else:
 				logger.debug("longpoll: while we were wasting our time"
 					", the user has left (jid: %s)", user.source)
-				with cls.__lock:
-					if user in cls.__buff:
-						cls.__buff.remove(user)
+				cls.removeFromBuffer(user)
 				return None
-
-			if Transport[user.source].vk.initPoll():
-				with cls.__lock:
-					logger.debug("longpoll: successfully initialized longpoll"
-						" (jid: %s)", user.source)
-					if user not in cls.__buff:
-						return None
-					cls.__buff.remove(user)
-					# Check if user still in transport when we finally came down here
-					if user.source in Transport:
-						cls.__add(Transport[user.source])
-					break
 			time.sleep(LONGPOLL_RETRY_TIMEOUT)
 		else:
-			with cls.__lock:
-				if user not in cls.__buff:
-					return None
-				cls.__buff.remove(user)
+			cls.removeFromBuffer(user)
 			logger.error("longpoll: failed to add user to poll in 10 retries"
 				" (jid: %s)", user.source)
 
@@ -121,8 +139,7 @@ class Poll(object):
 	def process(cls):
 		"""
 		Processes poll sockets by select.select()
-		As soon as socket will be ready to be read
-			will be called user.processPollResult() function
+		As soon as socket will be ready for reading,  user.processPollResult() is called
 		Read processPollResult.__doc__ to learn more about status codes
 		"""
 		while ALIVE:
@@ -153,12 +170,8 @@ class Poll(object):
 					except KeyError:
 						continue
 
-					# Check if user is still in the memory
+					# Update the user instance
 					user = Transport.get(user.source)
-					# Check if the user haven't left yet
-					if not hasattr(user, "vk") or not user.vk.online:
-						continue
-
 					utils.runThread(cls.processResult, (user, opener),
 						"poll.processResult-%s" % user.source)
 
@@ -191,4 +204,3 @@ class Poll(object):
 			user.vk.pollInitialized = False
 		cls.add(user)
 
- 
