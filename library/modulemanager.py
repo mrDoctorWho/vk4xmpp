@@ -47,7 +47,7 @@ def removeFeatures(features, list=TransportFeatures):
 			list.remove(feature)
 
 
-class ModuleManager:
+class ModuleManager(object):
 
 	"""
 	A complete module manager.

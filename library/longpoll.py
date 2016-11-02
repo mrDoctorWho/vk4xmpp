@@ -20,13 +20,17 @@ import socket
 import utils
 from __main__ import Transport, logger, ALIVE, DEBUG_POLL, crashLog
 
-class Poll:
+LONGPOLL_RETRY_COUNT = 10
+LONGPOLL_RETRY_TIMEOUT = 10
+
+
+class Poll(object):
 	"""
 	Class used to handle longpoll
 	"""
 	__list = {}
 	__buff = set()
-	__lock = threading._allocate_lock()
+	__lock = threading.Lock()
 
 	@classmethod
 	def __add(cls, user):
@@ -84,7 +88,7 @@ class Poll:
 		Tries to reinitialize poll if needed in 10 times (each 10 seconds)
 		As soon as poll initialized user will be removed from buffer
 		"""
-		for x in xrange(10):
+		for x in xrange(LONGPOLL_RETRY_COUNT):
 			if user.source not in Transport:
 				logger.debug("longpoll: while we were wasting our time"
 					", the user has left (jid: %s)", user.source)
@@ -104,7 +108,7 @@ class Poll:
 					if user.source in Transport:
 						cls.__add(Transport[user.source])
 					break
-			time.sleep(10)
+			time.sleep(LONGPOLL_RETRY_TIMEOUT)
 		else:
 			with cls.__lock:
 				if user not in cls.__buff:
@@ -126,10 +130,12 @@ class Poll:
 			if not socks:
 				time.sleep(0.02)
 				continue
+			# TODO: epoll()?
 			try:
 				ready, error = select.select(socks, [], socks, 2)[::2]
 			except (select.error, socket.error, socket.timeout) as e:
 				logger.error("longpoll: %s", e.message)
+				continue
 
 			for sock in error:
 				with cls.__lock:

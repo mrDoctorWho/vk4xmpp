@@ -94,6 +94,9 @@ def leaveChat(chat, jidFrom, reason=None):
 
 
 def chatMessage(chat, text, jidFrom, subj=None, timestamp=0):
+	"""
+	Sends a message to the chat
+	"""
 	message = xmpp.Message(chat, typ="groupchat")
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
@@ -126,40 +129,47 @@ def setChatConfig(chat, jidFrom, exterminate=False, cb=None, args={}):
 		query.addChild(node=form)
 	sender(Component, iq, cb, args)
 
-def handleOutgoingChatMessage(self, vkChat):
+
+def handleOutgoingChatMessage(user, vkChat):
 	"""
 	Handles outging VK messages and sends them to XMPP
 	"""
-	if vkChat.has_key("chat_id"):
-		if not self.settings.groupchats:
+	if "chat_id" in vkChat:
+		# check if the groupchats support enabled in user's settings
+		if not user.settings.groupchats:
 			return None
+
+		if not hasattr(user, "chats"):
+			user.chats = {}
+
+		# TODO: make this happen in the kernel, so we don't need to check it here
+		if not user.vk.userID:
+			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % self.source)
+			user.vk.getUserID()
+			utils.runThread(handleOutgoingChatMessage, (user, vkChat), delay=10)
+			return None
+
+
 		owner = vkChat.get("admin_id", "1")
 		chatID = vkChat["chat_id"]
-		chatJID = "%s_chat#%s@%s" % (self.vk.userID, chatID, ConferenceServer)
+		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
 
-		if not hasattr(self, "chats"):
-			self.chats = {}
-
-		if not self.vk.userID:
-			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % self.source)
-			self.vk.getUserID()
-			utils.runThread(handleOutgoingChatMessage, (self, vkChat), delay=10)
-			return None
-
-		if chatJID not in self.chats:
-			chat = self.chats[chatJID] = Chat()
+		if chatJID not in user.chats:
+			chat = user.chats[chatJID] = Chat()
 		else:
-			chat = self.chats[chatJID]
+			chat = user.chats[chatJID]
+
 		if not chat.initialized:
 			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
 		if not chat.created:
 			if chat.creation_failed:
 				return None
-			chat.create(self)  # we can add self, vkChat to the create() function to prevent losing or messing up the messages
+			# we can add self, vkChat to the create() function to prevent losing or messing up the messages
+			chat.create(user)
 		# read the comments above the handleMessage function
 		if not chat.created:
 			time.sleep(1.5)
-		chat.handleMessage(self, vkChat)
+		chat.handleMessage(user, vkChat)
 		return None
 	return ""
 
@@ -175,6 +185,13 @@ class Chat(object):
 		self.exists = False
 		self.owner_nickname = None
 		self.creation_failed = False
+		self.id = 0
+		self.jid = None
+		self.owner = None
+		self.topic = None
+		self.creation_date = None
+		self.creation_failed = False
+		self.raw_users = {}
 		self.users = {}
 
 	def init(self, owner, id, jid, topic, date, users=[]):
@@ -403,7 +420,6 @@ def exterminateChats(user=None, chats=[]):
 
 	if user:
 		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,))
-		source = user.source
 		userChats = getattr(user, "chats", {})
 	else:
 		userChats = []

@@ -9,6 +9,7 @@ if not require("attachments"):
 
 BASE_SPACER = chr(32) + unichr(183) + chr(32)
 
+
 def parseForwardedMessages(self, msg, depth=0):
 	body = ""
 	if msg.has_key("fwd_messages"):

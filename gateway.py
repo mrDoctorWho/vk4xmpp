@@ -249,7 +249,8 @@ class VK(object):
 		self.userID = 0
 		self.methods = 0
 		self.lists = []
-		self.friends_fields = set(["screen_name"])
+		self.friends_fields = {"screen_name"}
+		self.engine = None
 		self.cache = {}
 		logger.debug("VK initialized (jid: %s)", source)
 
@@ -301,6 +302,7 @@ class VK(object):
 		self.pollInitialized = True
 		return True
 
+	# TODO: move it the hell outta here
 	def makePoll(self):
 		"""
 		Returns:
@@ -384,6 +386,13 @@ class VK(object):
 
 	@staticmethod
 	def formatName(data):
+		"""
+		Extracts a string name from a user object
+		Args:
+			user: a VK user object which is a dict with the first_name and last_name keys
+		Returns:
+			User's first and last name
+		"""
 		name = escape("", "%(first_name)s %(last_name)s" % data)
 		del data["first_name"]
 		del data["last_name"]
@@ -413,6 +422,8 @@ class VK(object):
 	def getLists(self):
 		"""
 		Receive the list of the user friends' groups
+		Returns:
+ 			a list of user friends groups
 		"""
 		if not self.lists:
 			self.lists = self.method("friends.getLists")
@@ -700,11 +711,14 @@ class User(object):
 
 	def processPollResult(self, opener):
 		"""
-		Processes poll result
+		Processes a poll result
+		Decides whether to send a chat/groupchat message or presence or just pass the iteration
+		Args:
+			opener: the vkapi.AsyncHTTPRequest object
 		Returns:
-			0 if need to reinit poll (add user to the poll buffer)
-			1 if all is fine (request again)
-			-1 just pass the iteration
+			0 if poll re-initialization required (need to add user to the poll init buffer)
+			1 if all is fine
+			-1 just pass this iteration
 		"""
 		if DEBUG_POLL:
 			logger.debug("longpoll: processing result (jid: %s)", self.source)
@@ -772,6 +786,8 @@ class User(object):
 		"""
 		Sends "paused" message event to stop user from composing a message
 		Sends only if last typing activity in VK was more than 7 seconds ago
+		Args:
+			cTime: current time
 		"""
 		for user, last in self.typing.items():
 			if cTime - last > 7:
@@ -815,6 +831,8 @@ class User(object):
 	def captchaChallenge(self, key):
 		"""
 		Sets the captcha key and sends it to VK
+		Args:
+			key: the captcha text
 		"""
 		engine = self.vk.engine
 		engine.captcha["key"] = key

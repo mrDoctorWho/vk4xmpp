@@ -8,10 +8,10 @@ from printer import *
 VK_AUDIO_SEARCH_LINK = "https://vk.com/search?c[q]=%s&c[section]=audio"
 WALL_LINK = "https://vk.com/wall%(to_id)s_%(id)s"
 WALL_COMMENT_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s?w=wall%(owner_id)s3_%(post_id)s"
-
+PHOTO_SIZES = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
+STICKER_SIZES = ("photo_256", "photo_128", "photo_64")
 
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
-
 
 # The attachments that don't require any special movements
 SIMPLE_ATTACHMENTS = {"doc": "Document: “%(title)s” — %(url)s",
@@ -58,8 +58,7 @@ def parseAttachments(self, msg, spacer=""):
 				body += spacer + ("Wall: %s" % WALL_LINK % current)
 
 			elif type == "photo":
-				keys = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
-				for key in keys:
+				for key in PHOTO_SIZES:
 					if key in current:
 						body += "Photo: %s" % current[key]  # No new line needed if we have just one photo and no text
 						break
@@ -72,8 +71,7 @@ def parseAttachments(self, msg, spacer=""):
 				body += "Audio: %(artist)s — “%(title)s“ (%(time)s min) — %(url)s" % current
 
 			elif type == "sticker":
-				keys = ("photo_256", "photo_128", "photo_64")
-				for key in keys:
+				for key in STICKER_SIZES:
 					if key in current:
 						body += "Sticker: %s" % current[key]
 						break
