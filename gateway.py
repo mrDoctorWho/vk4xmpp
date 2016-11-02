@@ -36,7 +36,8 @@ if core:
 
 sys.path.insert(0, "library")
 sys.path.insert(1, "modules")
-reload(sys).setdefaultencoding("utf-8")
+reload(sys)
+sys.setdefaultencoding("utf-8")
 
 # Now we can import our own modules
 import xmpp
@@ -60,6 +61,17 @@ Daemon = args.daemon
 Config = args.config
 
 startTime = int(time.time())
+
+
+# not really required to be none, but the debugger requires them to be defined
+# and, come on, this is much better, isn't it?
+DatabaseFile = None
+TransportID = None
+Host = None
+Server = None
+Port = None
+Password = None
+
 
 execfile(Config)
 Print("#-# Config loaded successfully.")
@@ -700,7 +712,6 @@ class User(object):
 		if self.vk.engine.captcha:
 			return -1
 
-		data = None
 		try:
 			data = opener.read()
 		except (httplib.BadStatusLine, socket.error, socket.timeout) as e:

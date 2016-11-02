@@ -7,7 +7,6 @@ Contains useful functions which used across the modules
 """
 
 import threading
-import time
 import xmpp
 import urllib
 from socket import error

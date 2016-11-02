@@ -182,7 +182,7 @@ class Poll:
 		# then makePoll() will raise an exception
 		# by doing that, we force user's poll reinitialization
 		if not result:
-			user.vk.pollInitialzed = False
+			user.vk.pollInitialized = False
 		cls.add(user)
 
  
