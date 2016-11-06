@@ -172,8 +172,9 @@ class Poll(object):
 
 					# Update the user instance
 					user = Transport.get(user.source)
-					utils.runThread(cls.processResult, (user, opener),
-						"poll.processResult-%s" % user.source)
+					if user:
+						utils.runThread(cls.processResult, (user, opener),
+							"poll.processResult-%s" % user.source)
 
 			with cls.__lock:
 				for sock, (user, opener) in cls.__list.items():
