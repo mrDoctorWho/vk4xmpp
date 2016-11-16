@@ -381,7 +381,19 @@ class VK(object):
 		self.online = False
 		logger.debug("VK: user %s has left", self.source)
 		executeHandlers("evt06", (self,))
+		self.setOffline()
+
+	def setOffline(self):
+		"""
+		Sets the user status to offline
+		"""
 		self.method("account.setOffline")
+
+	def setOnline(self):
+		"""
+		Sets the user status to online
+		"""
+		self.method("account.setOnline")
 
 	@staticmethod
 	def formatName(data):
@@ -397,6 +409,7 @@ class VK(object):
 		del data["last_name"]
 		return name
 
+
 	def getFriends(self, fields=None):
 		"""
 		Executes the friends.get method and formats it in the key-value style
@@ -407,7 +420,7 @@ class VK(object):
 		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
-		raw = self.method("friends.get", {"fields": str.join(",", fields)})
+		raw = self.method("friends.get", {"fields": str.join(",", fields)}) or {}
 		friends = {}
 		for friend in raw:
 			uid = friend["uid"]
@@ -801,7 +814,9 @@ class User(object):
 		"""
 		if (cTime - self.last_udate) > 300 and not self.vk.engine.captcha:
 			if self.settings.keep_online:
-				self.vk.method("account.setOnline")
+				self.vk.setOnline()
+			else:
+				self.vk.setOffline()
 			self.last_udate = cTime
 			friends = self.vk.getFriends()
 			if not friends:
