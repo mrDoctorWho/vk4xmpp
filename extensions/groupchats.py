@@ -26,6 +26,8 @@ mod_groupchat_prs for presence handling
 mod_groupchat_msg for message handling
 """
 
+MAX_UPDATE_DELAY = 3600
+
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
 
@@ -193,6 +195,7 @@ class Chat(object):
 		self.creation_failed = False
 		self.raw_users = {}
 		self.users = {}
+		self.last_update = 0
 
 	def init(self, owner, id, jid, topic, date, users=[]):
 		"""
@@ -348,6 +351,19 @@ class Chat(object):
 				# TODO: We repeat it twice on each message. We shouldn't.
 				self.handleMessage(user, vkChat, False)
 
+	def isUpdateRequired(self):
+		"""
+		Tells whether it's required to update the chat's last_used time
+		Returns:
+			True if required
+		"""
+		if not self.last_update:
+			return True
+		if (time.time() - self.last_update) > MAX_UPDATE_DELAY:
+			return True
+		return False
+
+
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
 		"""
@@ -397,11 +413,29 @@ class Chat(object):
 
 
 def createFakeChat(user, source):
+	"""
+	Creates a fake chat to use it before we actually know that it exists
+	Args:
+		user: the User object
+		source: the chat's jid
+	"""
 	if not hasattr(user, "chats"):
 		user.chats = {}
 	if source not in user.chats:
 		user.chats[source] = chat = Chat()
 		chat.invited = True  # the user has joined themselves and we don't need to intvite them
+	else:
+		chat = user.chats[source]
+	return chat
+
+
+def updateLastUsed(chat):
+	"""
+	Updates the last_used field in the database
+	Args:
+		chat: the Chat object
+	"""
+	runDatabaseQuery("update groupchats set last_used=? where jid=?", (time.time(), chat.source), set=True)
 
 
 def exterminateChats(user=None, chats=[]):
@@ -410,6 +444,13 @@ def exterminateChats(user=None, chats=[]):
 	The chats argument must be a list of tuples
 	"""
 	def exterminated(cl, stanza, jid):
+		"""
+		The callback that's being called when the stanza we sent's got an answer
+		Args:
+			cl: the xmpp.Client object
+			stanza: the result stanza
+			jid: the jid stanza's sent from (?)
+		"""
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)" % (chat, jid))

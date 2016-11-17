@@ -56,8 +56,8 @@ def handleChatPresences(source, prs):
 	"""
 	Makes the old users leave
 	Args:
-		* source: stanza source
-		* prs: xmpp.Presence object
+		source: stanza source
+		prs: xmpp.Presence object
 	"""
 	jid = prs.getJid() or ""
 	if "@" in jid:
@@ -76,6 +76,10 @@ def handleChatPresences(source, prs):
 					if jid != TransportID:
 						runDatabaseQuery("update groupchats set owner=? where jid=?", (source, jid), set=True)
 
+				if chat.isUpdateRequired():
+					updateLastUsed(chat)
+
+			# TODO: don't rewrite it every time we get a presence
 			if jid.split("/")[0] == user.source:
 				chat.owner_nickname = prs.getFrom().getResource()
 				runDatabaseQuery("update groupchats set nick=? where jid=? ", (chat.owner_nickname, source), set=True)

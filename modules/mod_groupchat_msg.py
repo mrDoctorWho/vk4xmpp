@@ -30,7 +30,6 @@ def incoming_message_handler(cl, msg):
 		if not msg.getTimestamp() and body and destination == TransportID:
 			user = Chat.getUserObject(source)
 			creator, id, domain = Chat.getParts(source)
-			send = False
 			owner_nickname = None
 			if user:
 				if source in getattr(user, "chats", {}):
@@ -43,7 +42,7 @@ def incoming_message_handler(cl, msg):
 				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
 				send = ((nick == owner_nickname and user.settings.tie_chat_to_nickname)
 					or user.settings.force_vk_date_group)
-				createFakeChat(user, source)
+				chat = createFakeChat(user, source)
 				if html and html.getTag("body"):
 					logger.debug("groupchats: fetched xhtml image (jid: %s)" % source)
 					try:
@@ -56,7 +55,8 @@ def incoming_message_handler(cl, msg):
 				if send:
 					with user.sync:
 						user.vk.sendMessage(body, id, "chat_id")
-					runDatabaseQuery("update groupchats set last_used=? where jid=?", (time.time(), source), set=True)
+					if chat.isUpdateRequired():
+						updateLastUsed(chat)
 					raise xmpp.NodeProcessed()
 
 
