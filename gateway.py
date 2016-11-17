@@ -126,6 +126,9 @@ Stats = {"msgin": 0,  # from vk
 		"method": 0}
 
 
+MAX_MESSAGES_PER_REQUEST = 200
+
+
 def runDatabaseQuery(query, args=(), set=False, many=True):
 	"""
 	Executes the given sql to the database
@@ -435,7 +438,7 @@ class VK(object):
 		"""
 		Receive the list of the user friends' groups
 		Returns:
- 			a list of user friends groups
+			a list of user friends groups
 		"""
 		if not self.lists:
 			self.lists = self.method("friends.getLists")
@@ -688,7 +691,7 @@ class User(object):
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(200, self.lastMsgID)
+				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, self.lastMsgID)
 			if not messages:  # or not messages[0]:
 				return None
 			messages = sorted(messages[1:], sortMsg)
@@ -927,7 +930,7 @@ def sender(cl, stanza, cb=None, args={}):
 		try:
 			cl.send(stanza)
 		except Exception:
-			disconnectHandler(True)
+			disconnectHandler()
 
 
 def updateCron():
@@ -966,7 +969,6 @@ def removeUser(user, roster=False, notify=True):
 		source = user.source
 	else:
 		raise RuntimeError("Invalid user argument: %s" % str(user))
-	user = Transport.get(source)
 	if notify:
 		sendMessage(source, TransportID,
 			_("Your record was EXTERMINATED from the database."
@@ -974,20 +976,22 @@ def removeUser(user, roster=False, notify=True):
 	logger.debug("User: removing user from db (jid: %s)" % source)
 	runDatabaseQuery("delete from users where jid=?", (source,), True)
 	logger.debug("User: deleted (jid: %s)", source)
-	if source in Transport:
+
+	user = Transport.get(source)
+	if user:
 		del Transport[source]
-	if roster and user:
-		friends = user.friends
-		user.exists = False  # Make the Daleks happy
-		if friends:
-			logger.debug("User: removing myself from roster (jid: %s)", source)
-			for id in friends.keys() + [TransportID]:
-				jid = vk2xmpp(id)
-				sendPresence(source, jid, "unsubscribe")
-				sendPresence(source, jid, "unsubscribed")
-			user.settings.exterminate()
-			executeHandlers("evt03", (user,))
-		user.vk.online = False
+		if roster:
+			friends = user.friends
+			user.exists = False  # Make the Daleks happy
+			if friends:
+				logger.debug("User: removing myself from roster (jid: %s)", source)
+				for id in friends.keys() + [TransportID]:
+					jid = vk2xmpp(id)
+					sendPresence(source, jid, "unsubscribe")
+					sendPresence(source, jid, "unsubscribed")
+				user.settings.exterminate()
+				executeHandlers("evt03", (user,))
+			user.vk.online = False
 
 
 def checkPID():
@@ -1003,9 +1007,9 @@ def checkPID():
 			old = int(old)
 			if pid != old:
 				try:
-					os.kill(old, 15)
+					os.kill(old, signal.SIGTERM)
 					time.sleep(3)
-					os.kill(old, 9)
+					os.kill(old, signal.SIGKILL)
 				except OSError as e:
 					if e.errno != 3:
 						Print("%d %s.\n" % (old, e.message), False)
@@ -1126,11 +1130,11 @@ def disconnectHandler(crash=True):
 		os._exit(-1)
 
 
-def exit(signal=None, frame=None):
+def exit(sig=None, frame=None):
 	"""
 	Just stops the gateway and sends unavailable presence
 	"""
-	status = "Shutting down by %s" % ("SIGTERM" if signal == 15 else "SIGINT")
+	status = "Shutting down by %s" % ("SIGTERM" if sig == signal.SIGTERM else "SIGINT")
 	Print("#! %s" % status, False)
 	for user in Transport.itervalues():
 		user.sendOutPresence(user.source, status, all=True)
