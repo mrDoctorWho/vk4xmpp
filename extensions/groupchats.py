@@ -511,7 +511,7 @@ if isdef("ConferenceServer") and ConferenceServer:
 
 	TRANSPORT_SETTINGS["destroy_on_leave"] = {"label": "Destroy groupchat if user leaves it", "value": 0}
 
-	TransportFeatures.add(xmpp.NS_MUC)
+	TransportFeatures.add(xmpp.NS_GROUPCHAT)
 	registerHandler("msg01", handleOutgoingChatMessage)
 	registerHandler("evt01", initChatExtension)
 	registerHandler("evt03", exterminateChats)
