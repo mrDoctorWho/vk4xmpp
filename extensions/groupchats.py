@@ -26,7 +26,8 @@ mod_groupchat_prs for presence handling
 mod_groupchat_msg for message handling
 """
 
-MAX_UPDATE_DELAY = 3600
+MAX_UPDATE_DELAY = 3600  # 1 hour
+CHAT_CLEANUP_DELAY = 86400  # 24 hours
 
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
@@ -121,8 +122,8 @@ def setChatConfig(chat, jidFrom, exterminate=False, cb=None, args={}):
 	if exterminate:
 		query.addChild("destroy")
 	else:
-		form = utils.buildDataForm(fields=[{"var": "FORM_TYPE", "type": "hidden",
-				"value": xmpp.NS_MUC_ROOMCONFIG},
+		form = utils.buildDataForm(fields=[
+			{"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_MUC_ROOMCONFIG},
 			{"var": "muc#roomconfig_membersonly", "type": "boolean", "value": "1"},
 			{"var": "muc#roomconfig_publicroom", "type": "boolean", "value": "0"},
 			{"var": "muc#roomconfig_persistentroom", "type": "boolean", "value": "1"},
@@ -146,21 +147,15 @@ def handleOutgoingChatMessage(user, vkChat):
 
 		# TODO: make this happen in the kernel, so we don't need to check it here
 		if not user.vk.userID:
-			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)" % user.source)
+			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)", user.source)
 			user.vk.getUserID()
 			utils.runThread(handleOutgoingChatMessage, (user, vkChat), delay=10)
 			return None
 
-
 		owner = vkChat.get("admin_id", "1")
 		chatID = vkChat["chat_id"]
 		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
-
-		if chatJID not in user.chats:
-			chat = user.chats[chatJID] = Chat()
-		else:
-			chat = user.chats[chatJID]
-
+		chat = createFakeChat(user, chatJID)
 		if not chat.initialized:
 			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
 		if not chat.created:
@@ -185,29 +180,28 @@ class Chat(object):
 		self.invited = False
 		self.initialized = False
 		self.exists = False
-		self.owner_nickname = None
 		self.creation_failed = False
-		self.id = 0
+		self.owner_nickname = None
+		self.source = None
 		self.jid = None
 		self.owner = None
 		self.topic = None
 		self.creation_date = None
-		self.creation_failed = False
+		self.id = 0
+		self.last_update = 0
 		self.raw_users = {}
 		self.users = {}
-		self.last_update = 0
 
 	def init(self, owner, id, jid, topic, date, users=[]):
 		"""
 		Assigns an id and other needed attributes to the class object
-		Not obvious attributes:
+		Args:
+			owner: owner's id (str)
 			id: chat's id (int)
 			jid: chat's jid (str)
-			owner: owner's id (str)
-			users: dictionary of ids, id: {"name": nickname, "jid": jid}
-			raw_users: vk id's (list of str or int, hell knows)
 			topic: chat's topic
-			creation_date: hell knows
+			date: the chat creation date
+			users: dictionary of ids, id: {"name": nickname, "jid": jid}
 		"""
 		self.id = id
 		self.jid = jid
@@ -221,16 +215,16 @@ class Chat(object):
 		"""
 		Creates a chat, joins it and sets the config
 		"""
-		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)" %
-			(self.jid, self.raw_users, self.owner, user.source))
+		logger.debug("groupchats: creating %s. Users: %s; owner: %s (jid: %s)",
+			self.jid, self.raw_users, self.owner, user.source)
 		exists = runDatabaseQuery("select user from groupchats where jid=?", (self.jid,), many=True)
 		if exists:
 			self.exists = True
-			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)" %
-				(self.jid, user.source))
+			logger.debug("groupchats: groupchat %s exists in the database (jid: %s)",
+				self.jid, user.source)
 		else:
-			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)" %
-				(self.jid, user.source))
+			logger.debug("groupchats: groupchat %s will be added to the database (jid: %s)",
+				self.jid, user.source)
 			runDatabaseQuery("insert into groupchats (jid, owner, user, last_used) values (?,?,?,?)",
 				(self.jid, TransportID, user.source, time.time()), True)
 
@@ -251,10 +245,10 @@ class Chat(object):
 			chat: chat's jid
 		"""
 		if not self.raw_users:
-			vkChat = self.getVKChat(user, self.id)
+			vkChat = self.getVKChat(user, self.id)  # getting the chat users
 			if not vkChat and not self.invited:
 				logger.error("groupchats: damn vk didn't answer to the chat list"\
-							"request, starting timer to try again (jid: %s)" % user.source)
+							"request, starting timer to try again (jid: %s)", user.source)
 				utils.runThread(self.initialize, (user, chat), delay=10)
 				return False
 			self.raw_users = vkChat.get("users")
@@ -263,7 +257,7 @@ class Chat(object):
 		setAffiliation(chat, "member", user.source)
 		if not self.invited:
 			inviteUser(chat, user.source, TransportID, user.vk.getUserData(self.owner)["name"])
-			logger.debug("groupchats: user has been invited to chat %s (jid: %s)" % (chat, user.source))
+			logger.debug("groupchats: user has been invited to chat %s (jid: %s)", chat, user.source)
 			self.invited = True
 		chatMessage(chat, self.topic, TransportID, True, self.creation_date)
 		joinChat(chat, name, TransportID, "Lost in time.")  # let's rename ourselves
@@ -303,11 +297,18 @@ class Chat(object):
 				leaveChat(self.jid, jid)
 				del self.users[user]
 
-		topic = vkChat["title"]
-		if topic and topic != self.topic:
-			chatMessage(self.jid, topic, TransportID, True)
-			self.topic = topic
+		subject = vkChat["title"]
+		if subject and subject != self.subject:
+			self.setSubject(subject)
 		self.raw_users = all_users
+
+
+	def setSubject(self, topic):
+		"""
+		Changes the chat subject
+		"""
+		chatMessage(self.jid, topic, TransportID, True)
+		self.topic = topic
 
 	def onConfigSet(self, cl, stanza, user):
 		"""
@@ -316,7 +317,7 @@ class Chat(object):
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			self.created = True
-			logger.debug("groupchats: stanza \"result\" received from %s,"\
+			logger.debug("groupchats: stanza \"result\" received from %s,"
 			 	 "continuing initialization (jid: %s)", chat, user.source)
 			utils.execute(self.initialize, (user, chat))
 		else:
@@ -324,7 +325,7 @@ class Chat(object):
 				chat, str(stanza), user.source)
 			self.creation_failed = True
 
-	# here is a possibility to get messed up if many messages were sent before we created the chat 
+	# there's a possibility to mess up here if many messages were sent before we created the chat 
 	# we have to send the messages immendiately as soon as possible, so delay can mess the messages up
 	def handleMessage(self, user, vkChat, retry=True):
 		"""
@@ -345,6 +346,7 @@ class Chat(object):
 			userObject = self.getUserObject(self.jid)
 			if userObject:
 				source = userObject.source
+			# todo: FULL leave on error and try to create the chat again
 			logger.warning("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", self.jid, source)
 			logger.warning("groupchats: is there any groupchat limit on the server?")
 			if retry:
@@ -357,12 +359,13 @@ class Chat(object):
 		Returns:
 			True if required
 		"""
+		if not self.source:
+			return False
 		if not self.last_update:
 			return True
 		if (time.time() - self.last_update) > MAX_UPDATE_DELAY:
 			return True
 		return False
-
 
 	@api.attemptTo(3, dict, RuntimeError)
 	def getVKChat(cls, user, id):
@@ -453,27 +456,27 @@ def exterminateChats(user=None, chats=[]):
 		"""
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
-			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)" % (chat, jid))
+			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)", chat, jid)
 		else:
 			logger.debug("groupchats: explain! Explain! "
-				"The chat wasn't exterminated! Target: %s (jid: %s)" % (chat, jid))
-			logger.error("groupchats: got stanza: %s (jid: %s)" % (str(stanza), jid))
+				"The chat wasn't exterminated! Target: %s (jid: %s)", chat, jid)
+			logger.error("groupchats: got stanza: %s (jid: %s)", str(stanza), jid)
 
 	if user:
 		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,))
-		userChats = getattr(user, "chats", {})
+		userChats = getattr(user, "chats", [])
 	else:
 		userChats = []
 
 	for (jid, owner, source) in chats:
-		_owner = owner
+		server = owner
 		if "@" in owner:
-			_owner = owner.split("@")[1]
-		if _owner != TransportID:
+			server = owner.split("@")[1]
+		if server != TransportID:
 			logger.warning("Warning: Was the transport moved from other domain? Groupchat %s deletion skipped.", jid)
 		else:
 			joinChat(jid, "Dalek", owner, "Exterminate!")
-			logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)" % (jid, owner, source))
+			logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)", jid, owner, source)
 			setChatConfig(jid, owner, True, exterminated, {"jid": jid})
 			if jid in userChats:
 				del userChats[jid]
@@ -510,10 +513,10 @@ def cleanTheChatsUp():
 	for (jid, owner, last_used, user) in chats:
 		if (time.time() - last_used) >= utils.TimeMachine(CHAT_LIFETIME_LIMIT):
 			result.append((jid, owner, user))
-			logger.debug("groupchats: time for %s expired (jid: %s)" % (jid, user))
+			logger.debug("groupchats: time for %s expired (jid: %s)", jid, user)
 	if result:
 		exterminateChats(chats=result)
-	utils.runThread(cleanTheChatsUp, delay=(60*60*24))
+	utils.runThread(cleanTheChatsUp, delay=CHAT_CLEANUP_DELAY)
 
 
 def initChatExtension():
@@ -536,7 +539,7 @@ if isdef("ConferenceServer") and ConferenceServer:
 	# G is for Groupchats. That's it.
 	Handlers["msg03g"] = []
 
-	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats", 
+	GLOBAL_USER_SETTINGS["groupchats"] = {"label": "Handle groupchats",
 		"desc": "If set, transport would create xmpp-chatrooms for VK Multi-Dialogs", "value": 1}
 
 	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users",
