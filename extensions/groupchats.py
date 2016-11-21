@@ -185,21 +185,21 @@ class Chat(object):
 		self.source = None
 		self.jid = None
 		self.owner = None
-		self.topic = None
+		self.subject = None
 		self.creation_date = None
 		self.id = 0
 		self.last_update = 0
 		self.raw_users = {}
 		self.users = {}
 
-	def init(self, owner, id, jid, topic, date, users=[]):
+	def init(self, owner, id, jid, subject, date, users=[]):
 		"""
 		Assigns an id and other needed attributes to the class object
 		Args:
 			owner: owner's id (str)
 			id: chat's id (int)
 			jid: chat's jid (str)
-			topic: chat's topic
+			subject: chat's subject
 			date: the chat creation date
 			users: dictionary of ids, id: {"name": nickname, "jid": jid}
 		"""
@@ -207,7 +207,7 @@ class Chat(object):
 		self.jid = jid
 		self.owner = owner
 		self.raw_users = users
-		self.topic = topic
+		self.subject = subject
 		self.creation_date = date
 		self.initialized = True
 
@@ -230,7 +230,7 @@ class Chat(object):
 
 		name = user.vk.getUserData(self.owner)["name"]
 		self.users[TransportID] = {"name": name, "jid": TransportID}
-		# We join to the chat with the room owner's name to set the room topic from their name.
+		# We join to the chat with the room owner's name to set the room subject from their name.
 		joinChat(self.jid, name, TransportID, "Lost in time.")
 		setChatConfig(self.jid, TransportID, False, self.onConfigSet, {"user": user})
 
@@ -240,7 +240,7 @@ class Chat(object):
 			1) requests users list if required
 			2) makes them members
 			3) invites the user 
-			4) sets the chat topic
+			4) sets the chat subject
 		Parameters:
 			chat: chat's jid
 		"""
@@ -259,7 +259,7 @@ class Chat(object):
 			inviteUser(chat, user.source, TransportID, user.vk.getUserData(self.owner)["name"])
 			logger.debug("groupchats: user has been invited to chat %s (jid: %s)", chat, user.source)
 			self.invited = True
-		chatMessage(chat, self.topic, TransportID, True, self.creation_date)
+		self.setSubject(self.subject, self.creation_date)
 		joinChat(chat, name, TransportID, "Lost in time.")  # let's rename ourselves
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
@@ -303,12 +303,12 @@ class Chat(object):
 		self.raw_users = all_users
 
 
-	def setSubject(self, topic):
+	def setSubject(self, subject, date=None):
 		"""
 		Changes the chat subject
 		"""
-		chatMessage(self.jid, topic, TransportID, True)
-		self.topic = topic
+		chatMessage(self.jid, subject, TransportID, True, date)
+		self.subject = subject
 
 	def onConfigSet(self, cl, stanza, user):
 		"""
