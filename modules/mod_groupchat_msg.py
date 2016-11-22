@@ -42,7 +42,8 @@ def incoming_message_handler(cl, msg):
 				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
 				send = ((nick == owner_nickname and user.settings.tie_chat_to_nickname)
 					or user.settings.force_vk_date_group)
-				chat = createFakeChat(user, source)
+				chat = createChat(user, source)
+				chat.invited = True  # the user has joined themselves, so we don't need to invite them
 				if html and html.getTag("body"):
 					logger.debug("groupchats: fetched xhtml image (jid: %s)" % source)
 					try:

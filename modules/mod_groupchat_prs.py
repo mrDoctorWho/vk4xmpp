@@ -47,7 +47,7 @@ def handleChatErrors(source, prs):
 				runDatabaseQuery("update groupchats where jid=? set nick=?",
 					(source, chat.owner_nickname), set=True)
 		elif error or status:
-			logger.debug("groupchats: presence error (error #%s, status #%s)"
+			logger.debug("groupchats: presence error (error #%s, status #%s) "
 				"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
 	raise xmpp.NodeProcessed()
 
@@ -86,7 +86,9 @@ def handleChatPresences(source, prs):
 			raise xmpp.NodeProcessed()
 
 		elif user and prs.getType() != "unavailable":
-			createFakeChat(user, source)
+			chat = createChat(user, source)
+			chat.invited = True  # assume the user's joined themselves
+
 
 
 @utils.safe

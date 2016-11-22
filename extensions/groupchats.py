@@ -161,7 +161,7 @@ def handleOutgoingChatMessage(user, vkChat):
 		if not chat.created:
 			if chat.creation_failed:
 				return None
-			# we can add user, vkChat to the create() function to prevent losing or messing up the messages
+			# we can add user, vkChat to the create() method to prevent losing or messing up the messages
 			chat.create(user)
 		# read the comments above the handleMessage function
 		if not chat.created:
@@ -169,6 +169,22 @@ def handleOutgoingChatMessage(user, vkChat):
 		chat.handleMessage(user, vkChat)
 		return None
 	return ""
+
+
+def createChat(user, source):
+	"""
+	Creates a chat
+	Args:
+		user: the User object
+		source: the chat's jid
+	"""
+	if not hasattr(user, "chats"):
+		user.chats = {}
+	if source in user.chats:
+		chat = user.chats[source]
+	else:
+		user.chats[source] = chat = Chat()
+	return chat
 
 
 class Chat(object):
@@ -247,7 +263,7 @@ class Chat(object):
 		if not self.raw_users:
 			vkChat = self.getVKChat(user, self.id)  # getting the chat users
 			if not vkChat and not self.invited:
-				logger.error("groupchats: damn vk didn't answer to the chat list"\
+				logger.error("groupchats: damn vk didn't answer to the chat list "
 							"request, starting timer to try again (jid: %s)", user.source)
 				utils.runThread(self.initialize, (user, chat), delay=10)
 				return False
@@ -266,7 +282,7 @@ class Chat(object):
 	def update(self, userObject, vkChat):
 		"""
 		Updates chat users and sends messages
-		Uses two users list to prevent losing anyone
+		Uses two user lists to prevent losing of any of them
 		"""
 		all_users = vkChat["chat_active"].split(",")
 		all_users = [int(user) for user in all_users if user]
@@ -317,7 +333,7 @@ class Chat(object):
 		chat = stanza.getFrom().getStripped()
 		if xmpp.isResultNode(stanza):
 			self.created = True
-			logger.debug("groupchats: stanza \"result\" received from %s,"
+			logger.debug("groupchats: stanza \"result\" received from %s, "
 			 	 "continuing initialization (jid: %s)", chat, user.source)
 			utils.execute(self.initialize, (user, chat))
 		else:
@@ -413,23 +429,6 @@ class Chat(object):
 			if key == id:
 				return value
 		return None
-
-
-def createFakeChat(user, source):
-	"""
-	Creates a fake chat to use it before we actually know that it exists
-	Args:
-		user: the User object
-		source: the chat's jid
-	"""
-	if not hasattr(user, "chats"):
-		user.chats = {}
-	if source not in user.chats:
-		user.chats[source] = chat = Chat()
-		chat.invited = True  # the user has joined themselves and we don't need to intvite them
-	else:
-		chat = user.chats[source]
-	return chat
 
 
 def updateLastUsed(chat):
