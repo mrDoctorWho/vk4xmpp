@@ -41,6 +41,7 @@ VCARD_TEMPLATE = {KEY_NICKNAME: IDENTIFIER["name"],
 	KEY_CTRY: "United States",  # database.getCountriesById and database.getCitiesById
 	KEY_PHONE_HOME: None,
 	KEY_PHONE_MOBILE: None,
+	KEY_LOCALITY: "Los Angeles"  # you'd love it here (yeah, here...)
 	}
 
 
@@ -50,7 +51,7 @@ VCARD_FIELDS = {KEY_NICKNAME: "screen_name",
 				KEY_URL: "https://vk.com/id%(id)s",
 				KEY_BDAY: "bdate",
 				KEY_CTRY: "country",
-				KEY_LOCALITY: "home_town",
+				KEY_LOCALITY: "city",
 				KEY_PHONE_HOME: "home_phone",
 				KEY_PHONE_MOBILE: "mobile_phone",
 #				KEY_URL: "site",
@@ -94,6 +95,7 @@ def buildVcard(data, user):
 	"""
 	vcard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
 	for key, value in VCARD_TEMPLATE.iteritems():
+		print "key",key
 		value = data.get(VCARD_FIELDS[key], value)
 		if key == KEY_PHOTO:
 			photo = vcard.setTag(KEY_PHOTO)
@@ -101,15 +103,19 @@ def buildVcard(data, user):
 		# todo: find a proper way to handle this
 		elif key == KEY_URL:
 			vcard.setTagData(key, VCARD_FIELDS[key] % data)
+
 		elif key in (KEY_CTRY, KEY_LOCALITY) and value:
 			adr = vcard.getTag(KEY_ADR) or vcard.setTag(KEY_ADR)
 			adr.setTagData(key, getLocationString(value, key, user))
+
 		elif key == KEY_PHONE_MOBILE and value:
 			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
 			tel.setTagData(KEY_NUMBER, value)
+
 		elif key == KEY_PHONE_HOME and value:
 			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
 			tel.setTagData(KEY_PHONE_HOME, value)
+
 		elif value:
 			vcard.setTagData(key, value)
 	return vcard
