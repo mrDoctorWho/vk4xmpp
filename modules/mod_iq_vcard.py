@@ -95,7 +95,6 @@ def buildVcard(data, user):
 	"""
 	vcard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
 	for key, value in VCARD_TEMPLATE.iteritems():
-		print "key",key
 		value = data.get(VCARD_FIELDS[key], value)
 		if key == KEY_PHOTO:
 			photo = vcard.setTag(KEY_PHOTO)
