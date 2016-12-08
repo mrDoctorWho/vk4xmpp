@@ -155,7 +155,7 @@ def handleOutgoingChatMessage(user, vkChat):
 		owner = vkChat.get("admin_id", "1")
 		chatID = vkChat["chat_id"]
 		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
-		chat = createFakeChat(user, chatJID)
+		chat = createChat(user, chatJID)
 		if not chat.initialized:
 			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
 		if not chat.created:
