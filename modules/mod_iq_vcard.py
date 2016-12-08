@@ -20,8 +20,8 @@ KEY_ADR = "ADR"
 KEY_HOME = "HOME"
 KEY_BDAY = "BDAY"
 KEY_CTRY = "CTRY"
-KEY_PHONE_HOME = "PHONE_HOME"
-KEY_PHONE_MOBILE = "PHONE_MOBILE"
+KEY_PHONE_HOME = "HOME"
+KEY_PHONE_MOBILE = "MOBILE"
 KEY_TEL = "TEL"
 KEY_NUMBER = "NUMBER"
 KEY_VOICE = "VOICE"
@@ -52,7 +52,7 @@ VCARD_FIELDS = {KEY_NICKNAME: "screen_name",
 				KEY_CTRY: "country",
 				KEY_LOCALITY: "home_town",
 				KEY_PHONE_HOME: "home_phone",
-				KEY_PHONE_MOBILE: "home_mobile",
+				KEY_PHONE_MOBILE: "mobile_phone",
 #				KEY_URL: "site",
 				KEY_PHOTO: PhotoSize,
 				KEY_DESC: None,
@@ -104,9 +104,12 @@ def buildVcard(data, user):
 		elif key in (KEY_CTRY, KEY_LOCALITY) and value:
 			adr = vcard.getTag(KEY_ADR) or vcard.setTag(KEY_ADR)
 			adr.setTagData(key, getLocationString(value, key, user))
-		elif key in (KEY_PHONE_HOME, KEY_PHONE_MOBILE) and value:
+		elif key == KEY_PHONE_MOBILE and value:
 			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
-			tel.setTagData(key, value)
+			tel.setTagData(KEY_NUMBER, value)
+		elif key == KEY_PHONE_HOME and value:
+			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
+			tel.setTagData(KEY_PHONE_HOME, value)
 		elif value:
 			vcard.setTagData(key, value)
 	return vcard
