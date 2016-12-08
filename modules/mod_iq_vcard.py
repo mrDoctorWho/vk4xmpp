@@ -30,6 +30,8 @@ KEY_LOCALITY = "LOCALITY"
 if AdditionalAbout:
 	DESCRIPTION = "%s\n%s" % (DESCRIPTION, AdditionalAbout)
 
+
+# Vcard defaults
 VCARD_TEMPLATE = {KEY_NICKNAME: IDENTIFIER["name"],
 	KEY_NAME: "Unknown",
 	KEY_DESC: DESCRIPTION,
@@ -57,15 +59,38 @@ VCARD_FIELDS = {KEY_NICKNAME: "screen_name",
 				}
 
 
-def buildVcard(data):
+def getLocationString(id, key, user):
+	"""
+	Get country or city name by id
+	Args:
+		id: the id to get string for
+		key: whether to get country or city name
+		user: the User object
+	Returns:
+		Country/city name,
+	"""
+	if key == KEY_CTRY:
+		method = "database.getCountriesById"
+		arg = "country_ids"
+	else:
+		method = "database.getCitiesById"
+		arg = "city_ids"
+	data = user.vk.method(method, {arg: id})
+	if data:
+		data = data[0]
+		return data["name"]
+
+
+def buildVcard(data, user):
 	"""
 	Builds a vcard.
 	Uses VCARD_TEMPLATE as the base, then adds values from data.
 	Values from data are get with the help of the VCARD_FIELDS dict.
 	Args:
 		data: users.get result
+		user: the user object
 	Returns:
-		A user's VCARD.
+		The user's VCARD.
 	"""
 	vcard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
 	for key, value in VCARD_TEMPLATE.iteritems():
@@ -78,16 +103,10 @@ def buildVcard(data):
 			vcard.setTagData(key, VCARD_FIELDS[key] % data)
 		elif key in (KEY_CTRY, KEY_LOCALITY) and value:
 			adr = vcard.getTag(KEY_ADR) or vcard.setTag(KEY_ADR)
-			if key == KEY_CTRY:
-				adr.setTagData(KEY_CTRY, value)
-			elif key == KEY_LOCALITY:
-				adr.setTagData(KEY_LOCALITY, value)
+			adr.setTagData(key, getLocationString(value, key, user))
 		elif key in (KEY_PHONE_HOME, KEY_PHONE_MOBILE) and value:
 			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
-			if key == KEY_PHONE_HOME:
-				tel.setTagData(KEY_HOME, value)
-			elif key == KEY_PHONE_MOBILE:
-				tel.setTagData(KEY_NUMBER, value)
+			tel.setTagData(key, value)
 		elif value:
 			vcard.setTagData(key, value)
 	return vcard
@@ -113,12 +132,12 @@ def vcard_handler(cl, iq):
 			user = Transport[source]
 			if user.friends:
 				id = vk2xmpp(destination)
-				args = ["screen_name", "bdate", "city", "country", "contacts", "home_town", PhotoSize]  # todo: a feature to show the user's site instead of their URL?
+				args = ("screen_name", "bdate", "city", "country", "contacts", "home_town", PhotoSize)  # todo: a feature to show the user's site instead of their URL?
 				data = user.vk.getUserData(id, args)
 				data["id"] = id
 				if not user.settings.use_nicknames:
 					data["screen_name"] = data["name"]
-				vCard = buildVcard(data)
+				vCard = buildVcard(data, user)
 				result.setPayload([vCard])
 			else:
 				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Your friend-list is empty."))

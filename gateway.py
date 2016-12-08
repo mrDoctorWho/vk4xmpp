@@ -460,6 +460,7 @@ class VK(object):
 			values["last_message_id"] = mid
 		return self.method("messages.get", values)
 
+	# TODO: put this in the DB
 	def getUserID(self):
 		"""
 		Receives the user id
