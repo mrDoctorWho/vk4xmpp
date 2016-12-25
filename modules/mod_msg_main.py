@@ -46,6 +46,9 @@ def acceptCaptcha(key, source, destination):
 		sendMessage(source, destination, answer, mtype="normal")
 		if not valid:
 			executeHandlers("evt04", (user, user.vk.engine.captcha["img"]))
+			return False
+		return True
+	return False
 
 
 @utils.threaded

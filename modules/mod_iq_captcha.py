@@ -16,6 +16,7 @@ import mod_msg_main as mod_msg
 def captcha_handler(cl, iq):
 	if iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
 		source = iq.getFrom().getStripped()
+		result = iq.buildReply("result")
 		if source in Users:
 			destination = iq.getTo()
 			if destination == TransportID:
@@ -23,7 +24,10 @@ def captcha_handler(cl, iq):
 				xTag = capTag.getTag("x", {}, xmpp.NS_DATA)
 				ocrTag = xTag.getTag("field", {"var": "ocr"})
 				value = ocrTag.getTagData("value")
-				mod_msg.acceptCaptcha(value, source, destination)
+				if mod_msg.acceptCaptcha(value, source, destination):
+					cl.send(result)
+				else:
+					result = buildIQError(iq, xmpp.ERR_NOT_ACCEPTABLE)
 
 
 MOD_TYPE = "iq"
