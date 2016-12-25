@@ -40,7 +40,7 @@ def incoming_message_handler(cl, msg):
 				# None of “normal” clients will send messages with timestamp
 				# If we do (as we set in force_vk_date_group), then the message received from a user
 				# If we don't and nick (as in settings) is tied to the chat, then we can determine who sent the message
-				send = (nick == owner_nickname and user.settings.tie_chat_to_nickname)
+				send = (nick == owner_nickname)
 				chat = createChat(user, source)
 				chat.invited = True  # the user has joined themselves, so we don't need to invite them
 				if html and html.getTag("body"):
