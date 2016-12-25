@@ -34,8 +34,8 @@ def register_handler(cl, iq):
 	result = iq.buildReply("result")
 	if USER_LIMIT:
 		count = calcStats()[0]
-		if count >= USER_LIMIT and not source in Transport:
-			sender(cl, utils.buildIQError(iq, xmpp.ERR_NOT_ALLOWED, _("Transport's admins limited registrations, sorry.")))
+		if count >= USER_LIMIT and source not in Users:
+			sender(cl, utils.buildIQError(iq, xmpp.ERR_NOT_ALLOWED, _("The gateway admins limited registrations, sorry.")))
 			raise xmpp.NodeProcessed()
 
 	if destination == TransportID and iq.getQueryChildren():
@@ -76,7 +76,7 @@ def register_handler(cl, iq):
 
 		elif query.getTag("remove"):
 			logger.debug("user %s want to remove me..." % source)
-			if source in Transport:
+			if source in Users:
 				user = Transport[source]
 				result = iq.buildReply("result")
 				result.setPayload([], add=False)

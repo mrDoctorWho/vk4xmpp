@@ -16,12 +16,14 @@ GLOBAL_USER_SETTINGS = {"keep_online": {"label": "Keep my status online",
 										"value": 1},
 						"force_vk_date": {"label": "Force VK timestamp for private messages",
 										"value": 0},
-						"use_nicknames": {"label": "Use nicknames instead of real names", 
+						"use_nicknames": {"label": "Use nicknames instead of real names",
 										"value": 0}}
 
 TRANSPORT_SETTINGS = {"send_unavailable": {"label": "Send unavailable from "
 												"friends when a user logs off",
-												"value": 0}}
+												"value": 0},
+					"send_reports": {"label": "Send critical error reports",
+												"value": 1}}
 
 
 class Settings(object):

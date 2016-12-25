@@ -48,11 +48,14 @@ def rFile(filename):
 def crashLog(name, fixme_=True):
 	"""
 	Writes crashlog, ignoring duplicates
-	Parameters:
+	Args:
 		name is a crashlog name
-		fixme_ needeed to know if print the "fixme" message or not
+		fixme_ whether to print the "fixme" message
+	Returns:
+		the current traceback
 	"""
 	global lastErrorBody
+	trace = ""
 	logger.error("crashlog %s has been written" % name)
 	if fixme_:
 		fixme(name)
@@ -60,21 +63,15 @@ def crashLog(name, fixme_=True):
 		file = "%s/%s.txt" % (__main__.crashDir, name)
 		if not os.path.exists(__main__.crashDir):
 			os.makedirs(__main__.crashDir)
-		exception = wException(True)
-		if exception not in ("None", lastErrorBody):
+		trace = traceback.format_exc()
+		if trace and trace != lastErrorBody:
 			timestamp = time.strftime("| %d.%m.%Y (%H:%M:%S) |\n")
-			wFile(file, timestamp + exception + "\n", "a")
-		lastErrorBody = exception
+			wFile(file, timestamp + trace + "\n", "a")
+		lastErrorBody = trace
 	except Exception:
 		fixme("crashlog")
-		wException()
-
-
-def wException(file = False):
-	exception = traceback.format_exc().strip()
-	if not file:
-		Print(exception)
-	return exception
+		Print(trace)
+	return trace
 
 
 def returnExc():

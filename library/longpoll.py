@@ -15,7 +15,7 @@ import vkapi as api
 import select
 import socket
 import utils
-from __main__ import Transport, logger, ALIVE, DEBUG_POLL, crashLog
+from __main__ import Users, logger, ALIVE, DEBUG_POLL, crashLog
 
 LONGPOLL_RETRY_COUNT = 10
 LONGPOLL_RETRY_TIMEOUT = 10
@@ -38,9 +38,9 @@ class Poll(object):
 		Adds user in buffer on error occurred
 		Adds user in self.__list if no errors
 		"""
-		if user.source in Transport:
+		if user.source in Users:
 			# in case the new instance was created
-			user = Transport[user.source]
+			user = Users[user.source]
 			opener = user.vk.makePoll()
 			if DEBUG_POLL:
 				logger.debug("longpoll: user has been added to poll (jid: %s)", user.source)
@@ -116,8 +116,8 @@ class Poll(object):
 			user: the user object
 		"""
 		for i in xrange(LONGPOLL_RETRY_COUNT):
-			if user.source in Transport:
-				user = Transport[user.source]  # we  might have a new instance here
+			if user.source in Users:
+				user = Users[user.source]  # we  might have a new instance here
 				if user.vk.initPoll():
 					with cls.__lock:
 						logger.debug("longpoll: successfully initialized longpoll (jid: %s)", user.source)
@@ -171,7 +171,7 @@ class Poll(object):
 						continue
 
 					# Update the user instance
-					user = Transport.get(user.source)
+					user = Users.get(user.source)
 					if user:
 						utils.runThread(cls.processResult, (user, opener),
 							"poll.processResult-%s" % user.source)

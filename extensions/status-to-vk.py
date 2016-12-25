@@ -11,9 +11,9 @@ VK_ACCESS += 1024
 GLOBAL_USER_SETTINGS["status_to_vk"] = {"label": "Publish my status in VK", "value": 0}
 
 def statustovk_prs01(source, prs, retry=3):
-	if source in Transport and prs.getType() in ("available", None):
+	if source in Users and prs.getType() in ("available", None):
 		if prs.getTo() == TransportID:
-			user = Transport[source]
+			user = Users[source]
 			if user.settings.status_to_vk:
 				mask = user.vk.method("account.getAppPermissions") or 0
 				if mask:

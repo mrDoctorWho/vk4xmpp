@@ -23,8 +23,8 @@ def add_username(stanza, user, uid):
 
 
 def add_nickname_msg03(msg, destination, source):
-	if destination in Transport and source != TransportID:  # That would be strange if user wasn't in Transport
-		user = Transport[destination]
+	if destination in Users and source != TransportID:  # That would be strange if user wasn't in Transport
+		user = Users[destination]
 		if user.settings.add_nicknames_msg:
 			uid = vk2xmpp(source)
 			strangers = getattr(user, "strangers", set([]))
@@ -35,8 +35,8 @@ def add_nickname_msg03(msg, destination, source):
 
 
 def add_nickname_prs02(prs, destination, source):
-	if destination in Transport and not prs.getType():
-		user = Transport[destination]
+	if destination in Users and not prs.getType():
+		user = Users[destination]
 		uid = vk2xmpp(source)
 		if uid in user.friends and user.settings.add_nicknames_prs:
 			add_username(prs, user, uid)

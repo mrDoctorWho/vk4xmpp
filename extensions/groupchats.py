@@ -419,13 +419,13 @@ class Chat(object):
 			jid = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False)
 			if jid:
 				jid = jid[0]
-		if jid and jid in Transport:
-			user = Transport[jid]
+		if jid and jid in Users:
+			user = Users[jid]
 		return user
 
 	@staticmethod
 	def getJIDByID(id):
-		for key, value in Transport.iteritems():
+		for key, value in Users.iteritems():
 			if key == id:
 				return value
 		return None

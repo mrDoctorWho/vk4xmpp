@@ -145,8 +145,8 @@ def vcard_handler(cl, iq):
 			vcard = buildVcard(template, template, template)
 			result.setPayload([vcard])
 
-		elif source in Transport:
-			user = Transport[source]
+		elif source in Users:
+			user = Users[source]
 			if user.friends:
 				id = vk2xmpp(destination)
 				args = ("screen_name", "bdate", "city", "country", "contacts", "home_town", PhotoSize)  # todo: a feature to show the user's site instead of their URL?

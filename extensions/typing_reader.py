@@ -7,8 +7,8 @@ GLOBAL_USER_SETTINGS["typingreader"] = {"label": "Mark my messages as read when 
 def typingreader_watch(msg):
 	jidFrom = msg.getFrom()
 	source = jidFrom.getStripped()
-	if msg.getType() == "chat" and source in Transport:
-		user = Transport[source]
+	if msg.getType() == "chat" and source in Users:
+		user = Users[source]
 		if user.settings.typingreader:
 			if (user.lastMsgID > user.lastMarkedMessage) and msg.getTag("composing"):
 				user.vk.method("messages.markAsRead", {"message_ids": str(user.lastMsgID)})

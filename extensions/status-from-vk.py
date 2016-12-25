@@ -15,8 +15,8 @@ def statusfromvk_evt07(user):
 
 
 def statusfromvk_prs02(prs, destination, source):
-	if source != TransportID and destination in Transport:
-		user = Transport[destination]
+	if source != TransportID and destination in Users:
+		user = Users[destination]
 		if user.settings.status_from_vk and not prs.getType():
 			id = vk2xmpp(source)
 			if id in user.friends and user.friends[id].get("status"):

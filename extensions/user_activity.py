@@ -39,7 +39,7 @@ def user_activity_remove():
 	LA = utils.TimeMachine(USER_LIFETIME_LIMIT)
 	for (jid, date) in users:
 		if (time.time() - date) >= LA:
-			if jid not in Transport:
+			if jid not in Users:
 				runDatabaseQuery("delete from users where jid=?", (jid,), set=True)
 				runDatabaseQuery("delete from last_activity where jid=?", (jid,))
 				settings = "%s/%s" % (settingsDir, jid)
@@ -54,12 +54,13 @@ def user_activity_remove():
 						" Relogin or you'll be exterminated.") % LA, LA)
 	utils.runThread(user_activity_remove, delay=(60*60*24))
 
+
 # A dirty hack to add seen users in stats
 def calcStats():
 	"""
 	Returns count(*) from users database
 	"""
-	countOnline = len(Transport)
+	countOnline = len(Users)
 	countTotal = runDatabaseQuery("select count(*) from users", many=False)[0]
 	countSeen = runDatabaseQuery("select count(*) from last_activity where date >=?", (startTime,), many=False)[0]
 	return [countTotal, countSeen, countOnline]

@@ -67,7 +67,7 @@ def disco_handler(cl, iq):
 		if source in ADMIN_JIDS:
 			users = []
 			if node == "Online users":
-				users = Transport.keys()
+				users = Users.keys()
 			elif node == "All users":
 				users = getUsersList()
 				users = [user[0] for user in users]
@@ -110,7 +110,7 @@ def sendAnnouncement(destination, body, subject):
 
 def sendGlobalMessage(body, subject, online):
 	if online:
-		users = Transport.keys()
+		users = Users.keys()
 	else:
 		users = getUsersList()
 	for user in users:
@@ -274,14 +274,14 @@ def commands_handler(cl, iq):
 						note = wException()
 
 				elif node == NODE_GLOBAL_SETTINGS:
-					config = transportSettings.settings
+					config = Transport.settings
 					if not form:
 						simpleForm = buildForm(simpleForm, fields=getConfigFields(config), title="Choose wisely")
 
 					elif form:
 						for key in dictForm.keys():
 							if key in config.keys():
-								transportSettings.settings[key]["value"] = utils.normalizeValue(dictForm[key])
+								config[key]["value"] = utils.normalizeValue(dictForm[key])
 						note = "The settings were changed."
 						simpleForm = None
 						completed = True
@@ -337,16 +337,16 @@ def commands_handler(cl, iq):
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
 						completed = True
 
-			if node == NODE_EDIT_SETTINGS and source in Transport:
+			if node == NODE_EDIT_SETTINGS and source in Users:
 				logger.info("user want to edit their settings (jid: %s)" % source)
-				config = Transport[source].settings
+				config = Users[source].settings
 				if not form:
 					simpleForm = buildForm(simpleForm, fields=getConfigFields(config), title="Choose wisely")
 
 				elif form:
 					for key in dictForm.keys():
 						if key in config:
-							Transport[source].settings[key] = utils.normalizeValue(dictForm[key])
+							Users[source].settings[key] = utils.normalizeValue(dictForm[key])
 					note = "The settings were changed."
 					simpleForm = None
 					completed = True

@@ -45,7 +45,6 @@ settingsDir = "settings"
 # extension/module specific
 PhotoSize = "photo_100"
 DefLang = "ru"
-evalJID = ""
 AdditionalAbout = ""
 allowBePublic = True
 

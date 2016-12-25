@@ -6,7 +6,7 @@
 Module purpose is to accept the captcha value from iq
 """
 
-from __main__ import TransportID, Transport
+from __main__ import TransportID, Users
 import xmpp
 import utils
 import mod_msg_main as mod_msg
@@ -16,7 +16,7 @@ import mod_msg_main as mod_msg
 def captcha_handler(cl, iq):
 	if iq.getTagAttr("captcha", "xmlns") == xmpp.NS_CAPTCHA:
 		source = iq.getFrom().getStripped()
-		if source in Transport:
+		if source in Users:
 			destination = iq.getTo()
 			if destination == TransportID:
 				capTag = iq.getTag("captcha")

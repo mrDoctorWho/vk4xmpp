@@ -47,7 +47,7 @@ from defaults import *
 from printer import *
 from webtools import *
 
-Transport = {}
+Users = {}
 Semaphore = threading.Semaphore()
 
 # command line arguments
@@ -71,6 +71,7 @@ Host = None
 Server = None
 Port = None
 Password = None
+LAST_REPORT = None
 
 
 execfile(Config)
@@ -91,10 +92,6 @@ from longpoll import *
 from settings import *
 import vkapi as api
 import utils
-
-# Compatibility with old config files
-if not ADMIN_JIDS and evalJID:
-	ADMIN_JIDS.append(evalJID)
 
 # Setting variables
 # DefLang for language id, root for the translations directory
@@ -235,6 +232,14 @@ sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
 findUserInDB = lambda source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
+
+
+class Transport(object):
+	"""
+	A dummy class to store settings (ATM)
+	"""
+	def __init__(self):
+		self.settings = Settings(TransportID, user=False)
 
 
 class VK(object):
@@ -513,7 +518,7 @@ class VK(object):
 			The user information
 		"""
 		if not fields:
-			user = Transport.get(self.source)
+			user = Users.get(self.source)
 			if user and uid in user.friends:
 				return user.friends[uid]
 			fields = ["screen_name"]
@@ -637,7 +642,7 @@ class User(object):
 			resource: add resource in self.resources to prevent unneeded stanza sending
 		"""
 		logger.debug("User: beginning user initialization (jid: %s)", self.source)
-		Transport[self.source] = self
+		Users[self.source] = self
 		if not self.friends:
 			self.friends = self.vk.getFriends()
 		if force or not self.rosterSet:
@@ -923,6 +928,18 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype
 	sender(Component, msg)
 
 
+def report(message):
+	"""
+	Critical error reporter
+	"""
+	global LAST_REPORT
+	if Transport.settings.send_reports and message != LAST_REPORT:
+		LAST_REPORT = message
+		message = "Critical failure:\n"
+		for admin in ADMIN_JIDS:
+			sendMessage(admin, TransportID, message, timestamp=-1)
+
+
 def computeCapsHash(features=TransportFeatures):
 	"""
 	Computes a hash which will be placed in all presence stanzas
@@ -959,18 +976,17 @@ def updateCron():
 	Calls the functions to update friends and typing users list
 	"""
 	while ALIVE:
-		for user in Transport.values():
+		for user in Users.values():
 			cTime = time.time()
 			user.updateTypingUsers(cTime)
 			user.updateFriends(cTime)
 		time.sleep(2)
 
-
 def calcStats():
 	"""
 	Returns count(*) from users database
 	"""
-	countOnline = len(Transport)
+	countOnline = len(Users)
 	countTotal = runDatabaseQuery("select count(*) from users", many=False)[0]
 	return [countTotal, countOnline]
 
@@ -998,9 +1014,9 @@ def removeUser(user, roster=False, notify=True):
 	runDatabaseQuery("delete from users where jid=?", (source,), True)
 	logger.debug("User: deleted (jid: %s)", source)
 
-	user = Transport.get(source)
+	user = Users.get(source)
 	if user:
-		del Transport[source]
+		del Users[source]
 		if roster:
 			friends = user.friends
 			user.exists = False  # Make the Daleks happy
@@ -1142,12 +1158,12 @@ def disconnectHandler(crash=True):
 	global ALIVE
 	ALIVE = False
 	if not Daemon:
-		logger.warning("the trasnport is going to be restarted!")
+		logger.warning("the gateway is going to be restarted!")
 		Print("Restarting...")
 		time.sleep(5)
 		os.execl(sys.executable, sys.executable, *sys.argv)
 	else:
-		logger.info("the transport is shutting down!")
+		logger.info("the gateway is shutting down!")
 		os._exit(-1)
 
 
@@ -1157,7 +1173,7 @@ def exit(sig=None, frame=None):
 	"""
 	status = "Shutting down by %s" % ("SIGTERM" if sig == signal.SIGTERM else "SIGINT")
 	Print("#! %s" % status, False)
-	for user in Transport.itervalues():
+	for user in Users.itervalues():
 		user.sendOutPresence(user.source, status, all=True)
 		Print("." * len(user.friends), False)
 	Print("\n")
@@ -1186,7 +1202,8 @@ if __name__ == "__main__":
 	signal.signal(signal.SIGTERM, exit)
 	signal.signal(signal.SIGINT, exit)
 	loadExtensions("extensions")
-	transportSettings = Settings(TransportID, user=False)
+	# TODO: make a class for the settings
+	Transport = Transport()
 	try:
 		main()
 	except Exception:

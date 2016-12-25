@@ -25,8 +25,9 @@ def initializeUser(source, resource, prs):
 	except Exception:
 		sendMessage(source, TransportID,
 			_("Auth failed! If this error repeated, "
-				"please register again. This incident will be reported."))
-		crashLog("user.connect")
+				"please register again."
+				" This incident will be reported.\nCause: %s") % returnExc())
+		report(crashLog("user.connect"))
 	else:
 		user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
 		utils.runThread(executeHandlers, ("prs01", (source, prs)))
@@ -41,8 +42,8 @@ def presence_handler(cl, prs):
 	source = jidFrom.getStripped()
 	resource = jidFrom.getResource()
 	destination = prs.getTo().getStripped()
-	if source in Transport:
-		user = Transport[source]
+	if source in Users:
+		user = Users[source]
 		if pType in ("available", "probe", None):
 			if destination == TransportID:
 				if resource not in user.resources and user not in USERS_ON_INIT:
@@ -57,11 +58,11 @@ def presence_handler(cl, prs):
 					user.sendOutPresence(jidFrom)
 			if not user.resources:
 				sendPresence(source, TransportID, "unavailable")
-				if transportSettings.send_unavailable:
+				if Transport.settings.send_unavailable:
 					user.sendOutPresence(source)
 				try:
 					user.vk.disconnect()
-					del Transport[source]
+					del Users[source]
 				except (AttributeError, KeyError):
 					pass
 
