@@ -255,7 +255,12 @@ class VK(object):
 		self.friends_fields = {"screen_name"}
 		self.engine = None
 		self.cache = {}
+		self.permissions = 0
 		logger.debug("VK initialized (jid: %s)", source)
+
+	def init(self):
+		self.getUserID()
+		self.getPermissions()
 
 	getToken = lambda self: self.engine.token
 
@@ -471,6 +476,16 @@ class VK(object):
 			self.userID = self.method("execute.getUserID")
 		return self.userID
 
+	def getPermissions(self):
+		"""
+		Update the app permissions
+		Returns:
+			The current permission mask
+		"""
+		if not self.permissions:
+			self.permissions = self.method("account.getAppPermissions")
+		return self.permissions
+
 	@utils.cache
 	def getGroupData(self, gid, fields=None):
 		"""
@@ -597,6 +612,11 @@ class User(object):
 					(self.source, vk.getToken(),
 						self.lastMsgID, self.rosterSet), True)
 			executeHandlers("evt07", (self,))
+			vk.init()
+			# TODO: move friends to VK() and check last update timeout?
+			# Currently, every time we request friends a new object is being created
+			# As we request it very frequently, it might be better to move
+			# getFriends() to vk.init() and every time check if the list is due for the update
 			self.friends = vk.getFriends()
 		return vk.online
 
@@ -746,7 +766,7 @@ class User(object):
 			data = opener.read()
 		except (httplib.BadStatusLine, socket.error, socket.timeout) as e:
 			logger.warning("longpoll: got error `%s` (jid: %s)", e.__class__.__name__,
-				self.source)
+				self.source) 
 			return 0
 		try:
 			data = json.loads(data)
@@ -1064,7 +1084,7 @@ def initializeUsers():
 	for user in users:
 		Print(".", False)
 		sendPresence(user[0], TransportID, "probe")
-	Print("\n#-# Component %s initialized well." % TransportID)
+	Print("\n#-# Yay! Component %s initialized well." % TransportID)
 
 
 def runMainActions():

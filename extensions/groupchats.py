@@ -461,24 +461,25 @@ def exterminateChats(user=None, chats=[]):
 				"The chat wasn't exterminated! Target: %s (jid: %s)", chat, jid)
 			logger.error("groupchats: got stanza: %s (jid: %s)", str(stanza), jid)
 
-	if user:
+	if user and not chats:
 		chats = runDatabaseQuery("select jid, owner, user from groupchats where user=?", (user.source,))
-		userChats = getattr(user, "chats", [])
-	else:
-		userChats = []
 
+	# current chats
+	userChats = getattr(user, "chats", [])
 	for (jid, owner, source) in chats:
 		server = owner
 		if "@" in owner:
 			server = owner.split("@")[1]
-		if server != TransportID:
-			logger.warning("Warning: Was the transport moved from other domain? Groupchat %s deletion skipped.", jid)
-		else:
+		if server == TransportID:
 			joinChat(jid, "Dalek", owner, "Exterminate!")
 			logger.debug("groupchats: going to exterminate %s, owner:%s (jid: %s)", jid, owner, source)
 			setChatConfig(jid, owner, True, exterminated, {"jid": jid})
+			# remove the chat from current
 			if jid in userChats:
 				del userChats[jid]
+		else:
+			# if we try to send from another jid with prosody, we'll be killed
+			logger.warning("Warning: Was the transport moved from other domain? Groupchat %s deletion skipped.", jid)
 		runDatabaseQuery("delete from groupchats where jid=?", (jid,), set=True)
 
 
