@@ -88,7 +88,6 @@ logger.addHandler(loggerHandler)
 
 # now we can import the last modules
 from writer import *
-from longpoll import *
 from settings import *
 import vkapi as api
 import utils
@@ -1115,6 +1114,7 @@ if __name__ == "__main__":
 	signal.signal(signal.SIGINT, exit)
 	loadExtensions("extensions")
 	Transport = Transport()
+	from longpoll import *
 	try:
 		main()
 	except Exception:
