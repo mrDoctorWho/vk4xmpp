@@ -200,4 +200,40 @@ def TimeMachine(text):
 			time += int(current[:-1]) * TIME_VALUES[x]
 	return time
 
+
+class ExpiringObject(object):
+	def __init__(self, obj, lifetime):
+		self.obj = obj
+		self.created = time.time()
+		self.lifetime = lifetime
+
+	def hasExpired(self):
+		return (time.time() >= (self.created + self.lifetime))
+
+	def __getattr__(self, attr):
+		try:
+			result = object.__getattribute__(self, attr)
+		except AttributeError:
+			result = getattr(self.obj, attr)
+		return result
+
+	def __iter__(self):
+		if hasattr(self.obj, "__iter__"):
+			return self.obj.__iter__()
+		raise TypeError("Not iterable")
+
+	def next(self):
+		if hasattr(self.obj, "next"):
+			return self.obj.next()
+		raise TypeError("Not iterable")
+
+	# TODO what if our object isn't iterable?
+	def __str__(self):
+		result = ""
+		for num, i in enumerate(self.obj):
+			result += str(i)
+			if num < (len(self.obj) -1):
+				result += ", "
+		return result
+
 # Yay!
