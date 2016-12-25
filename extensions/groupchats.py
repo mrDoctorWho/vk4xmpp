@@ -353,10 +353,7 @@ class Chat(object):
 			body += parseAttachments(user, vkChat)
 			body += parseForwardedMessages(user, vkChat)
 			if body:
-				date = 0
-				if user.settings.force_vk_date_group:
-					date = vkChat["date"]
-				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None, date)
+				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None)
 		else:
 			source = "unknown"
 			userObject = self.getUserObject(self.jid)
@@ -544,14 +541,6 @@ if isdef("ConferenceServer") and ConferenceServer:
 
 	GLOBAL_USER_SETTINGS["show_all_chat_users"] = {"label": "Show all chat users",
 		"desc": "If set, transport will show ALL users in a conference", "value": 0}
-
-	GLOBAL_USER_SETTINGS["tie_chat_to_nickname"] = {"label": "Tie chat to my nickname (tip: enable timestamp for groupchats)",
-		"desc": "If set, your messages will be sent only from your nickname\n"\
-		"(there is no way to determine whether message was sent\nfrom you or from the transport, so this setting might help,\nbut"\
-		" there's one problem comes up: you wouldn't be able to send messages until the chat is initialized). "
-		"\nChat initializes when first message received after transport's boot", "value": 1}
-
-	GLOBAL_USER_SETTINGS["force_vk_date_group"] = {"label": "Force VK timestamp for groupchat messages", "value": 1}
 
 	TRANSPORT_SETTINGS["destroy_on_leave"] = {"label": "Destroy groupchat if user leaves it", "value": 0}
 
