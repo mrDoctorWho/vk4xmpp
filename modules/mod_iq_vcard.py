@@ -9,6 +9,7 @@ VCARD_SEMAPHORE = threading.Semaphore()
 
 DESCRIPTION = "VK4XMPP Transport\n© simpleApps, 2013 — 2016."
 GITHUB_URL = "https://github.com/mrDoctorWho/vk4xmpp"
+BIRTHDAY = "30.09.2013"
 
 KEY_NICKNAME = "NICKNAME"
 KEY_NAME = "FN"
@@ -32,8 +33,8 @@ if AdditionalAbout:
 
 
 # Vcard defaults
-VCARD_TEMPLATE = {KEY_NICKNAME: IDENTIFIER["name"],
-	KEY_NAME: "Unknown",
+VCARD_TEMPLATE = {KEY_NICKNAME: IDENTIFIER["short"],
+	KEY_NAME: IDENTIFIER["name"],
 	KEY_DESC: DESCRIPTION,
 	KEY_PHOTO: URL_VCARD_NO_IMAGE,
 	KEY_URL: GITHUB_URL,
@@ -70,19 +71,21 @@ def getLocationString(id, key, user):
 	Returns:
 		Country/city name,
 	"""
-	if key == KEY_CTRY:
-		method = "database.getCountriesById"
-		arg = "country_ids"
-	else:
-		method = "database.getCitiesById"
-		arg = "city_ids"
-	data = user.vk.method(method, {arg: id})
-	if data:
-		data = data[0]
-		return data["name"]
+	if user:
+		if key == KEY_CTRY:
+			method = "database.getCountriesById"
+			arg = "country_ids"
+		else:
+			method = "database.getCitiesById"
+			arg = "city_ids"
+		data = user.vk.method(method, {arg: id})
+		if data:
+			data = data[0]
+			return data["name"]
+	return id
 
 
-def buildVcard(data, user):
+def buildVcard(data, template=VCARD_TEMPLATE, fields=VCARD_FIELDS, user=None):
 	"""
 	Builds a vcard.
 	Uses VCARD_TEMPLATE as the base, then adds values from data.
@@ -94,14 +97,17 @@ def buildVcard(data, user):
 		The user's VCARD.
 	"""
 	vcard = xmpp.Node("vCard", {"xmlns": xmpp.NS_VCARD})
-	for key, value in VCARD_TEMPLATE.iteritems():
-		value = data.get(VCARD_FIELDS[key], value)
+	for key, value in template.iteritems():
+		value = data.get(fields[key], value)
 		if key == KEY_PHOTO:
 			photo = vcard.setTag(KEY_PHOTO)
 			photo.setTagData(KEY_BINVAL, utils.getLinkData(value))
 		# todo: find a proper way to handle this
 		elif key == KEY_URL:
-			vcard.setTagData(key, VCARD_FIELDS[key] % data)
+			if user:
+				vcard.setTagData(key, fields[key] % data)
+			else:
+				vcard.setTagData(key, fields[key])
 
 		elif key in (KEY_CTRY, KEY_LOCALITY) and value:
 			adr = vcard.getTag(KEY_ADR) or vcard.setTag(KEY_ADR)
@@ -133,7 +139,10 @@ def vcard_handler(cl, iq):
 		result = iq.buildReply("result")
 
 		if destination == TransportID:
-			vcard = buildVcard(VCARD_TEMPLATE)
+			template = VCARD_TEMPLATE.copy()
+			template[KEY_URL] = GITHUB_URL
+			template[KEY_BDAY] = BIRTHDAY
+			vcard = buildVcard(template, template, template)
 			result.setPayload([vcard])
 
 		elif source in Transport:
@@ -145,7 +154,7 @@ def vcard_handler(cl, iq):
 				data["id"] = id
 				if not user.settings.use_nicknames:
 					data["screen_name"] = data["name"]
-				vCard = buildVcard(data, user)
+				vCard = buildVcard(data, VCARD_TEMPLATE, VCARD_FIELDS, user)
 				result.setPayload([vCard])
 			else:
 				result = utils.buildIQError(iq, xmpp.ERR_BAD_REQUEST, _("Your friend-list is empty."))
