@@ -89,10 +89,8 @@ VK4XMPP представляет собой легковесный трансп�
 * vk.jabberik.ru
 * vkontakte.jabberon.ru
 * vk.beerseller.org
-* vk4xmpp.kap.sh
-* vk.xmppserv.ru
+* vk.kap.sh
 * vk.jabbik.ru
-* vk.helldev.net (English version)
 
 Полный список можно посмотреть [здесь](http://xmppserv.ru/xmpp-monitor).
 
