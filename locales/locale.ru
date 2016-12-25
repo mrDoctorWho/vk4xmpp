@@ -1,4 +1,4 @@
-WARNING: VK sent captcha to you. Please, go to %s and enter text from image to chat. Example: !captcha my_captcha_key. Tnx=Внимание! ВКонтакте отправил Вам капчу. Пожалуйста, перейдите по ссылке %s и введите текст с картинки сюда. Пример: !captcha ключ.
+WARNING: VK has sent you a CAPTCHA. Please, follow the link: %s and enter the text shown on the image to the chat. Example: !captcha my_captcha_key.\nWarning: don't use Firefox to open the link.=Внимание! ВКонтакте отправил Вам капчу. Пожалуйста, перейдите по ссылке %s и введите текст с картинки сюда. Пример: !captcha ключ.\nВнимание: не используйте браузер Firefox для открытия ссылки.
 Captcha valid.=Капча введена верно.
 Captcha invalid.=Капча введена неверно.
 Not now. Ok?=Не сейчас.
@@ -12,7 +12,7 @@ Contact uses VK4XMPP Transport\n%s=Контакт использует тран�
 User is not your friend.=Пользователь не ваш друг!
 Your friend-list is empty.=Ваш список друзей пуст!
 You're not registered for this action.=Вы должны быть зарегистрированы для этого дейстия.
-Auth failed! If this error repeated, please register again. This incident will be reported.=Авторизация не удалась. Если эта ошибка повторяется, то зарегистрируйтесь заново. Об этом инциденте будет сообщено.
+Auth failed! If this error repeated, please register again. This incident will be reported.\nCause: %s=Авторизация не удалась. Если эта ошибка повторяется, то зарегистрируйтесь заново. Об этом инциденте будет сообщено.\nCause: %s
 Forwarded messages:=Пересланные сообщения:
 Attachments:=Вложения:
 Enter shown text=Введите показанный текст

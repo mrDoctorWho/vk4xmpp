@@ -40,7 +40,7 @@ def sendSticker(msg, destination, source):
 		if msg.getType() == "groupchat":
 			user = Chat.getUserObject(destination)
 		else:
-			user = Transport.get(destination)
+			user = Users.get(destination)
 		if user and user.settings.send_stickers:
 			url = sticker_url.search(body)
 			if url:

@@ -23,7 +23,7 @@ VK_ACCESS = 69638
 USER_LIMIT = 0
 RUN_AS = None
 
-IDENTIFIER = {"type": "vk", "category": "gateway", "name": "VK4XMPP Transport"}
+IDENTIFIER = {"type": "vk", "category": "gateway", "name": "VK4XMPP Transport", "short": "VK4XMPP"}
 URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"
 VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
 VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
@@ -45,7 +45,6 @@ settingsDir = "settings"
 # extension/module specific
 PhotoSize = "photo_100"
 DefLang = "ru"
-evalJID = ""
 AdditionalAbout = ""
 allowBePublic = True
 

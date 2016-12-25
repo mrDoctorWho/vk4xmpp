@@ -6,7 +6,7 @@ Wants=prosody.service
 [Service]
 Type=simple
 PIDFile=/var/lib/vk4xmpp/vk4xmpp.pid
-ExecStart=/usr/bin/env python2 /usr/share/vk4xmpp/gateway.py -c /etc/vk4xmpp.conf -d
+ExecStart=/usr/bin/env python2 /usr/bin/vk4xmpp -c /etc/vk4xmpp/conf -d
 User=vk4xmpp
 
 [Install]

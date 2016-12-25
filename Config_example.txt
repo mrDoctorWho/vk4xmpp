@@ -72,7 +72,7 @@ URL_VCARD_NO_IMAGE = "https://raw.githubusercontent.com/mrDoctorWho/vk4xmpp/mast
 THREAD_STACK_SIZE = 0
 
 # Database file (anything you like).
-DatabaseFile = "vk4xmpp.db"
+DatabaseFile = "vk4xmpp.sqlite"
 
 # File to store PID in.
 pidFile = "vk4xmpp.pid"
@@ -100,7 +100,7 @@ DEBUG_POLL = False
 DEBUG_API = []
 
 # Log level (logging.INFO, logging.DEBUG, logging.ERROR, logging.CRITICAL).
-LOG_LEVEL = logging.DEBUG
+LOG_LEVEL = logging.ERROR
 
 # VK4XMPP Monitor settings
 # The server where the stats requests will come from

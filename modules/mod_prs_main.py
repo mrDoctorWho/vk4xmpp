@@ -8,8 +8,36 @@ Module purpose is to receive and handle presences
 
 from __main__ import *
 from __main__ import _
+from utils import *
 
-USERS_ON_INIT = set([])
+# keeps the user's roster
+USERS_ON_INIT = {}
+EXPIRING_OBJECT_LIFETIME = 600
+UPDATE_FRIENDS_DELAY = 60
+
+
+def updateFriends(user, local):
+	"""
+	Compares the local (xmpp) and remote (vk) list of friends
+	"""
+	if TransportID in local:
+		local.remove(TransportID)
+	if not user.vk.online:
+		return None
+
+	friends = user.friends or user.vk.getFriends()
+	if not friends or not local:
+		logger.error("updateFriends: no friends received (local: %s, remote: %s) (jid: %s).",
+			str(local), str(friends), user.source)
+		return None
+
+	for uid in friends:
+		if uid not in local:
+			user.sendSubPresence({uid: friends[uid]})
+	# TODO
+	# for uid in self.friends:
+	# 	if uid not in friends:
+	# 		sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
 
 
 def initializeUser(source, resource, prs):
@@ -25,14 +53,17 @@ def initializeUser(source, resource, prs):
 	except Exception:
 		sendMessage(source, TransportID,
 			_("Auth failed! If this error repeated, "
-				"please register again. This incident will be reported."))
-		crashLog("user.connect")
+				"please register again."
+				" This incident will be reported.\nCause: %s") % returnExc())
+		report(crashLog("user.connect"))
 	else:
 		user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
+		utils.runThread(updateFriends, (user, list(USERS_ON_INIT[source])),  # making a copy so we can remote it safely
+			delay=UPDATE_FRIENDS_DELAY)
 		utils.runThread(executeHandlers, ("prs01", (source, prs)))
 
 	if source in USERS_ON_INIT:
-		USERS_ON_INIT.remove(source)
+		del USERS_ON_INIT[source]
 
 
 def presence_handler(cl, prs):
@@ -41,14 +72,16 @@ def presence_handler(cl, prs):
 	source = jidFrom.getStripped()
 	resource = jidFrom.getResource()
 	destination = prs.getTo().getStripped()
-	if source in Transport:
-		user = Transport[source]
+	if source in Users:
+		user = Users[source]
 		if pType in ("available", "probe", None):
 			if destination == TransportID:
 				if resource not in user.resources and user not in USERS_ON_INIT:
 					logger.debug("Received presence %s from user. Calling sendInitPresence() (jid: %s)" % (pType, source))
 					user.resources.add(resource)
 					utils.runThread(user.sendInitPresence)
+			elif source in USERS_ON_INIT:
+				USERS_ON_INIT[source].add(vk2xmpp(destination))
 
 		elif pType == "unavailable":
 			if destination == TransportID and resource in user.resources:
@@ -57,11 +90,11 @@ def presence_handler(cl, prs):
 					user.sendOutPresence(jidFrom)
 			if not user.resources:
 				sendPresence(source, TransportID, "unavailable")
-				if transportSettings.send_unavailable:
+				if Transport.settings.send_unavailable:
 					user.sendOutPresence(source)
 				try:
 					user.vk.disconnect()
-					del Transport[source]
+					del Users[source]
 				except (AttributeError, KeyError):
 					pass
 
@@ -84,11 +117,19 @@ def presence_handler(cl, prs):
 				removeUser(user, True, False)
 				executeHandlers("evt09", (source,))
 
-	elif pType in ("available", None) and destination == TransportID:
+	# when user becomes online, we get subscribe as we don't have both subscription
+	elif pType not in ("error", "unavailable"):
 		# It's possible to receive more than one presence from @gmail.com
-		if source not in USERS_ON_INIT:
-			utils.runThread(initializeUser, args=(source, resource, prs))
-			USERS_ON_INIT.add(source)
+		if source in USERS_ON_INIT:
+			roster = USERS_ON_INIT[source]
+			if destination == TransportID and TransportID not in roster and pType in ("available", "probe", None):
+				utils.runThread(initializeUser, args=(source, resource, prs))
+		else:
+			__set = set([])
+			USERS_ON_INIT[source] = ExpiringObject(__set, EXPIRING_OBJECT_LIFETIME)
+			if destination == TransportID:
+				utils.runThread(initializeUser, args=(source, resource, prs))
+		USERS_ON_INIT[source].add(vk2xmpp(destination))
 	utils.runThread(executeHandlers, ("prs01", (source, prs)))
 
 

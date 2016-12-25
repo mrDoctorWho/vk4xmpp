@@ -42,7 +42,7 @@ class AvatarHash(object):
 		return data
 
 	def sendPhotoRequest(self, user, uids):
-		data = user.vk.method("execute.getPhotos_new",
+		data = user.vk.method("execute.getPhotos",
 			{"users": self.join(uids), "size": PhotoSize}) or []
 		return data
 
@@ -85,8 +85,8 @@ class AvatarHash(object):
 
 
 def addPresenceHash(prs, destination, source):
-	if destination in Transport and not prs.getType():
-		user = Transport[destination]
+	if destination in Users and not prs.getType():
+		user = Users[destination]
 		if user.settings.avatar_hash:
 			x = prs.setTag("x", namespace=xmpp.NS_VCARD_UPDATE)
 			uid = vk2xmpp(source)

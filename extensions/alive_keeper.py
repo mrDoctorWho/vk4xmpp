@@ -5,7 +5,7 @@
 # Add a field named ALIVE_KEEPER_ENABLED in the main config file and set it's value to True in order to enable the keeper.
 
 """
-Makes the transport ping itself, so it can detect connection hang
+Makes the transport ping itself, so it can detect if the connection hanged
 It's also can be useful for Openfire administrators
 in case if the transport suddenly disconnects
 """

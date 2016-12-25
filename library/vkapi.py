@@ -1,5 +1,5 @@
 # coding: utf-8
-# © simpleApps, 2013 — 2015.
+# © simpleApps, 2013 — 2016.
 
 """
 Manages VK API requests
@@ -78,7 +78,7 @@ def attemptTo(maxRetries, resultType, *errors):
 				else:
 					break
 			else:
-				if hasattr(exc, "errno") and exc.errno == 101:
+				if getattr(exc, "errno", 0) == 101:
 					raise NetworkNotFound()
 				data = resultType()
 				logger.warning("vkapi: Error %s occurred on executing %s(*%s, **%s)",
@@ -96,16 +96,16 @@ def attemptTo(maxRetries, resultType, *errors):
 
 class AsyncHTTPRequest(httplib.HTTPSConnection):
 	"""
-	A method to make asynchronous http request
+	A method to make asynchronous http requests
 	Provides a way to get a socket object to use in select()
 	"""
-
 	def __init__(self, url, data=None, headers=(), timeout=SOCKET_TIMEOUT):
 		host = urllib.splithost(urllib.splittype(url)[1])[0]
 		httplib.HTTPSConnection.__init__(self, host, timeout=timeout)
 		self.url = url
 		self.data = data
 		self.headers = headers or {}
+		self.created = time.time()
 
 	@attemptTo(REQUEST_RETRIES, None, *ERRORS)
 	def open(self):
@@ -125,9 +125,10 @@ class AsyncHTTPRequest(httplib.HTTPSConnection):
 		self.close()
 
 	@classmethod
-	def getOpener(cls, url, query={}):
+	def getOpener(cls, url, query=None):
 		"""
 		Opens a connection to url and returns AsyncHTTPRequest() object
+		Args: query a dict() of query parameters
 		"""
 		if query:
 			url += "?%s" % urllib.urlencode(query)
@@ -190,7 +191,7 @@ class RequestProcessor(object):
 		return request
 
 	@attemptTo(REQUEST_RETRIES, tuple, *ERRORS)
-	def post(self, url, data="", urlencode=True):
+	def post(self, url, data=None, urlencode=True):
 		"""
 		POST request
 		"""
@@ -198,9 +199,11 @@ class RequestProcessor(object):
 		body = resp.read()
 		return (body, resp)
 
-	def get(self, url, query={}):
+	def get(self, url, query=None):
 		"""
 		GET request
+		Args:
+			query: a dict() of query parameters
 		"""
 		if query:
 			url += "?%s" % urllib.urlencode(query)
@@ -287,7 +290,7 @@ class APIBinding(RequestProcessor):
 	Translates VK errors to python exceptions
 	Allows to make a password authorization
 	"""
-	def __init__(self, token, debug=[], logline=""):
+	def __init__(self, token, debug=None, logline=""):
 		self.token = token
 		self.debug = debug
 		self.last = []
@@ -301,15 +304,18 @@ class APIBinding(RequestProcessor):
 	def method(self, method, values=None, notoken=False):
 		"""
 		Issues a VK method
-		Parameters:
+		Args:
 			method: vk method
 			values: method parameters
+			notoken: whether to cut the token out of the request
+		Returns:
+			The method execution result
 		"""
 		url = "https://api.vk.com/method/%s" % method
 		values = values or {}
 		if not notoken:
 			values["access_token"] = self.token
-		values["v"] = "5.42"
+		values["v"] = "3.0"
 
 		if "key" in self.captcha:
 			values["captcha_sid"] = self.captcha["sid"]
@@ -379,6 +385,7 @@ class APIBinding(RequestProcessor):
 					raise ValidationRequired(eMsg)
 
 				# 1 - unknown error / 100 - wrong method or parameters loss
+				# todo: where we going we NEED constants
 				elif eCode in (1, 6, 9, 100):
 					if eCode in (6, 9):   # 6 - too fast / 9 - flood control
 						self.timeout += 0.05
@@ -409,7 +416,7 @@ class APIBinding(RequestProcessor):
 
 class NetworkNotFound(Exception):
 	"""
-	This happens in a very weird situations
+	This happens in very weird situations
 	Happened just once at 10.01.2014 (vk.com was down)
 	"""
 	pass

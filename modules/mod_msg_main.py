@@ -30,7 +30,7 @@ def acceptCaptcha(key, source, destination):
 		2. User sent an IQ with the captcha value
 	"""
 	if args:
-		user = Transport[source]
+		user = Users[source]
 		logger.debug("user %s called captcha challenge" % source)
 		try:
 			user.captchaChallenge(key)
@@ -46,6 +46,9 @@ def acceptCaptcha(key, source, destination):
 		sendMessage(source, destination, answer, mtype="normal")
 		if not valid:
 			executeHandlers("evt04", (user, user.vk.engine.captcha["img"]))
+			return False
+		return True
+	return False
 
 
 @utils.threaded
@@ -56,8 +59,8 @@ def message_handler(cl, msg):
 	jidFrom = msg.getFrom()
 	source = jidFrom.getStripped()
 
-	if msg.getType() == "chat" and source in Transport:
-		user = Transport[source]
+	if msg.getType() == "chat" and source in Users:
+		user = Users[source]
 		if msg.getTag("composing"):
 			target = vk2xmpp(destination)
 			if target != TransportID:

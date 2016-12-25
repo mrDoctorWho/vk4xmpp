@@ -13,8 +13,8 @@ def interpreter_msg02(msg):
 			if len(raw) > 1:
 				text, args = raw
 				args = args.strip()
-				if source in Transport:
-					user = Transport[source]
+				if source in Users:
+					user = Users[source]
 				if text == "!eval" and args and source in ADMIN_JIDS:
 					try:
 						result = unicode(eval(args))
