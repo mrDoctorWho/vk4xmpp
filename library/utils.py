@@ -202,6 +202,10 @@ def TimeMachine(text):
 
 
 class ExpiringObject(object):
+	"""
+	Object that acts the same as the one it keeps
+	But also has a limited lifetime
+	"""
 	def __init__(self, obj, lifetime):
 		self.obj = obj
 		self.created = time.time()
@@ -232,7 +236,7 @@ class ExpiringObject(object):
 		result = ""
 		for num, i in enumerate(self.obj):
 			result += str(i)
-			if num < (len(self.obj) -1):
+			if num < (len(self.obj) - 1):
 				result += ", "
 		return result
 

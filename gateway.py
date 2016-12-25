@@ -750,79 +750,6 @@ class User(object):
 			runDatabaseQuery("update users set lastMsgID=? where jid=?",
 				(self.lastMsgID, self.source), True)
 
-	def processPollResult(self, opener):
-		"""
-		Processes a poll result
-		Decides whether to send a chat/groupchat message or presence or just pass the iteration
-		Args:
-			opener: the vkapi.AsyncHTTPRequest object
-		Returns:
-			0 if poll re-initialization required (need to add user to the poll init buffer)
-			1 if all is fine
-			-1 just pass this iteration
-		"""
-		if DEBUG_POLL:
-			logger.debug("longpoll: processing result (jid: %s)", self.source)
-
-		if self.vk.engine.captcha:
-			return -1
-
-		try:
-			data = opener.read()
-		except (httplib.BadStatusLine, socket.error, socket.timeout) as e:
-			logger.warning("longpoll: got error `%s` (jid: %s)", e.__class__.__name__,
-				self.source) 
-			return 0
-		try:
-			data = json.loads(data)
-			if not data:
-				raise ValueError()
-		except ValueError:
-			logger.error("longpoll: no data. Gonna request again (jid: %s)",
-				self.source)
-			return 1
-
-		if "failed" in data:
-			logger.debug("longpoll: failed. Searching for a new server (jid: %s)",
-				self.source)
-			return 0
-
-		self.vk.pollConfig["ts"] = data["ts"]
-
-		for evt in data.get("updates", ()):
-			typ = evt.pop(0)
-
-			if DEBUG_POLL:
-				logger.debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)", typ, str(evt), self.source)
-
-			# TODO: Make flags and types a constant
-			if typ == 4:  # new message
-				if len(evt) == 7:
-					message = None
-					mid, flags, uid, date, subject, body, attachments = evt
-					out = flags & 2 == 2
-					chat = (flags & 16 == 16) or (uid > 2000000000)  # a groupchat always has uid > 2000000000
-					if not out:
-						if not attachments and not chat:
-							message = [1, {"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
-						utils.runThread(self.sendMessages, (None, message), "sendMessages-%s" % self.source)
-				else:
-					logger.warning("longpoll: incorrect events number while trying to process arguments %s (jid: %s)", str(evt), self.source)
-
-			elif typ == 8:  # user has joined
-				uid = abs(evt[0])
-				sendPresence(self.source, vk2xmpp(uid), hash=USER_CAPS_HASH)
-
-			elif typ == 9:  # user has left
-				uid = abs(evt[0])
-				sendPresence(self.source, vk2xmpp(uid), "unavailable")
-
-			elif typ == 61:  # user is typing
-				if evt[0] not in self.typing:
-					sendMessage(self.source, vk2xmpp(evt[0]), typ="composing")
-				self.typing[evt[0]] = time.time()
-		return 1
-
 	def updateTypingUsers(self, cTime):
 		"""
 		Sends "paused" message event to stop user from composing a message
@@ -1187,7 +1114,6 @@ if __name__ == "__main__":
 	signal.signal(signal.SIGTERM, exit)
 	signal.signal(signal.SIGINT, exit)
 	loadExtensions("extensions")
-	# TODO: make a class for the settings
 	Transport = Transport()
 	try:
 		main()

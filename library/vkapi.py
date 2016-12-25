@@ -105,6 +105,7 @@ class AsyncHTTPRequest(httplib.HTTPSConnection):
 		self.url = url
 		self.data = data
 		self.headers = headers or {}
+		self.created = time.time()
 
 	@attemptTo(REQUEST_RETRIES, None, *ERRORS)
 	def open(self):
