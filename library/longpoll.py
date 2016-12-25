@@ -293,7 +293,7 @@ class Poll(object):
 						cls.processResult(user, opener)
 
 			with cls.__lock:
-				for sock, (user, opener) in cls.__list.iteritems():
+				for sock, (user, opener) in cls.__list.items():
 					if hasattr(user, "vk") and not user.vk.online:
 						logger.debug("longpoll: user is not online, so removing them from poll"
 									" (jid: %s)", user.source)
@@ -326,7 +326,7 @@ class Poll(object):
 	@utils.threaded
 	def checkIfSocketsAlive(cls):
 		while cls.__list:
-			for sock, (user, opener) in cls.__list.iteritems():
+			for sock, (user, opener) in cls.__list.items():
 				if (time.time() - opener.created) > OPENER_LIFETIME:
 					with cls.__lock:
 						del cls.__list[sock]
