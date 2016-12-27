@@ -89,10 +89,10 @@ def processPollResult(user, data):
 		logger.error("longpoll: no data. Gonna request again (jid: %s)",
 					user.source)
 		retcode = CODE_ERROR
+		return retcode
 
 	if "failed" in data:
-		logger.debug("longpoll: failed. Searching for a new server (jid: %s)",
-		             user.source)
+		logger.debug("longpoll: failed. Searching for a new server (jid: %s)", user.source)
 		retcode = CODE_ERROR
 	else:
 		user.vk.pollConfig["ts"] = data["ts"]
@@ -100,7 +100,7 @@ def processPollResult(user, data):
 			typ = evt.pop(0)
 
 			debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)", typ,
-			      str(evt), user.source)
+				str(evt), user.source)
 
 			if typ == TYPE_MSG:  # new message
 				if len(evt) == 7:
@@ -112,10 +112,8 @@ def processPollResult(user, data):
 					if not out:
 						if not attachments and not chat:
 							message = [1,
-							           {"out": 0, "uid": uid, "mid": mid, "date": date,
-							            "body": body}]
-						utils.runThread(user.sendMessages, (None, message),
-						                "sendMessages-%s" % user.source)
+										{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
+						utils.runThread(user.sendMessages, (None, message), "sendMessages-%s" % user.source)
 				else:
 					logger.warning(
 						"longpoll: incorrect events number while trying to "
