@@ -212,7 +212,7 @@ class ExpiringObject(object):
 		self.lifetime = lifetime
 
 	def hasExpired(self):
-		return (time.time() >= (self.created + self.lifetime))
+		return time.time() >= (self.created + self.lifetime)
 
 	def __getattr__(self, attr):
 		try:

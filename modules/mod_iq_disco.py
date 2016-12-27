@@ -346,7 +346,7 @@ def commands_handler(cl, iq):
 				elif form:
 					for key in dictForm.keys():
 						if key in config:
-							Users[source].settings[key] = utils.normalizeValue(dictForm[key])
+							config[key] = utils.normalizeValue(dictForm[key])
 					note = "The settings were changed."
 					simpleForm = None
 					completed = True

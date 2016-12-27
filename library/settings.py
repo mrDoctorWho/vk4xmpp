@@ -62,9 +62,11 @@ class Settings(object):
 	def __getattr__(self, attr):
 		if attr in self.settings:
 			return self.settings[attr]["value"]
-		elif not hasattr(self, attr):
-			return False
-		return object.__getattribute__(self, attr)
+		try:
+			result = object.__getattribute__(self, attr)
+		except AttributeError:
+			result = False
+		return result
 
 	def exterminate(self):
 		"""
@@ -76,3 +78,6 @@ class Settings(object):
 		except (IOError, OSError):
 			pass
 		del shutil
+
+	def __iter__(self):
+		return self.settings.iterkeys()
