@@ -311,12 +311,12 @@ class Poll(object):
 		data = read(opener, user.source)
 		result = utils.execute(processPollResult, (user, data,))
 		debug("longpoll: result=%s (jid: %s)", result, user.source)
-		if result == -1:
+		if result == CODE_FINE:
 			return None
-		# if we'll set user.vk.pollInitialized to False
-		# then makePoll() will raise an exception
-		# by doing that, we force the user's poll reinitialization
-		if not result:
+		# if we set user.vk.pollInitialized to False
+		# then makePoll() will throw an exception
+		# by doing so, we force the user's poll to be reinitialized
+		if result == CODE_ERROR:
 			user.vk.pollInitialized = False
 		cls.add(user)
 
@@ -328,5 +328,5 @@ class Poll(object):
 				if (time.time() - opener.created) > OPENER_LIFETIME:
 					with cls.__lock:
 						del cls.__list[sock]
-						cls.processPollResult(user, opener)
+						cls.processResult(user, opener)
 			time.sleep(SOCKET_CHECK_TIMEOUT)
