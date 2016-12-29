@@ -311,7 +311,7 @@ class Poll(object):
 		data = read(opener, user.source)
 		result = utils.execute(processPollResult, (user, data,))
 		debug("longpoll: result=%s (jid: %s)", result, user.source)
-		if result == CODE_FINE:
+		if result == CODE_SKIP:
 			return None
 		# if we set user.vk.pollInitialized to False
 		# then makePoll() will throw an exception
