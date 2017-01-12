@@ -193,7 +193,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 360, 0
+	number, hash = 317, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -207,9 +207,9 @@ def vk2xmpp(id):
 	Args:
 		id: a Jabber or VK id
 	Returns:
-		id@TransportID if parameter id is a number (String)
-		id if parameter "id" is id@TransportID (Integer)
-		TransportID if the given id is equal to TransportID (String)
+		id@TransportID if parameter id is a number
+		id if parameter "id" is id@TransportID
+		TransportID if the given id is equal to TransportID
 	"""
 	if not utils.isNumber(id) and "@" in id:
 		id = id.split("@")[0]
@@ -761,9 +761,11 @@ class User(object):
 				del self.typing[user]
 				sendMessage(self.source, vk2xmpp(user), typ="paused")
 
-	def updateStatus(self, cTime):
+	def updateFriends(self, cTime):
 		"""
-		Updates user's status
+		Updates friends list.
+		Compares the current friends list to the new list
+		Takes a corresponding action if any difference found
 		"""
 		if (cTime - self.last_udate) > 300 and not self.vk.engine.captcha:
 			if self.settings.keep_online:
@@ -771,6 +773,19 @@ class User(object):
 			else:
 				self.vk.setOffline()
 			self.last_udate = cTime
+			friends = self.vk.getFriends()
+			if not friends:
+				logger.error("updateFriends: no friends received (jid: %s).",
+					self.source)
+				return None
+
+			for uid in friends:
+				if uid not in self.friends:
+					self.sendSubPresence({uid: friends[uid]})
+			for uid in self.friends:
+				if uid not in friends:
+					sendPresence(self.source, vk2xmpp(uid), "unsubscribe")
+			self.friends = friends
 
 	def reauth(self):
 		"""
@@ -890,7 +905,7 @@ def updateCron():
 		for user in Users.values():
 			cTime = time.time()
 			user.updateTypingUsers(cTime)
-			user.updateStatus(cTime)
+			user.updateFriends(cTime)
 		time.sleep(2)
 
 def calcStats():
