@@ -77,7 +77,7 @@ def register_handler(cl, iq):
 		elif query.getTag("remove"):
 			logger.debug("user %s want to remove me..." % source)
 			if source in Users:
-				user = Transport[source]
+				user = Users[source]
 				result = iq.buildReply("result")
 				result.setPayload([], add=False)
 				executeHandlers("evt09", (source,))
