@@ -350,7 +350,7 @@ class VK(object):
 					raise
 
 			except api.CaptchaNeeded as e:
-				executeHandlers("evt04", (self, self.engine.captcha["img"]))
+				executeHandlers("evt04", (self.source, self.engine.captcha))
 				self.online = False
 
 			except api.NetworkNotFound as e:
@@ -364,7 +364,7 @@ class VK(object):
 
 			except api.VkApiError as e:
 				# There are several types of VkApiError
-				# But the user defenitely must be removed.
+				# But the user definitely must be removed.
 				# The question is: how?
 				# Should we completely exterminate them or just remove?
 				roster = False
@@ -556,7 +556,7 @@ class User(object):
 	def __init__(self, source=""):
 		self.friends = {}
 		self.typing = {}
-		self.source = source
+		self.source = source  # TODO: rename to jid
 
 		self.lastMsgID = 0
 		self.rosterSet = None
@@ -603,7 +603,7 @@ class User(object):
 		except api.CaptchaNeeded:
 			self.sendSubPresence()
 			logger.error("User: running captcha challenge (jid: %s)", self.source)
-			executeHandlers("evt04", (self, vk.engine.captcha["img"]))
+			executeHandlers("evt04", (self.source, self.vk.engine.captcha))
 			return True
 		else:
 			logger.debug("User seems to be authenticated (jid: %s)", self.source)
