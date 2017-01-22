@@ -7,37 +7,43 @@
 from __main__ import *
 from __main__ import _
 from utils import buildDataForm as buildForm, buildIQError
-from xmpp import DataForm as getForm
+from xmpp import DataForm
+from traceback import format_exc
+
+import xmpp
 import modulemanager
 
 
-NODE_DELETE_USERS = "Delete users"
-NODE_GLOBAL_MESSAGE = "Global message"
-NODE_SHOW_CRASH_LOGS = "Show crash logs"
-NODE_RELOAD_CONFG = "Reload config"
-NODE_GLOBAL_SETTINGS = "Global Transport Settings"
-NODE_CHECK_API_TOKEN = "Check an API token"
-NODE_UNLOAD_MODULES = "Unload modules"
-NODE_RELOAD_MODULES = "(Re)load modules"
-NODE_RELOAD_EXTENSIONS = "Reload extensions"
-NODE_EDIT_SETTINGS = "Edit settings"
-NODE_EXTERMINATE_CHATS = "Exterminate chats"
+class Node(object):
+	"""
+	Ad-Hoc nodes
+	"""
+	DELETE_USERS = "Delete users"
+	GLOBAL_MESSAGE = "Global message"
+	SHOW_CRASH_LOGS = "Show crash logs"
+	RELOAD_CONFIG = "Reload config"
+	GLOBAL_SETTINGS = "Global Transport Settings"
+	CHECK_API_TOKEN = "Check an API token"
+	UNLOAD_MODULES = "Unload modules"
+	RELOAD_MODULES = "(Re)load modules"
+	RELOAD_EXTENSIONS = "Reload extensions"
+	EDIT_SETTINGS = "Edit settings"
+	EXTERMINATE_CHATS = "Exterminate chats"
+	USERS_ONLINE = "Online users"
+	USERS_TOTAL = "All users"
 
-NODE_ONLINE = "Online users"
-NODE_TOTAL = "All users"
 
-
-NODES = {"admin": (NODE_DELETE_USERS,
-					NODE_GLOBAL_MESSAGE,
-					NODE_SHOW_CRASH_LOGS,
-					NODE_RELOAD_CONFG,
-					NODE_GLOBAL_SETTINGS,
-					NODE_CHECK_API_TOKEN,
-					NODE_UNLOAD_MODULES,
-					NODE_RELOAD_MODULES,
-					NODE_RELOAD_EXTENSIONS),
-		"user": (NODE_EDIT_SETTINGS,
-				NODE_EXTERMINATE_CHATS)}
+NODES = {"admin": (Node.DELETE_USERS,
+					Node.GLOBAL_MESSAGE,
+					Node.SHOW_CRASH_LOGS,
+					Node.RELOAD_CONFIG,
+					Node.GLOBAL_SETTINGS,
+					Node.CHECK_API_TOKEN,
+					Node.UNLOAD_MODULES,
+					Node.RELOAD_MODULES,
+					Node.RELOAD_EXTENSIONS),
+		"user": (Node.EDIT_SETTINGS,
+				Node.EXTERMINATE_CHATS)}
 
 
 def getFeatures(destination, source, ns, disco=False):
@@ -47,8 +53,8 @@ def getFeatures(destination, source, ns, disco=False):
 		features = UserFeatures
 	payload = [xmpp.Node("identity", IDENTIFIER)]
 	if source in ADMIN_JIDS and disco:
-		payload.append(xmpp.Node("item", {"node": NODE_ONLINE, "name": NODE_ONLINE, "jid": TransportID}))
-		payload.append(xmpp.Node("item", {"node": NODE_TOTAL, "name": NODE_TOTAL, "jid": TransportID}))
+		payload.append(xmpp.Node("item", {"node": Node.USERS_ONLINE, "name": Node.USERS_ONLINE, "jid": TransportID}))
+		payload.append(xmpp.Node("item", {"node": Node.USERS_TOTAL, "name": Node.USERS_TOTAL, "jid": TransportID}))
 	if ns == xmpp.NS_DISCO_INFO:
 		for key in features:
 			node = xmpp.Node("feature", {"var": key})
@@ -132,7 +138,7 @@ def checkAPIToken(token):
 			name = vk.getUserData(userID)
 			data = {"auth": auth, "name": name, "friends_count": len(vk.getFriends())}
 	except (api.VkApiError, Exception):
-		data = wException()
+		data = format_exc()
 	return data
 
 
@@ -145,20 +151,23 @@ def dictToDataForm(_dict, _fields=None):
 	_fields = _fields or []
 	for key, value in _dict.iteritems():
 		if isinstance(value, int) and not isinstance(value, bool):
-			type = "text-signle"
+			fieldType = "text-single"
 
 		elif isinstance(value, bool):
-			type = "boolean"
+			fieldType = "boolean"
 			value = utils.normalizeValue(value)
 
 		elif isinstance(value, dict):
 			dictToDataForm(value, _fields)
 
-		elif isinstance(value, str):
-			type = "text-single"
+		elif isinstance(value, (str, unicode)):
+			fieldType = "text-single"
 			if "\n" in value:
-				type = "text-multi"
-		_fields.append({"var": key, "label": key, "value": value, "type": type})
+				fieldType = "text-multi"
+		else:
+			logger.warning("unknown type \"%s\" for value %s", type(value), value)
+			fieldType = "text-single"
+		_fields.append({"var": key, "label": key, "value": value, "type": fieldType})
 	return _fields
 
 
@@ -190,9 +199,9 @@ def commands_handler(cl, iq):
 		note = None
 		simpleForm = buildForm(fields=[dict(var="FORM_TYPE", type="hidden", value=xmpp.NS_ADMIN)])
 		if node and action != "cancel":
-			dictForm = getForm(node=form).asDict()
+			dictForm = DataForm(node=form).asDict()
 			if source in ADMIN_JIDS:
-				if node == NODE_DELETE_USERS:
+				if node == Node.DELETE_USERS:
 					if not form:
 						simpleForm = buildForm(simpleForm,
 							fields=[{"var": "jids", "type": "jid-multi", "label": _("Jabber ID's"), "required": True}])
@@ -202,7 +211,7 @@ def commands_handler(cl, iq):
 						simpleForm = None
 						completed = True
 
-				elif node == NODE_GLOBAL_MESSAGE:
+				elif node == Node.GLOBAL_MESSAGE:
 					if not form:
 						simpleForm = buildForm(simpleForm,
 							fields=[
@@ -220,7 +229,7 @@ def commands_handler(cl, iq):
 						simpleForm = None
 						completed = True
 
-				elif node == NODE_SHOW_CRASH_LOGS:
+				elif node == Node.SHOW_CRASH_LOGS:
 					if not form:
 						simpleForm = buildForm(simpleForm, 
 							fields=[{"var": "filename", "type": "list-single", "label": "Filename",
@@ -237,7 +246,7 @@ def commands_handler(cl, iq):
 								fields=[{"var": "body", "type": "text-multi", "label": "Error body", "value": body}])
 							completed = True
 
-				elif node == NODE_CHECK_API_TOKEN:
+				elif node == Node.CHECK_API_TOKEN:
 					if not form:
 						simpleForm = buildForm(simpleForm,
 							fields=[{"var": "token", "type": "text-single", "label": "API Token"}],
@@ -255,25 +264,25 @@ def commands_handler(cl, iq):
 							simpleForm = buildForm(simpleForm, fields=_fields)
 							completed = True
 
-				elif node == NODE_RELOAD_CONFG:
+				elif node == Node.RELOAD_CONFIG:
 					simpleForm = None
 					completed = True
 					try:
 						execfile(Config, globals())
-						note = "Reloaded well."
+						note = "Reloaded well. You might need to reload modules for the settings to take effect"
 					except Exception:
-						note = wException()
+						note = format_exc()
 
-				elif node == NODE_RELOAD_EXTENSIONS:
+				elif node == Node.RELOAD_EXTENSIONS:
 					simpleForm = None
 					completed = True
 					try:
 						loadExtensions("extensions")
 						note = "Reloaded well."
 					except Exception:
-						note = wException()
+						note = format_exc()
 
-				elif node == NODE_GLOBAL_SETTINGS:
+				elif node == Node.GLOBAL_SETTINGS:
 					config = Transport.settings
 					if not form:
 						simpleForm = buildForm(simpleForm, fields=getConfigFields(config), title="Choose wisely")
@@ -286,7 +295,7 @@ def commands_handler(cl, iq):
 						simpleForm = None
 						completed = True
 
-				elif node == NODE_RELOAD_MODULES:
+				elif node == Node.RELOAD_MODULES:
 					Manager = modulemanager.ModuleManager
 					modules = Manager.list()
 					if not form:
@@ -312,7 +321,7 @@ def commands_handler(cl, iq):
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
 						completed = True
 
-				elif node == NODE_UNLOAD_MODULES:
+				elif node == Node.UNLOAD_MODULES:
 					Manager = modulemanager.ModuleManager
 					modules = Manager.loaded.copy()
 					modules.remove("mod_iq_disco")
@@ -337,7 +346,7 @@ def commands_handler(cl, iq):
 						simpleForm = buildForm(simpleForm, fields=_fields, title="Result")
 						completed = True
 
-			if node == NODE_EDIT_SETTINGS and source in Users:
+			if node == Node.EDIT_SETTINGS and source in Users:
 				logger.info("user want to edit their settings (jid: %s)" % source)
 				config = Users[source].settings
 				if not form:
@@ -351,7 +360,7 @@ def commands_handler(cl, iq):
 					simpleForm = None
 					completed = True
 
-			elif node == NODE_EXTERMINATE_CHATS:
+			elif node == Node.EXTERMINATE_CHATS:
 				if not form:
 					chats = getUserChats(source)
 					if chats:

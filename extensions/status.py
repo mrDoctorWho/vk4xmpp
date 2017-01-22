@@ -9,6 +9,8 @@ This plugin allows users to publish their status in VK
 VK_ACCESS += 1024
 
 GLOBAL_USER_SETTINGS["status_to_vk"] = {"label": "Publish my status in VK", "value": 0}
+GLOBAL_USER_SETTINGS["status_from_vk"] = {"label": "Show my friends status messages", "value": 0}
+
 
 def statustovk_prs01(source, prs, retry=3):
 	if source in Users and prs.getType() in ("available", None):
@@ -33,4 +35,21 @@ def statustovk_prs01(source, prs, retry=3):
 					if retry:
 						utils.runThread(statustovk_prs01, (source, prs, (retry -1)), delay=10)
 
+
+def statusfromvk_evt07(user):
+	if user and user.settings.status_from_vk:
+		user.vk.friends_fields.add("status")
+
+
+def statusfromvk_prs02(prs, destination, source):
+	if source != TransportID and destination in Users:
+		user = Users[destination]
+		if user.settings.status_from_vk and not prs.getType():
+			id = vk2xmpp(source)
+			if id in user.friends and user.friends[id].get("status"):
+				prs.setStatus(user.friends[id]["status"])
+
+
 registerHandler("prs01", statustovk_prs01)
+registerHandler("evt07", statusfromvk_evt07)
+registerHandler("prs02", statusfromvk_prs02)
