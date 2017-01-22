@@ -3,7 +3,7 @@
 # © simpleApps, 2015.
 
 """
-Contain all default variables used by VK4XMPP
+Contains all default variables used by VK4XMPP
 """
 
 __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
