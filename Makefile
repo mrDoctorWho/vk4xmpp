@@ -1,26 +1,24 @@
-#
-# Makefile
-#
-# this makefile is currently only used to make snapshots
-
-
-VERSION=2.`git log --pretty=format:''|wc -l`
-PACKAGE_VERSION=2
+GLOBAL_VERSION=3.0
+PACKAGE_VERSION:=$(shell git describe --tags)
+VERSION=$(GLOBAL_VERSION)+$(PACKAGE_VERSION)
 PROG=dpkg-deb
-SOURCE=/tmp/vk4xmpp_build
+SOURCE:=$(shell mktemp -d)
 FLAGS=--build
-DEBTARGET=vk4xmpp_$(VERSION)-$(PACKAGE_VERSION)_all.deb
+DEBTARGET=vk4xmpp_$(VERSION)_all.deb
 TARGET=vk4xmpp-$(VERSION)
 
 DOCS=LICENSE README.md extensions.README.md
 
-.PHONy: default
-default:
-	@echo "options are 'clean', 'vk4xmpp-systemd-deb', 'vk4xmpp-initd-deb'"
+.PHONY: help hierarchy
 
-.PHONY: hierarchy
+help:
+	@echo "VK4XMPP build script"
+	@echo "===================="
+	@echo "help - display this help and exit"
+	@echo "init-package - build package with SysV flavour"
+	@echo "systemd-package - build package with SystemD flavour"
+
 hierarchy:
-	rm -rf $(SOURCE)
 	mkdir -p $(SOURCE)/usr/share/doc/vk4xmpp
 	mkdir -p $(SOURCE)/usr/bin
 	mkdir -p $(SOURCE)/var/lib/vk4xmpp
@@ -28,26 +26,22 @@ hierarchy:
 	mkdir -p $(SOURCE)/var/log/vk4xmpp
 	mkdir -p $(SOURCE)/usr/lib/vk4xmpp
 	mkdir -p $(SOURCE)/run/vk4xmpp
+	mkdir -p $(SOURCE)/DEBIAN
+	cp DEBIAN/pre* $(SOURCE)/DEBIAN
+	cat DEBIAN/control.template | sed s/VERSION/$(VERSION)/ > $(SOURCE)/DEBIAN/control
 	cp gateway.py $(SOURCE)/usr/bin/vk4xmpp
 	cp $(DOCS) $(SOURCE)/usr/share/doc/vk4xmpp
-	cp Config_example.txt $(SOURCE)/etc/vk4xmpp/config
+	cp Config_example.txt $(SOURCE)/etc/vk4xmpp/config.example
 	cp -R library modules js extensions locales $(SOURCE)/usr/lib/vk4xmpp
+	find $(SOURCE) -type f -name "*.py" -print0 | xargs -0 python -m compileall
 
-vk4xmpp-systemd-deb: hierarchy
-	cp -R DEBIAN $(SOURCE)/DEBIAN
-	rm $(SOURCE)/DEBIAN/postinst.systemd
-	mv $(SOURCE)/DEBIAN/postinst.initd $(SOURCE)/DEBIAN/postinst
+init-package: hierarchy
+	cp DEBIAN/postinst.initd $(SOURCE)/DEBIAN/postinst
 	cp -R init.d $(SOURCE)/etc/init.d
 	fakeroot $(PROG) $(FLAGS) $(SOURCE) $(DEBTARGET)
 
-debian_package_systemd: hierarchy
-	cp -R DEBIAN $(SOURCE)/DEBIAN
-	cp -R DEBIAN $(SOURCE)/DEBIAN
-	rm $(SOURCE)/DEBIAN/postinst.initd
-	mv $(SOURCE)/DEBIAN/postinst.systemd $(SOURCE)/DEBIAN/postinst
+systemd-package: hierarchy
+	cp $(SOURCE)/DEBIAN/postinst.systemd $(SOURCE)/DEBIAN/postinst
 	mkdir -p $(SOURCE)/etc/systemd/system
 	cp -R systemd/vk4xmpp.service.debian $(SOURCE)/etc/systemd/system/vk4xmpp.service
 	fakeroot $(PROG) $(FLAGS) $(SOURCE) $(DEBTARGET)
-
-clean:
-	rm -Rf $(SOURCE)

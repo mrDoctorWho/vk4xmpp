@@ -1,8 +1,0 @@
-Package: vk4xmpp-2a1
-Version: 3.0
-Section: network, chat
-Priority: optional
-Architecture: all
-Depends: python2.7
-Maintainer: mrDoctorWho . <support@simpleapps.ru>
-Description: XMPP vk.com transport service
