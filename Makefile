@@ -28,7 +28,7 @@ hierarchy:
 	mkdir -p $(SOURCE)/run/vk4xmpp
 	mkdir -p $(SOURCE)/DEBIAN
 	cp DEBIAN/pre* $(SOURCE)/DEBIAN
-	cat DEBIAN/control.template | sed s/VERSION/$(VERSION)/ > $(SOURCE)/DEBIAN/control
+	sed s/VERSION/$(VERSION)/ < DEBIAN/control.template > $(SOURCE)/DEBIAN/control
 	cp gateway.py $(SOURCE)/usr/bin/vk4xmpp
 	cp $(DOCS) $(SOURCE)/usr/share/doc/vk4xmpp
 	cp Config_example.txt $(SOURCE)/etc/vk4xmpp/config.example
