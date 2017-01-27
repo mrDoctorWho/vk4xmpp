@@ -157,7 +157,7 @@ VK4XMPP представляет собой легковесный трансп�
 Запуск:
 python ./gateway.py
 
-Обратиться к разработчику в сети jabber можно в конференции [simpleapps@conference.jabber.ru](xmpp:simpleapps@conference.jabber.ru?join).
+Обратиться к разработчику в сети jabber можно в конференции simpleapps@conference.helldev.net.
 
 **<a name="wtf"></a>WTF**:
 
