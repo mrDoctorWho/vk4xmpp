@@ -7,7 +7,7 @@
 
 __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
 __license__ = "MIT"
-__version__ = "3.0"
+__version__ = "3.5"
 
 import hashlib
 import httplib

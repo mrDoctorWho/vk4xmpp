@@ -22,12 +22,14 @@ def initializeUser(source, resource, prs):
 		user.connect()
 	except RuntimeError:
 		pass
-	except Exception:
+	except Exception as e:
+		if not isinstance(e, TokenError):
+			report(crashLog("user.connect"))
 		sendMessage(source, TransportID,
 			_("Auth failed! If this error repeated, "
 				"please register again."
 				" This incident will be reported.\nCause: %s") % returnExc())
-		report(crashLog("user.connect"))
+		logger.error("Failed to authenicate user! Error: %s (jid: %s)", e.message, source)
 	else:
 		user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
 		utils.runThread(executeHandlers, ("prs01", (source, prs)))
