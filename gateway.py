@@ -863,7 +863,7 @@ def report(message):
 		LAST_REPORT = message
 		message = "Critical failure:\n%s" % message
 		for admin in ADMIN_JIDS:
-			sendMessage(admin, TransportID, message, timestamp=-1)
+			sendMessage(admin, TransportID, message)
 
 
 def computeCapsHash(features=TransportFeatures):
