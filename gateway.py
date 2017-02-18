@@ -861,7 +861,7 @@ def report(message):
 	global LAST_REPORT
 	if Transport.settings.send_reports and message != LAST_REPORT:
 		LAST_REPORT = message
-		message = "Critical failure:\n"
+		message = "Critical failure:\n%s" % message
 		for admin in ADMIN_JIDS:
 			sendMessage(admin, TransportID, message, timestamp=-1)
 
