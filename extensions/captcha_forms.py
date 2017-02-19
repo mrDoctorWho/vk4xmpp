@@ -19,15 +19,15 @@ def sendCaptcha(user, captcha):
 	"""
 	url = captcha.get("img")
 	sid = captcha.get("sid")
-	logger.debug("VK: sending message with captchaXMPP (jid: %s)", user)
+	logger.debug("VK: sending message with captcha (jid: %s)", user)
 	body = _("WARNING: VK has sent you a CAPTCHA."
 		" Please, follow the link: %s and enter the text shown on the image to the chat."
-		" Example: !captchaXMPP my_captcha_key."
+		" Example: !captcha my_captcha_key."
 		"\nWarning: don't use Firefox to open the link.") % url
 	msg = xmpp.Message(user, body, "chat", frm=TransportID)
 	x = msg.setTag("x", namespace=xmpp.NS_OOB)
 	x.setTagData("url", url)
-	captchaNode = msg.setTag("captchaXMPP", namespace=xmpp.NS_CAPTCHA)
+	captchaNode = msg.setTag("captcha", namespace=xmpp.NS_CAPTCHA)
 	image = utils.getLinkData(url, False)
 	if image:
 		hash = sha1(image).hexdigest()
