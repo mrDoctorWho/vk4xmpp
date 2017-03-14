@@ -9,8 +9,8 @@ class Forms:
 	@classmethod
 	def getSimpleForm(cls):
 		form = []
-		form.append({"var": "link", "type": "text-single",
-			"label": _("Autorization page"), "value": URL_ACCEPT_APP})
+		# form.append({"var": "link", "type": "text-single",
+		# 	"label": _("Autorization page"), "value": URL_ACCEPT_APP})
 		form.append({"var": "password", "type": "text-private",
 			"label": _("Access-token"),
 			"desc": _("Enter the access token")})

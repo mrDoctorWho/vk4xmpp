@@ -92,7 +92,8 @@ def register_handler(cl, iq):
 
 def sendRegisterForm(cl, iq):
 	logger.debug("Send registration form to user (jid: %s)", iq.getFrom().getStripped())
-	form = utils.buildDataForm(fields=forms.Forms.getComlicatedForm(), data=[_("Fill the fields below")])
+	form = utils.buildDataForm(fields=forms.Forms.getSimpleForm(), data=[_("Fill the fields below")])
+	form.setTag("next")
 	result = iq.buildReply("result")
 	result.setQueryPayload([form])
 	sender(cl, result)

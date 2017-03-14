@@ -22,7 +22,7 @@ def parseForwardedMessages(self, msg, depth=0):
 			date = fwd["date"]
 			fwdBody = escape("", uhtml(compile_eol.sub("\n" + spacer + BASE_SPACER, fwd["body"])))
 			date = datetime.fromtimestamp(date).strftime("%d.%m.%Y %H:%M:%S")
-			name = self.vk.getUserData(source)["name"]
+			name = self.vk.getUserData(source, notoken=True)["name"]
 			body += "\n%s[%s] <%s> %s" % (spacer + BASE_SPACER, date, name, fwdBody)
 			body += parseAttachments(self, fwd, spacer + (BASE_SPACER * 2))
 			if depth < MAXIMUM_FORWARD_DEPTH: 

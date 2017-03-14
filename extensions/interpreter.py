@@ -2,6 +2,7 @@
 # This file is a part of VK4XMPP transport
 # © simpleApps, 2015.
 
+import traceback
 
 def interpreter_msg02(msg):
 	body = msg.getBody()
@@ -19,14 +20,14 @@ def interpreter_msg02(msg):
 					try:
 						result = unicode(eval(args))
 					except Exception:
-						result = returnExc()
+						result = traceback.format_exc()
 					sendMessage(source, destination, result)
 
 				elif text == "!exec" and args and source in ADMIN_JIDS:
 					try:
 						exec (unicode(args + "\n"), globals())
 					except Exception:
-						result = returnExc()
+						result = traceback.format_exc()
 					else:
 						result = "Done."
 					sendMessage(source, destination, result)

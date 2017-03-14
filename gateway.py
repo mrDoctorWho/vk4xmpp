@@ -286,8 +286,6 @@ class VK(object):
 		"""
 		logger.debug("VK going to authenticate (jid: %s)", self.source)
 		self.engine = api.APIBinding(self.token, DEBUG_API, self.source)
-		if not self.checkToken():
-			raise api.TokenError("The token is invalid (jid: %s, token: %s)" % (self.source, self.token))
 		self.online = True
 		return True
 
@@ -370,14 +368,15 @@ class VK(object):
 				roster = False
 				m = e.message
 				# TODO: Make new exceptions for each of the conditions below
-				if m == "User authorization failed: user revoke access for this token.":
+				if m.endswith("user revoke access for this token."):
 					roster = True
-				elif m == "User authorization failed: invalid access_token.":
+				elif m.endswith("invalid access_token."):
 					sendMessage(self.source, TransportID,
-						m + " Please, register again")
-				utils.runThread(removeUser, (self.source, roster))
+						m11 + " Please, register again")
+				# don't do this for now
+#				utils.runThread(removeUser, (self.source, roster))
+#				self.online = False
 				logger.error("VK: apiError %s (jid: %s)", m, self.source)
-				self.online = False
 			else:
 				return result
 			logger.error("VK: error %s occurred while executing"
@@ -393,7 +392,6 @@ class VK(object):
 		self.online = False
 		logger.debug("VK: user %s has left", self.source)
 		executeHandlers("evt06", (self,))
-		self.setOffline()
 
 	def setOffline(self):
 		"""
@@ -491,7 +489,7 @@ class VK(object):
 		return self.permissions
 
 	@utils.cache
-	def getGroupData(self, gid, fields=None):
+	def getGroupData(self, gid, fields=None, **kwargs):
 		"""
 		Gets group data (only name so far)
 		Args:
@@ -501,13 +499,12 @@ class VK(object):
 			The group information
 		"""
 		fields = fields or ["name"]
-		data = self.method("groups.getById", {"group_id": abs(gid), "fields": str.join(",", fields)})
+		data = self.method("groups.getById", {"group_id": abs(gid), "fields": str.join(",", fields)}, **kwargs)
 		if data:
 			data = data[0]
 		return data
 
-	@utils.cache
-	def getUserData(self, uid, fields=None):
+	def getUserData(self, uid, fields=None, **kwargs):
 		"""
 		Gets user data. Such as name, photo, etc
 		Args:
@@ -521,7 +518,7 @@ class VK(object):
 			if user and uid in user.friends:
 				return user.friends[uid]
 			fields = ["screen_name"]
-		data = self.method("users.get", {"user_ids": uid, "fields": str.join(",", fields)})
+		data = self.method("users.get", {"user_ids": uid, "fields": str.join(",", fields)}, **kwargs)
 		if data:
 			data = data[0]
 			data["name"] = self.formatName(data)
@@ -768,10 +765,6 @@ class User(object):
 		Takes a corresponding action if any difference found
 		"""
 		if (cTime - self.last_udate) > 300 and not self.vk.engine.captcha:
-			if self.settings.keep_online:
-				self.vk.setOnline()
-			else:
-				self.vk.setOffline()
 			self.last_udate = cTime
 			friends = self.vk.getFriends()
 			if not friends:
@@ -905,7 +898,6 @@ def updateCron():
 		for user in Users.values():
 			cTime = time.time()
 			user.updateTypingUsers(cTime)
-			user.updateFriends(cTime)
 		time.sleep(2)
 
 def calcStats():
