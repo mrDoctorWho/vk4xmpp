@@ -23,7 +23,7 @@ def initializeUser(source, resource, prs):
 	except RuntimeError:
 		pass
 	except Exception as e:
-		if not isinstance(e, TokenError):
+		if not isinstance(e, api.TokenError):
 			report(crashLog("user.connect"))
 		sendMessage(source, TransportID,
 			_("Auth failed! If this error repeated, "
