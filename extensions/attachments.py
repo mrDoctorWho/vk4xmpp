@@ -17,8 +17,7 @@ GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachmen
 SIMPLE_ATTACHMENTS = {"doc": "Document: “%(title)s” — %(url)s",
 	"link": "URL: %(title)s — %(url)s",
 	"poll": "Poll: %(question)s",
-	"page": "Page: %(title)s — %(view_url)s",
-	"video": "Video: %(title)s (%(description)s, %(views)d views) — https://vk.com/video%(owner_id)s_%(vid)s"}  # TODO: Add duration & fix empty desc
+	"page": "Page: %(title)s — %(view_url)s"}
 
 
 def parseAttachments(self, msg, spacer=""):
@@ -86,6 +85,17 @@ def parseAttachments(self, msg, spacer=""):
 				body += "Commentary to the post on a wall:\n"
 				body += spacer + "<%(name)s> %(text)s\n" % current
 				body += spacer + "Post URL: %(url)s" % current
+
+			elif type == "video":
+				current["title"] = current.get("title", "Untitled")
+				current["desc"] = ("(%(description)s, %(views)d views)" if current.get("description", "") == "" else "%(views)d views") % current
+				current["type"] = "Live" if current.get("live", "") == "1" else "Video"
+
+				# Question: maybe use "player" against videos page?
+				current["url"] = "https://vk.com/video%(owner_id)s_%(id)s" % current
+				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
+
+				body += "%(type)s: %(title)s (%(desc)s, ) — %(url)s"
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current
