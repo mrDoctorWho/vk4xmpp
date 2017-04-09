@@ -88,14 +88,18 @@ def parseAttachments(self, msg, spacer=""):
 
 			elif type == "video":
 				current["title"] = current.get("title", "Untitled")
-				current["desc"] = ("(%(description)s, %(views)d views)" if current.get("description", "") == "" else "%(views)d views") % current
-				current["type"] = "Live" if current.get("live", "") == "1" else "Video"
 
-				# Question: maybe use "player" against videos page?
+				current["desc"] = ""
+				if current.get("description", "") != "":
+					current["desc"] += "%(description)s, "
+
+				current["desc"] += "%(views)d views"
+
+				current["type"] = "Live" if current.get("live") else "Video"
 				current["url"] = "https://vk.com/video%(owner_id)s_%(id)s" % current
 				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
 
-				body += "%(type)s: %(title)s (%(desc)s, %(time)s) — %(url)s"
+				body += "%(type)s: %(title)s (%(desc)s, %(time)s) — %(url)s" % current
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current
