@@ -96,7 +96,11 @@ def parseAttachments(self, msg, spacer=""):
 				current["desc"] += "%(views)d views"
 
 				current["type"] = "Live" if current.get("live") else "Video"
-				current["url"] = "https://vk.com/video%(owner_id)s_%(id)s" % current
+
+				# TODO: remove when start using API > 5.0
+				vid = current.get("vid") if current.get("vid") else current.get("id")
+				current["url"] = "https://vk.com/video%s_%s" % (current["owner_id"], vid)
+
 				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
 
 				body += "%(type)s: %(title)s (%(desc)s, %(time)s) — %(url)s" % current
