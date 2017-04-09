@@ -95,7 +95,7 @@ def parseAttachments(self, msg, spacer=""):
 				current["url"] = "https://vk.com/video%(owner_id)s_%(id)s" % current
 				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
 
-				body += "%(type)s: %(title)s (%(desc)s, ) — %(url)s"
+				body += "%(type)s: %(title)s (%(desc)s, %(time)s) — %(url)s"
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current
