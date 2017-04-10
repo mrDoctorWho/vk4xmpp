@@ -90,20 +90,14 @@ def parseAttachments(self, msg, spacer=""):
 				current["title"] = current.get("title", "Untitled")
 
 				current["desc"] = ""
-				if current.get("description", "") != "":
+				if current.get("description"):
 					current["desc"] += "%(description)s, "
 
 				current["desc"] += "%(views)d views"
 
-				current["type"] = "Live" if current.get("live") else "Video"
-
-				# TODO: remove when start using API > 5.0
-				vid = current.get("vid") if current.get("vid") else current.get("id")
-				current["url"] = "https://vk.com/video%s_%s" % (current["owner_id"], vid)
-
 				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
 
-				body += "%(type)s: %(title)s (%(desc)s, %(time)s) — %(url)s" % current
+				body += "Video: %(title)s (%(desc)s, %(time)s) — https://vk.com/video%(owner_id)s_%(vid)s" % current
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current
