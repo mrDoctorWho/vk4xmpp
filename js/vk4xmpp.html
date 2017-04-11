@@ -1,18 +1,30 @@
+<!DOCTYPE html>
 <html>
+<head>
+    <meta charset="utf-8">
+    <title>Redirect...</title>
+</head>
 <!-- (c) simpleApps, 2013 — 2014 -->
+
+<body>
+<h1 style="text-align: center">
+    Wait until you'll be redirected...
+</h1>
+<p style="text-align: center">
+    If redirect don&apos;t work - click
+    <a href="https://oauth.vk.com/authorize?scope=69638&redirect_uri=https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token">
+        here
+    </a>.
+</p>
 <script type="text/javascript">
-var scope = 69638;
-var str_start = "https://oauth.vk.com/authorize?scope=";
-var str_end = "&redirect_uri=https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token";
-if (window.location.hash) {
-	scope = location.hash;
-	scope = scope.substring(1, scope.length);
-}
-window.location.replace(str_start+scope.toString()+str_end);
-
+    var scope = 69638;
+    var str_start = "https://oauth.vk.com/authorize?scope=";
+    var str_end = "&redirect_uri=https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token";
+    if (window.location.hash) {
+        scope = location.hash;
+        scope = scope.substring(1, scope.length);
+    }
+    window.location.replace(str_start + scope.toString() + str_end);
 </script>
-
-<title>Redirect...</title>
-<body>Wait until you'll be redirected...
-<br />If redirect don&apos;t work - click <a href="https://oauth.vk.com/authorize?scope=69638&redirect_uri=https%3A%2F%2Foauth.vk.com%2Fblank.html&display=mobile&client_id=3789129&response_type=token">here</a></body></body>
-</html> 
+</body>
+</html>

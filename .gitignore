@@ -13,6 +13,8 @@ gateway.log
 gateway_v5.0.py
 # exclude PyDev/Aptana project files
 .*project
+# exclude PyCharm project files
+.idea/
 # exclude ~ bak files
 *~
 /.settings
