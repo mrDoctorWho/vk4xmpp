@@ -395,12 +395,15 @@ class Chat(object):
 		"""
 		Split the source and return required parts
 		"""
-		node, domain = source.split("@")
-		if "_chat#" in node:
-			creator, id = node.split("_chat#")
-		else:
+		node, domain = source.split("@", 1)
+		if "_chat#" not  in node:
 			return (None, None, None)
-		return (int(creator), int(id), domain)
+		if "/" in domain:
+			domain = domain.split("/")[0]
+		creator, id = node.split("_chat#", 1)
+		creator = int(creator)
+		id = int(id)
+		return (creator, id, domain)
 
 	@classmethod
 	def getUserObject(cls, source):
