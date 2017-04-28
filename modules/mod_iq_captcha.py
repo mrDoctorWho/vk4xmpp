@@ -27,7 +27,7 @@ def captcha_handler(cl, iq):
 				if mod_msg.acceptCaptcha(value, source, destination):
 					cl.send(result)
 				else:
-					result = buildIQError(iq, xmpp.ERR_NOT_ACCEPTABLE)
+					result = utils.buildIQError(iq, xmpp.ERR_NOT_ACCEPTABLE)
 
 
 MOD_TYPE = "iq"
