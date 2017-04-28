@@ -159,7 +159,9 @@ class Poll(object):
 			opener = user.vk.makePoll()
 			debug("longpoll: user has been added to poll (jid: %s)", user.source)
 			if opener:
-				cls.__list[opener.sock] = (user, opener)
+				sock = opener.sock
+				sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+				cls.__list[sock] = (user, opener)
 				return opener
 			logger.warning("longpoll: got null opener! (jid: %s)", user.source)
 			cls.__addToBuffer(user)
