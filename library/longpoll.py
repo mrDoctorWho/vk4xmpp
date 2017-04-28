@@ -130,9 +130,10 @@ def processPollResult(user, data):
 				sendPresence(user.source, vk2xmpp(uid), "unavailable")
 
 			elif typ == TYPE_TYPING:  # user is typing
-				if evt[0] not in user.typing:
-					sendMessage(user.source, vk2xmpp(evt[0]), typ="composing")
-				user.typing[evt[0]] = time.time()
+				uid = evt[0]
+				if uid not in user.typing:
+					sendMessage(user.source, vk2xmpp(uid), typ="composing")
+				user.typing[uid] = time.time()
 			retcode = CODE_FINE
 	return retcode
 

@@ -728,7 +728,10 @@ class User(object):
 				# If message wasn't sent by our user
 				if not message["out"]:
 					Stats["msgin"] += 1
-					fromjid = vk2xmpp(message["uid"])
+					frm = message["uid"]
+					if frm in self.typing:
+						del self.typing[frm]
+					fromjid = vk2xmpp(frm)
 					body = uhtml(message["body"])
 					iter = Handlers["msg01"].__iter__()
 					for func in iter:
@@ -760,10 +763,11 @@ class User(object):
 		Args:
 			cTime: current time
 		"""
-		for user, last in self.typing.items():
-			if cTime - last > 7:
-				del self.typing[user]
-				sendMessage(self.source, vk2xmpp(user), typ="paused")
+		with self.sync:
+			for user, last in self.typing.items():
+				if cTime - last > 7:
+					del self.typing[user]
+					sendMessage(self.source, vk2xmpp(user), typ="paused")
 
 	def updateFriends(self, cTime):
 		"""
