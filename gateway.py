@@ -262,6 +262,10 @@ class VK(object):
 		self.permissions = 0
 		logger.debug("VK initialized (jid: %s)", source)
 
+	def __str__(self):
+		return ("user id: %s; online: %s; token: %s" % 
+			(self.userID, self.online, self.token))
+
 	def init(self):
 		self.getUserID()
 		self.getPermissions()
@@ -1132,6 +1136,7 @@ if __name__ == "__main__":
 	from longpoll import *
 	try:
 		main()
+		Poll.init()
 	except Exception:
 		crashLog("main")
 		os._exit(1)

@@ -19,8 +19,6 @@ import time
 import vkapi as api
 
 import utils
-# from __main__ import Users, logger, ALIVE, DEBUG_POLL, crashLog, \
-# 	USER_CAPS_HASH, sendMessage, sendPresence, vk2xmpp
 
 from __main__ import *
 
@@ -44,6 +42,9 @@ FLAG_OUT = 2
 FLAG_CHAT = 16
 
 MIN_CHAT_UID = 2000000000
+
+TCP_KEEPINTVL = 60
+TCP_KEEPIDLE = 60
 
 
 def debug(message, *args):
@@ -136,6 +137,25 @@ def processPollResult(user, data):
 	return retcode
 
 
+
+
+def configureSocket(sock):
+	# see man(7) tcp
+	debug("setting socket parameters...")
+	try:
+		# enable keepalive probes
+		sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+		# the interval between subsequential keepalive probes, regardless of what the connection has exchanged in the meantime
+		# overrides  tcp_keepalive_intvl
+		sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, TCP_KEEPINTVL)
+		# the interval between the last data packet sent (simple ACKs are not considered data) and the first keepalive probe;
+		# after the connection is marked to need keepalive, this counter is not used any further
+		# overrides tcp_keepalive_time
+		sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, TCP_KEEPIDLE)
+	except (AttributeError, OSError):
+		debug("unable to set socket parameters")
+
+
 # TODO: make it abstract, to reuse in Steampunk
 class Poll(object):
 	"""
@@ -145,6 +165,12 @@ class Poll(object):
 	__buff = set()
 	__lock = threading.Lock()
 	clear = staticmethod(__list.clear)
+	watchdogRunning = False
+
+	@classmethod
+	def init(cls):
+		cls.watchdogRunning ^= True
+		cls.watchdog()
 
 	@classmethod
 	def __add(cls, user):
@@ -160,7 +186,7 @@ class Poll(object):
 			debug("longpoll: user has been added to poll (jid: %s)", user.source)
 			if opener:
 				sock = opener.sock
-				sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+				configureSocket(sock)
 				cls.__list[sock] = (user, opener)
 				return opener
 			logger.warning("longpoll: got null opener! (jid: %s)", user.source)
@@ -173,8 +199,6 @@ class Poll(object):
 		"""
 		debug("longpoll: adding user to poll (jid: %s)", some_user.source)
 		with cls.__lock:
-			if not cls.__list:
-				cls.checkIfSocketsAlive()
 			if some_user in cls.__buff:
 				return None
 			# check if someone is trying to add an already existing user
@@ -324,8 +348,8 @@ class Poll(object):
 
 	@classmethod
 	@utils.threaded
-	def checkIfSocketsAlive(cls):
-		while cls.__list:
+	def watchdog(cls):
+		while cls.watchdog:
 			for sock, (user, opener) in cls.__list.items():
 				if (time.time() - opener.created) > OPENER_LIFETIME:
 					with cls.__lock:
