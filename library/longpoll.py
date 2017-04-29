@@ -11,7 +11,6 @@ Implements a single-threaded longpoll client
 
 import select
 import socket
-import ssl
 import json
 import httplib
 import threading
@@ -108,8 +107,7 @@ def processPollResult(user, data):
 					message = None
 					mid, flags, uid, date, subject, body, attachments = evt
 					out = flags & FLAG_OUT
-					chat = (flags & FLAG_CHAT) or (
-						uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
+					chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
 					if not out:
 						if not attachments and not chat:
 							message = [1,
