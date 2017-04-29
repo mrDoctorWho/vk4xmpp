@@ -65,7 +65,7 @@ def read(opener, source):
 		data = opener.read()
 	except (httplib.BadStatusLine, socket.error, socket.timeout) as e:
 		data = ""
-		logger.warning("longpoll: got error `%s` (jid: %s)", e.__class__.__name__, source)
+		logger.warning("longpoll: got error `%s` (jid: %s)", e.message, source)
 	return data
 
 

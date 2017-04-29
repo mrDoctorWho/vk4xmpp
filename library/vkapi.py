@@ -78,8 +78,11 @@ def attemptTo(maxRetries, resultType, *errors):
 				else:
 					break
 			else:
-				if getattr(exc, "errno", 0) == 101:
+				errno = getattr(exc, "errno", 0)
+				if errno == 101:
 					raise NetworkNotFound()
+				elif errno == 104:
+					raise NetworkError()
 				data = resultType()
 				logger.warning("vkapi: Error %s occurred on executing %s(*%s, **%s)",
 					exc,
@@ -418,6 +421,13 @@ class NetworkNotFound(Exception):
 	"""
 	This happens in very weird situations
 	Happened just once at 10.01.2014 (vk.com was down)
+	"""
+	pass
+
+
+class NetworkError(Exception):
+	"""
+	Common network error
 	"""
 	pass
 
