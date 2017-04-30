@@ -335,7 +335,7 @@ class APIBinding(RequestProcessor):
 		start = time.time()
 		if method in self.debug or self.debug == "all":
 			Print("SENT: method %s with values %s in thread: %s" % (method,
-				colorizeJSON(str(values)), threading.currentThread().name))
+				colorizeJSON(values), threading.currentThread().name))
 
 		response = self.post(url, values)
 		if response:
@@ -348,7 +348,7 @@ class APIBinding(RequestProcessor):
 
 			if self.debug:
 				end = time.time()
-				dbg = (method, colorizeJSON(str(body)), threading.currentThread().name, (end - start), self.logline)
+				dbg = (method, colorizeJSON(body), threading.currentThread().name, (end - start), self.logline)
 				if method in self.debug or self.debug == "all":
 					Print("GOT: for method %s: %s in thread: %s (%0.2fs) for %s" % dbg)
 

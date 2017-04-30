@@ -302,6 +302,9 @@ class Chat(object):
 			if user not in old_users:
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)",
 					user, self.jid, userObject.source)
+				# TODO: Transport MUST NOT request a name for each user it sees.
+				# It should be done with a list of users
+				# E.g. requesting a list of users and get a list of names
 				name = userObject.vk.getUserData(user)["name"]
 				self.users[int(user)] = {"name": name, "jid": jid}
 				setAffiliation(self.jid, "member", jid)

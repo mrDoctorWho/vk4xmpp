@@ -515,7 +515,7 @@ class VK(object):
 		"""
 		Gets user data. Such as name, photo, etc
 		Args:
-			uid: the user id
+			uid: the user id (list or str)
 			fields: a list of advanced fields to receive
 		Returns:
 			The user information
@@ -525,6 +525,8 @@ class VK(object):
 			if user and uid in user.friends:
 				return user.friends[uid]
 			fields = ["screen_name"]
+		if isinstance(uid, (list, tuple)):
+			uid = str.join(",", uid)
 		data = self.method("users.get", {"user_ids": uid, "fields": str.join(",", fields)})
 		if data:
 			data = data[0]
