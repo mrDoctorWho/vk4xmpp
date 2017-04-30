@@ -25,7 +25,7 @@ def parseAttachments(self, msg, spacer=""):
 	“parses” attachments from the json to a string
 	"""
 	result = ""
-	if msg.has_key("attachments"):
+	if "attachments" in msg:
 		attachments = msg["attachments"]
 		# Add new line and "Attachments" if there some text added
 		if msg.get("body") and len(attachments) > 1:
@@ -91,13 +91,12 @@ def parseAttachments(self, msg, spacer=""):
 
 				current["desc"] = ""
 				if current.get("description"):
-					current["desc"] += "%(description)s, "
+					current["desc"] += uhtml(compile_eol.sub(" / ", "%(description)s, " % current))
 
-				current["desc"] += "%(views)d views"
-
+				current["desc"] += "%(views)d views" % current
 				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
 
-				body += "Video: %(title)s (%(desc)s, %(time)s) — https://vk.com/video%(owner_id)s_%(vid)s" % current
+				body += "Video: %(title)s (%(desc)s, %(time)s min) — https://vk.com/video%(owner_id)s_%(vid)s" % current
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current
