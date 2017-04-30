@@ -5,6 +5,7 @@
 Provides a “safe” way to print a text
 """
 
+import os
 import sys
 import time
 
@@ -48,24 +49,26 @@ def Print(text, line=True):
 
 
 def colorizeJSON(data):
-	text = ""
-	iter = list(repr(data)).__iter__()
-	for c in iter:
-		if c == "'":
-			text += BIYellow + c
-			for x in iter:
-				text += x
-				if x == "'":
-					text += Nocolor
-					break
-		elif c.isdigit():
-			text += BICyan + c
-			for x in iter:
-				if x.isdigit():
+	if os.name() != "nt":
+		text = ""
+		iter = list(repr(data)).__iter__()
+		for c in iter:
+			if c == "'":
+				text += BIYellow + c
+				for x in iter:
 					text += x
-				else:
-					text += Nocolor + x
-					break
-		else:
-			text += c
-	return text
+					if x == "'":
+						text += Nocolor
+						break
+			elif c.isdigit():
+				text += BICyan + c
+				for x in iter:
+					if x.isdigit():
+						text += x
+					else:
+						text += Nocolor + x
+						break
+			else:
+				text += c
+		return text
+	return data
