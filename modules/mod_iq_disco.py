@@ -177,6 +177,7 @@ def getConfigFields(config):
 		fields.append({"var": key, "label": _(values["label"]),
 			"type": values.get("type", "boolean"),
 			"value": values["value"], "desc": _(values.get("desc"))})
+	fields = sorted(fields, key=lambda x: x["label"])
 	return fields
 
 
