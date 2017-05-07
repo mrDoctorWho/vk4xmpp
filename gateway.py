@@ -263,7 +263,7 @@ class VK(object):
 		logger.debug("VK initialized (jid: %s)", source)
 
 	def __str__(self):
-		return ("user id: %s; online: %s; token: %s" % 
+		return ("user id: %s; online: %s; token: %s" %
 			(self.userID, self.online, self.token))
 
 	def init(self):
@@ -279,6 +279,8 @@ class VK(object):
 		try:
 			int(self.engine.method("isAppUser"))
 		except (api.VkApiError, TypeError, AttributeError):
+			logger.error("unable to check user's token, error: %s (user: %s)",
+				traceback.format_exc(), self.source)
 			return False
 		return True
 
@@ -291,7 +293,8 @@ class VK(object):
 		logger.debug("VK going to authenticate (jid: %s)", self.source)
 		self.engine = api.APIBinding(self.token, DEBUG_API, self.source)
 		if not self.checkToken():
-			raise api.TokenError("The token is invalid (jid: %s, token: %s)" % (self.source, self.token))
+			raise api.TokenError("The token is invalid (jid: %s, token: %s)"
+				% (self.source, self.token))
 		self.online = True
 		return True
 

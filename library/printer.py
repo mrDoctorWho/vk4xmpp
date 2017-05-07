@@ -49,7 +49,7 @@ def Print(text, line=True):
 
 
 def colorizeJSON(data):
-	if os.name() != "nt":
+	if os.name != "nt":
 		text = ""
 		iter = list(repr(data)).__iter__()
 		for c in iter:
