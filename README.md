@@ -117,7 +117,7 @@ VK4XMPP представляет собой легковесный трансп�
 
 * [Arch Linux](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody)
 * [Gentoo](http://blog.stv-fian.ru/?p=375)
-* [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов))
+* [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(для-серверов))
 
 
 <a name="configure"></a>Настройка jabber-серверов:
@@ -130,24 +130,24 @@ VK4XMPP представляет собой легковесный трансп�
 
 <a name="register"></a>Регистрация:
 
-* [Gajim](http://xmppserv.ru/gajim/)
-* [JasmineIM](http://xmppserv.ru/jasmine/)
-* [Jimm](http://xmppserv.ru/jimm/)
+* ~~[Gajim](http://xmppserv.ru/gajim/)~~
+* ~~[JasmineIM](http://xmppserv.ru/jasmine/)~~
+* ~~[Jimm](http://xmppserv.ru/jimm/)~~
 * [jTalk](http://is.gd/pZt5gz)
-* [Kopete](http://xmppserv.ru/kopete/)
+* ~~[Kopete](http://xmppserv.ru/kopete/)~~
 * [Miranda](http://is.gd/5dAduL)
-* [Pidgin](http://xmppserv.ru/pidgin/)
+* ~~[Pidgin](http://xmppserv.ru/pidgin/)~~
 * [Psi+](http://is.gd/VwlK5R)
 * [QIP](http://is.gd/xrjvfF)
 * [Talkonaut](http://is.gd/OxJdMK)
 * [Tkabber](http://dsy.name/?q=vk4xmpp)
-* [VacuumIM](http://xmppserv.ru/vacuum/)
+* ~~[VacuumIM](http://xmppserv.ru/vacuum/)~~
 
 
 <a name="talk"></a>Обсуждения:
 
 * ~~[На 4pda](http://is.gd/t10ZIc)~~
-* [На форуме Debian](http://debianforum.r/uindex.php?topic=6037)
+* [На форуме Debian](http://debianforum.ru/index.php?topic=6037)
 * [На форуме Ubuntu](http://forum.ubuntu.ru/index.php?topic=230041)
 
 
