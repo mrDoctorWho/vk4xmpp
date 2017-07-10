@@ -130,13 +130,13 @@ VK4XMPP представляет собой легковесный трансп�
 
 <a name="register"></a>Регистрация:
 
-* ~~[Gajim](http://xmppserv.ru/gajim/)~~
+* [Gajim](http://j-cool.ru/vk4xmpp/gajim.html)
 * ~~[JasmineIM](http://xmppserv.ru/jasmine/)~~
 * ~~[Jimm](http://xmppserv.ru/jimm/)~~
-* [jTalk](http://is.gd/pZt5gz)
+* [jTalk](http://jabberon.ru/articles/2014/12/12/транспорт-вконтакте-подключение-через-jtalk/)
 * ~~[Kopete](http://xmppserv.ru/kopete/)~~
 * [Miranda](http://is.gd/5dAduL)
-* ~~[Pidgin](http://xmppserv.ru/pidgin/)~~
+* [Pidgin](http://xubuntu-ru.net/how-to/129-podklyuchenie-k-transportu-vk4xmpp-s-pomoschyu-klienta-pidgin.html)
 * [Psi+](http://is.gd/VwlK5R)
 * [QIP](http://is.gd/xrjvfF)
 * [Talkonaut](http://is.gd/OxJdMK)
