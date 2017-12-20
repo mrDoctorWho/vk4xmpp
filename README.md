@@ -92,6 +92,7 @@ VK4XMPP представляет собой легковесный трансп�
 * vk.kap.sh
 * vk.jabbik.ru
 * vk.opiums.eu
+* vk.stv-fian.ru
 
 Полный список можно посмотреть [здесь](http://anon.stv-fian.ru).
 
@@ -116,7 +117,7 @@ VK4XMPP представляет собой легковесный трансп�
 <a name="installation"></a>Установка (для серверов):
 
 * [Arch Linux](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody)
-* [Gentoo](http://blog.stv-fian.ru/?p=375) Обновлено
+* [Gentoo](http://blog.stv-fian.ru/?p=375)
 * [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(для-серверов))
 
 
