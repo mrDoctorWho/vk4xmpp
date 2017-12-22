@@ -104,11 +104,11 @@ LOG_LEVEL = logging.ERROR
 
 # VK4XMPP Monitor settings
 # The server where the stats requests will come from
-VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
+VK4XMPP_MONITOR_SERVER = "anon.stv-fian.ru"
 
 # The URL where transport should send POST requests with it's name
 # See https://github.com/aawray/xmpp-monitor for more information
-VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
+VK4XMPP_MONITOR_URL = "http://anon.stv-fian.ru/hosts.php"
 
 # THE FOLLOWING OPTIONS ARE FOR POSIX-LIKE SYSTEMS ONLY
 # Run as a specified user. Set to "username" to run as "username" instead of current user.
