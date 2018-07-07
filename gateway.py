@@ -193,7 +193,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 317, 0
+	number, hash = 410, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -460,6 +460,16 @@ class VK(object):
 			self.lists = self.method("friends.getLists")
 		return self.lists
 
+	def getInnerConversation(self, conversation, messages, mid):
+		if isinstance(conversation, dict):
+			innerConversation = conversation.get("conversation")
+			if innerConversation:
+				peer = innerConversation["peer"]["id"]
+				peerMessageHistory = self.method("messages.getHistory", {"user_id": peer, "start_message_id": mid})
+				# skipping count-only reponses
+				if len(peerMessageHistory) > 1:
+					messages.append(peerMessageHistory)
+
 	def getMessages(self, count=5, mid=0, uid=0):
 		"""
 		Gets the last messages list
@@ -469,26 +479,23 @@ class VK(object):
 		Returns:
 			The result of the messages.get method
 		"""
-
 		if mid:
-			mid -= 10  # preventing message loss; receiving last 10 messages before the current one
+			mid -= 20  # preventing message loss; receiving last 20 messages before the current one
 		if uid == 0:
 			conversations = self.method("messages.getConversations", {"filters": "unread", "start_message_id": mid, "count": count})
 		else:
 			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
 		messages = []
-		unreadCount = conversations.pop("unread_count")
-		if unreadCount > 0:
-			for conversationId in conversations:
-				conversation = conversations[conversationId]
-				if isinstance(conversation, dict):
-					innerConversation = conversation.get("conversation")
-					if innerConversation:
-						peer = innerConversation["peer"]["id"]
-						peerMessageHistory = self.method("messages.getHistory", {"user_id": peer, "start_message_id": mid})
-						if len(peerMessageHistory) > 1:
-							# skipping count-only reponses
-							messages.append(peerMessageHistory)
+		# what a horrible decision to have two different data types in the response
+		if isinstance(conversations, dict):
+			unreadCount = conversations.get("unread_count", 0)
+			if unreadCount > 0:
+				for conversationId in conversations:
+					conversation = conversations[conversationId]
+					self.getInnerConversation(conversation, messages, mid)
+		elif isinstance(conversations, list):
+			for conversation in conversations:
+				self.getInnerConversation(conversation, messages, mid)
 		return messages
 
 	# TODO: put this in the DB
