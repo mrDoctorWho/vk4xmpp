@@ -1,11 +1,9 @@
 # coding: utf-8
 # This file is a part of VK4XMPP transport
-# © simpleApps, 2013 — 2015.
-# File contains parts of code from
-# BlackSmith mark.1 XMPP Bot, © simpleApps 2011 — 2014.
+# © simpleApps, 2013 — 2018.
 
 # Installation:
-# The extension requires up to 2 fields in the main config:
+# This extension requires 2 fields in the main config:
 # 1. ConferenceServer - the address of your (or not yours?) conference server
 # Bear in mind that there can be limits on the jabber server for conference per jid. Read the wiki for more details.
 # 2. CHAT_LIFETIME_LIMIT - the limit of the time after that user considered inactive and will be removed. 
@@ -28,6 +26,8 @@ mod_groupchat_msg for message handling
 
 MAX_UPDATE_DELAY = 3600  # 1 hour
 CHAT_CLEANUP_DELAY = 86400  # 24 hours
+
+MIN_CHAT_ID = 2000000000
 
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
@@ -137,6 +137,7 @@ def handleOutgoingChatMessage(user, vkChat):
 	"""
 	Handles outging VK messages and sends them to XMPP
 	"""
+
 	if "chat_id" in vkChat:
 		# check if the groupchats support enabled in user's settings
 		if not user.settings.groupchats:
@@ -152,12 +153,23 @@ def handleOutgoingChatMessage(user, vkChat):
 			utils.runThread(handleOutgoingChatMessage, (user, vkChat), delay=10)
 			return None
 
-		owner = vkChat.get("admin_id", "1")
 		chatID = vkChat["chat_id"]
 		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
 		chat = createChat(user, chatJID)
 		if not chat.initialized:
-			chat.init(owner, chatID, chatJID, vkChat["title"], vkChat["date"], vkChat["chat_active"].split(","))
+			owner = 1
+			conversation = user.vk.method("messages.getConversationsById", {"peer_ids": MIN_CHAT_ID + chatID})[1]
+			settings = conversation.get("chat_settings")
+			if settings:
+				members = user.vk.method("messages.getConversationMembers", {"peer_id": MIN_CHAT_ID + chatID})
+				members = members.get("items")
+				chat_active = settings.get("active_ids")
+				for member in members:
+					if member["is_admin"]:
+						owner = member["member_id"]
+						break
+
+				chat.init(owner, chatID, chatJID, settings["title"], time.time(), chat_active)
 		if not chat.created:
 			if chat.creation_failed:
 				return None
@@ -284,12 +296,8 @@ class Chat(object):
 		Updates chat users and sends messages
 		Uses two user lists to prevent losing of any of them
 		"""
-		all_users = vkChat["chat_active"].split(",")
-		all_users = [int(user) for user in all_users if user]
-		if userObject.settings.show_all_chat_users:
-			users = self.getVKChat(userObject, self.id)
-			if users:
-				all_users = users.get("users", [])
+		vkChat = self.getVKChat(userObject, self.id)
+		all_users = vkChat.get("users", [])
 		old_users = self.users.keys()
 		buddies = all_users + old_users
 		if TransportID in buddies:
@@ -302,7 +310,7 @@ class Chat(object):
 			if user not in old_users:
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)",
 					user, self.jid, userObject.source)
-				# TODO: Transport MUST NOT request a name for each user it sees.
+				# TODO: Transport MUST NOT request the name for each user it sees.
 				# It should be done with a list of users
 				# E.g. requesting a list of users and get a list of names
 				name = userObject.vk.getUserData(user)["name"]

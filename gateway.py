@@ -2,7 +2,7 @@
 # coding: utf-8
 
 # vk4xmpp gateway, v3.0
-# © simpleApps, 2013 — 2016.
+# © simpleApps, 2013 — 2018.
 # Program published under the MIT license.
 
 __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
@@ -460,7 +460,7 @@ class VK(object):
 			self.lists = self.method("friends.getLists")
 		return self.lists
 
-	def getMessages(self, count=5, mid=0):
+	def getMessages(self, count=5, mid=0, uid=0):
 		"""
 		Gets the last messages list
 		Args:
@@ -469,12 +469,27 @@ class VK(object):
 		Returns:
 			The result of the messages.get method
 		"""
-		values = {"out": 0, "filters": 1, "count": count}
+
 		if mid:
-			del values["count"]
-			del values["filters"]
-			values["last_message_id"] = mid
-		return self.method("messages.get", values)
+			mid -= 10  # preventing message loss; receiving last 10 messages before the current one
+		if uid == 0:
+			conversations = self.method("messages.getConversations", {"filters": "unread", "start_message_id": mid, "count": count})
+		else:
+			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
+		messages = []
+		unreadCount = conversations.pop("unread_count")
+		if unreadCount > 0:
+			for conversationId in conversations:
+				conversation = conversations[conversationId]
+				if isinstance(conversation, dict):
+					innerConversation = conversation.get("conversation")
+					if innerConversation:
+						peer = innerConversation["peer"]["id"]
+						peerMessageHistory = self.method("messages.getHistory", {"user_id": peer, "start_message_id": mid})
+						if len(peerMessageHistory) > 1:
+							# skipping count-only reponses
+							messages.append(peerMessageHistory)
+		return messages
 
 	# TODO: put this in the DB
 	def getUserID(self):
@@ -711,7 +726,7 @@ class User(object):
 		if dist:
 			self.markRosterSet()
 
-	def sendMessages(self, init=False, messages=None):
+	def sendMessages(self, init=False, messages=None, mid=0, uid=0):
 		"""
 		Sends messages from vk to xmpp and call message01 handlers
 		Args:
@@ -725,13 +740,14 @@ class User(object):
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, self.lastMsgID)
+				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID, uid)
 			if not messages:  # or not messages[0]:
 				return None
-			messages = sorted(messages[1:], sortMsg)
+			messages = sorted([message[1] for message in messages], sortMsg)
 			for message in messages:
-				# If message wasn't sent by our user
-				if not message["out"]:
+				# If message wasn'tsent by our user
+					# and not message["read_state"]
+				if not message["out"] :
 					Stats["msgin"] += 1
 					frm = message["uid"]
 					if frm in self.typing:

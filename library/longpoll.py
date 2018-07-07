@@ -110,9 +110,9 @@ def processPollResult(user, data):
 					chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
 					if not out:
 						if not attachments and not chat:
-							message = [1,
-										{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
-						utils.runThread(user.sendMessages, (None, message), "sendMessages-%s" % user.source)
+							message = [[1,
+										{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]]
+						utils.runThread(user.sendMessages, (False, message, mid, uid), "sendMessages-%s" % user.source)
 				else:
 					logger.warning(
 						"longpoll: incorrect events number while trying to "
