@@ -467,7 +467,7 @@ class VK(object):
 				peer = innerConversation["peer"]["id"]
 				peerMessageHistory = self.method("messages.getHistory", {"user_id": peer, "start_message_id": mid})
 				# skipping count-only reponses
-				if len(peerMessageHistory) > 1:
+				if peerMessageHistory and len(peerMessageHistory) > 1:
 					messages.append(peerMessageHistory)
 
 	def getMessages(self, count=5, mid=0, uid=0):
