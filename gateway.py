@@ -482,11 +482,11 @@ class VK(object):
 		if mid:
 			mid -= 20  # preventing message loss; receiving last 20 messages before the current one
 		if uid == 0:
-			conversations = self.method("messages.getConversations", {"filters": "unread", "start_message_id": mid, "count": count})
+			conversations = self.method("messages.getConversations", {"filters": "unread", "count": count})
 		else:
 			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
 		messages = []
-		# what a horrible decision to have two different data types in the response
+		# what a horrible decision to have two different data types in the response?
 		if isinstance(conversations, dict):
 			unreadCount = conversations.get("unread_count", 0)
 			if unreadCount > 0:
@@ -752,9 +752,9 @@ class User(object):
 				return None
 			messages = sorted([message[1] for message in messages], sortMsg)
 			for message in messages:
-				# If message wasn'tsent by our user
-					# and not message["read_state"]
-				if not message["out"] :
+				# If message wasn't sent by our user
+				# and not message["read_state"]
+				if not message["out"]:
 					Stats["msgin"] += 1
 					frm = message["uid"]
 					if frm in self.typing:
@@ -780,9 +780,11 @@ class User(object):
 							date = message["date"]
 						sendMessage(self.source, fromjid, escape("", body), date)
 		if messages:
-			self.lastMsgID = messages[-1]["mid"]
-			runDatabaseQuery("update users set lastMsgID=? where jid=?",
-				(self.lastMsgID, self.source), True)
+			newLastMsgID = messages[-1]["mid"]
+			if self.lastMsgID < newLastMsgID:
+				self.lastMsgID = newLastMsgID
+				runDatabaseQuery("update users set lastMsgID=? where jid=?",
+					(newLastMsgID, self.source), True)
 
 	def updateTypingUsers(self, cTime):
 		"""
