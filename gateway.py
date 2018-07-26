@@ -507,7 +507,7 @@ class VK(object):
 			else:
 				# not sure if that's okay
 				# VK is totally unpredictable now
-				logger.warning("no response for execute.getMessagesBulk! Users: %s, mid: %s", users, mid)
+				logger.warning("No response for execute.getMessagesBulk! Users: %s, mid: %s", users, mid)
 			return self.getMessagesBulk(parts[1], messages, count, mid)
 		return messages
 

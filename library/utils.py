@@ -28,6 +28,7 @@ def execute(handler, list=(), log=True):
 		result = None
 		if log:
 			crashLog(handler.func_name)
+			logger.error("Exception happened during executing function: %s%s" % (handler.func_name, str(list)))
 	return result
 
 
