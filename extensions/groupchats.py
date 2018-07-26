@@ -164,10 +164,14 @@ def handleOutgoingChatMessage(user, vkChat):
 				members = user.vk.method("messages.getConversationMembers", {"peer_id": MIN_CHAT_ID + chatID})
 				members = members.get("items")
 				chat_active = settings.get("active_ids")
-				for member in members:
-					if member["is_admin"]:
-						owner = member["member_id"]
-						break
+				if members:
+					for member in members:
+						if member["is_admin"]:
+							owner = member["member_id"]
+							break
+				else:
+					logger.warning("groupchats: unable to get members for groupchat: %s (%s)", chatID)
+					return None
 
 				chat.init(owner, chatID, chatJID, settings["title"], time.time(), chat_active)
 		if not chat.created:

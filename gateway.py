@@ -460,43 +460,74 @@ class VK(object):
 			self.lists = self.method("friends.getLists")
 		return self.lists
 
-	def getInnerConversation(self, conversation, messages, mid):
-		if isinstance(conversation, dict):
-			innerConversation = conversation.get("conversation")
-			if innerConversation:
-				peer = innerConversation["peer"]["id"]
-				peerMessageHistory = self.method("messages.getHistory", {"user_id": peer, "start_message_id": mid})
-				# skipping count-only reponses
-				if peerMessageHistory and len(peerMessageHistory) > 1:
-					messages.append(peerMessageHistory)
+	@staticmethod
+	def getPeerIds(conversations):
+		"""
+		Returns a list of peer ids that exist in the given conversations
+		Args:
+			conversations: list of Conversations objects
+		Returns:
+			A list of peer id strings
+		"""
+		peers = []
+		for conversation in conversations:
+			if isinstance(conversation, dict):
+				innerConversation = conversation.get("conversation")
+				if innerConversation:
+					peers.append(str(innerConversation["peer"]["id"]))
+		return peers
 
-	def getMessages(self, count=5, mid=0, uid=0):
+	def getMessagesBulk(self, peers, messages=None, count=20, mid=0):
+		"""
+		Recursively receives messages for all the conversations' peers
+		25 is the maximum number of conversations we can receive in a single request
+		The sky is the limit!
+		Args:
+			peers: a list of peer ids (strings)
+			messages: a list of messages (used internally)
+			count: the number of messages to receive
+			uid: the last message id
+		Returns:
+			A list of VK Message objects
+		"""
+		messages = messages or []
+		if peers:
+			parts = (peers[:25], peers[25:])
+			users = ",".join(parts[0])
+			response = self.method("execute.getMessagesBulk", {"users": users, "start_message_id": mid, "count": count}) or []
+			for message in response:
+				# skipping count-only reponses
+				if len(message) > 1:
+					if isinstance(message, list):
+						first = message[0]
+						# removing the unread count
+						if isinstance(first, (int, long)):
+							message.remove(first)
+						messages.extend(message)
+			else:
+				# not sure if that's okay
+				# VK is totally unpredictable now
+				logger.warning("no response for execute.getMessagesBulk! Users: %s, mid: %s", users, mid)
+			return self.getMessagesBulk(parts[1], messages, count, mid)
+		return messages
+
+	def getMessages(self, count=20, mid=0, uid=0):
 		"""
 		Gets the last messages list
 		Args:
 			count: the number of messages to receive
 			mid: the last message id
 		Returns:
-			The result of the messages.get method
+			A list of VK Message objects
 		"""
-		if mid:
-			mid -= 20  # preventing message loss; receiving last 20 messages before the current one
 		if uid == 0:
-			conversations = self.method("messages.getConversations", {"filters": "unread", "count": count})
+			conversations = self.method("messages.getConversations", {"count": count})
 		else:
 			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
-		messages = []
-		# what a horrible decision to have two different data types in the response?
 		if isinstance(conversations, dict):
-			unreadCount = conversations.get("unread_count", 0)
-			if unreadCount > 0:
-				for conversationId in conversations:
-					conversation = conversations[conversationId]
-					self.getInnerConversation(conversation, messages, mid)
-		elif isinstance(conversations, list):
-			for conversation in conversations:
-				self.getInnerConversation(conversation, messages, mid)
-		return messages
+			conversations = conversations.values()
+		peers = VK.getPeerIds(conversations)
+		return self.getMessagesBulk(peers, count=count, mid=mid)
 
 	# TODO: put this in the DB
 	def getUserID(self):
@@ -748,12 +779,11 @@ class User(object):
 			date = 0
 			if not messages:
 				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID, uid)
-			if not messages:  # or not messages[0]:
+			if not messages:
 				return None
-			messages = sorted([message[1] for message in messages], sortMsg)
+			messages = sorted(messages, sortMsg)
 			for message in messages:
-				# If message wasn't sent by our user
-				# and not message["read_state"]
+				# check if message wasn't sent by our user
 				if not message["out"]:
 					Stats["msgin"] += 1
 					frm = message["uid"]
