@@ -111,7 +111,7 @@ def processPollResult(user, data):
 					if not out:
 						if not attachments and not chat:
 							message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
-						utils.runThread(user.sendMessages, (False, message, mid, uid), "sendMessages-%s" % user.source)
+						utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
 				else:
 					logger.warning(
 						"longpoll: incorrect events number while trying to "
