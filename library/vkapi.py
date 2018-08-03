@@ -127,8 +127,8 @@ class AsyncHTTPRequest(httplib.HTTPSConnection):
 	def __exit__(self, *args):
 		self.close()
 
-	@classmethod
-	def getOpener(cls, url, query=None):
+	@staticmethod
+	def getOpener(url, query=None):
 		"""
 		Opens a connection to url and returns AsyncHTTPRequest() object
 		Args: query a dict() of query parameters
@@ -229,7 +229,7 @@ class PasswordLogin(RequestProcessor):
 		Logging in using password
 		"""
 		url = "https://login.vk.com/"
-		values = {"act": "login", "email": self.number,	"pass": self.password}
+		values = {"act": "login", "email": self.number, "pass": self.password}
 
 		body, response = self.post(url, values)
 

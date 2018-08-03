@@ -366,7 +366,7 @@ class VK(object):
 			except api.NotAllowed as e:
 				if self.engine.lastMethod[0] == "messages.send":
 					sendMessage(self.source,
-						vk2xmpp(args.get("uid", TransportID)),
+						vk2xmpp(args.get("user_id", TransportID)),
 						_("You're not allowed to perform this action."))
 
 			except api.VkApiError as e:

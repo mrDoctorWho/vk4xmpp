@@ -166,7 +166,7 @@ def handleOutgoingChatMessage(user, vkChat):
 				chat_active = settings.get("active_ids")
 				if members:
 					for member in members:
-						if member["is_admin"]:
+						if member.get("is_admin"):
 							owner = member["member_id"]
 							break
 				else:

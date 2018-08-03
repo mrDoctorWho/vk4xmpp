@@ -64,8 +64,7 @@ def message_handler(cl, msg):
 		if msg.getTag("composing"):
 			target = vk2xmpp(destination)
 			if target != TransportID:
-				with user.sync:
-					user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"}, True)
+				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"})
 		if body:
 			answer = None
 			if jidTo == TransportID:
