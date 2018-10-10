@@ -10,12 +10,10 @@ __license__ = "MIT"
 __version__ = "3.5"
 
 import hashlib
-import httplib
 import logging
 import os
 import re
 import signal
-import socket
 import sys
 import threading
 import time
@@ -122,7 +120,7 @@ Stats = {"msgin": 0,  # from vk
 		"method": 0}
 
 
-MAX_MESSAGES_PER_REQUEST = 200
+MAX_MESSAGES_PER_REQUEST = 20
 
 
 def runDatabaseQuery(query, args=(), set=False, many=True):
@@ -479,7 +477,7 @@ class VK(object):
 
 	def getMessagesBulk(self, peers, messages=None, count=20, mid=0):
 		"""
-		Recursively receives messages for all the conversations' peers
+		Receives messages for all the conversations' peers
 		25 is the maximum number of conversations we can receive in a single request
 		The sky is the limit!
 		Args:
@@ -491,24 +489,27 @@ class VK(object):
 			A list of VK Message objects
 		"""
 		messages = messages or []
+		step = 20
 		if peers:
-			parts = (peers[:25], peers[25:])
-			users = ",".join(parts[0])
-			response = self.method("execute.getMessagesBulk", {"users": users, "start_message_id": mid, "count": count}) or []
-			for message in response:
-				# skipping count-only reponses
-				if len(message) > 1:
-					if isinstance(message, list):
-						first = message[0]
-						# removing the unread count
-						if isinstance(first, (int, long)):
-							message.remove(first)
-						messages.extend(message)
-			else:
-				# not sure if that's okay
-				# VK is totally unpredictable now
-				logger.warning("No response for execute.getMessagesBulk! Users: %s, mid: %s", users, mid)
-			return self.getMessagesBulk(parts[1], messages, count, mid)
+			cursor = 0
+			for i in xrange(step, len(peers) + step, step):
+				tempPeers = peers[cursor:i]
+				users = ",".join(tempPeers)
+				response = self.method("execute.getMessagesBulk", {"users": users, "start_message_id": mid, "count": count}) or []
+				for message in response:
+					# skipping count-only reponses
+					if len(message) > 1:
+						if isinstance(message, list):
+							first = message[0]
+							# removing the unread count
+							if isinstance(first, (int, long)):
+								message.remove(first)
+							messages.extend(message)
+				else:
+					# not sure if that's okay
+					# VK is totally unpredictable now
+					logger.warning("No response for execute.getMessagesBulk! Users: %s, mid: %s", users, mid)
+				cursor += step
 		return messages
 
 	def getMessages(self, count=20, mid=0, uid=0):
