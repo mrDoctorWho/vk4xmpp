@@ -28,6 +28,7 @@ MAX_UPDATE_DELAY = 3600  # 1 hour
 CHAT_CLEANUP_DELAY = 86400  # 24 hours
 
 MIN_CHAT_ID = 2000000000
+OWNER_FALLBACK = 210700286
 
 if not require("attachments") or not require("forwarded_messages"):
 	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
@@ -157,23 +158,12 @@ def handleOutgoingChatMessage(user, vkChat):
 		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
 		chat = createChat(user, chatJID)
 		if not chat.initialized:
-			owner = 1
-			conversation = user.vk.method("messages.getConversationsById", {"peer_ids": MIN_CHAT_ID + chatID})[1]
-			settings = conversation.get("chat_settings")
-			if settings:
-				members = user.vk.method("messages.getConversationMembers", {"peer_id": MIN_CHAT_ID + chatID})
-				members = members.get("items")
-				chat_active = settings.get("active_ids")
-				if members:
-					for member in members:
-						if member.get("is_admin"):
-							owner = member["member_id"]
-							break
-				else:
-					logger.warning("groupchats: unable to get members for groupchat: %s (jid: %s)", chatID, user.source)
-					return None
-
-				chat.init(owner, chatID, chatJID, settings["title"], time.time(), chat_active)
+			contents = Chat.getVKChat(user, chatID)
+			if contents:
+				owner = contents.get("admin_id", OWNER_FALLBACK)
+				title = contents.get("title")
+				users = contents.get("users")
+				chat.init(owner, chatID, chatJID, title, time.time(), users)
 		if not chat.created:
 			if chat.creation_failed:
 				return None
@@ -328,7 +318,7 @@ class Chat(object):
 				leaveChat(self.jid, jid)
 				del self.users[user]
 
-		subject = vkChat["title"]
+		subject = vkChat.get("title")
 		if subject and subject != self.subject:
 			self.setSubject(subject)
 		self.raw_users = all_users
@@ -395,8 +385,9 @@ class Chat(object):
 			return True
 		return False
 
+	@staticmethod
 	@api.attemptTo(3, dict, RuntimeError)
-	def getVKChat(cls, user, id):
+	def getVKChat(user, id):
 		"""
 		Get vk chat by id
 		"""
@@ -405,8 +396,8 @@ class Chat(object):
 			raise RuntimeError("Unable to get a chat!")
 		return chat
 
-	@classmethod
-	def getParts(cls, source):
+	@staticmethod
+	def getParts(source):
 		"""
 		Split the source and return required parts
 		"""
@@ -420,29 +411,28 @@ class Chat(object):
 		id = int(id)
 		return (creator, id, domain)
 
-	@classmethod
-	def getUserObject(cls, source):
+	@staticmethod
+	def getUserObject(source):
 		"""
 		Gets user object by chat jid
 		"""
 		user = None
-		jid = None
-		creator, id, domain = cls.getParts(source)
-		if domain == ConferenceServer and creator:
-			jid = cls.getJIDByID(id)
-		if not jid:
+		creator, id, domain = Chat.getParts(source)
+		if creator and domain == ConferenceServer:
+			user = Chat.getUserByID(creator)
+		if not user:
 			jid = runDatabaseQuery("select user from groupchats where jid=?", (source,), many=False)
 			if jid:
 				jid = jid[0]
-		if jid and jid in Users:
-			user = Users[jid]
+				return Users.get(jid)
 		return user
 
 	@staticmethod
-	def getJIDByID(id):
-		for key, value in Users.iteritems():
-			if key == id:
-				return value
+	def getUserByID(id):
+		for jid, user in Users.iteritems():
+			if hasattr(user, "vk"):
+				if user.vk.getUserID() == id:
+					return user
 		return None
 
 

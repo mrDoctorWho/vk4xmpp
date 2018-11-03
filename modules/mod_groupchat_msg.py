@@ -29,7 +29,6 @@ def incoming_message_handler(cl, msg):
 
 		if not msg.getTimestamp() and body and destination == TransportID:
 			user = Chat.getUserObject(source)
-			creator, id, domain = Chat.getParts(source)
 			owner_nickname = None
 			if user:
 				if source in getattr(user, "chats", {}):
@@ -53,8 +52,9 @@ def incoming_message_handler(cl, msg):
 						# Don't send a message if there's an image
 						raise xmpp.NodeProcessed()
 				if send:
+					_, chatId, _ = Chat.getParts(source)
 					with user.sync:
-						user.vk.sendMessage(body, id, "chat_id")
+						user.vk.sendMessage(body, chatId, "chat_id")
 					if chat.isUpdateRequired():
 						updateLastUsed(chat)
 					raise xmpp.NodeProcessed()
