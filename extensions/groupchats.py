@@ -170,7 +170,7 @@ def handleOutgoingChatMessage(user, vkChat):
 							owner = member["member_id"]
 							break
 				else:
-					logger.warning("groupchats: unable to get members for groupchat: %s (%s)", chatID)
+					logger.warning("groupchats: unable to get members for groupchat: %s (jid: %s)", chatID, user.source)
 					return None
 
 				chat.init(owner, chatID, chatJID, settings["title"], time.time(), chat_active)
