@@ -99,24 +99,18 @@ def processPollResult(user, data):
 		for evt in data.get("updates", ()):
 			typ = evt.pop(0)
 
-			debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)", typ,
-				str(evt), user.source)
+			debug("longpoll: got updates, processing event %s with arguments %s (jid: %s)",
+				typ, str(evt), user.source)
 
 			if typ == TYPE_MSG:  # new message
-				if len(evt) == 7:
-					message = None
-					mid, flags, uid, date, subject, body, attachments = evt
-					out = flags & FLAG_OUT
-					chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
-					if not out:
-						if not attachments and not chat:
-							message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
-						utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
-				else:
-					logger.warning(
-						"longpoll: incorrect events number while trying to "
-						"process arguments %s (jid: %s)",
-						str(evt), user.source)
+				message = None
+				mid, flags, uid, date, subject, body, attachments = evt
+				out = flags & FLAG_OUT
+				chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
+				if not out:
+					if not attachments and not chat:
+						message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
+					utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
 
 			elif typ == TYPE_PRS_IN:  # user has joined
 				uid = abs(evt[0])
@@ -133,8 +127,6 @@ def processPollResult(user, data):
 				user.typing[uid] = time.time()
 			retcode = CODE_FINE
 	return retcode
-
-
 
 
 def configureSocket(sock):
@@ -286,7 +278,6 @@ class Poll(object):
 			if not socks:
 				time.sleep(0.02)
 				continue
-			# TODO: epoll()?
 			try:
 				ready, error = select.select(socks, [], socks, SELECT_WAIT)[::2]
 			except (select.error, socket.error, socket.timeout) as e:
@@ -351,6 +342,9 @@ class Poll(object):
 			for sock, (user, opener) in cls.__list.items():
 				if (time.time() - opener.created) > OPENER_LIFETIME:
 					with cls.__lock:
-						del cls.__list[sock]
-						cls.processResult(user, opener)
+						try:
+							del cls.__list[sock]
+							cls.processResult(user, opener)
+						except KeyError:
+							pass
 			time.sleep(SOCKET_CHECK_TIMEOUT)

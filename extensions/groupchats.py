@@ -31,7 +31,12 @@ MIN_CHAT_ID = 2000000000
 OWNER_FALLBACK = 210700286
 
 if not require("attachments") or not require("forwarded_messages"):
-	raise AssertionError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
+	raise RuntimeError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
+
+try:
+	import mod_xhtml
+except ImportError:
+	mod_xhtml = None
 
 
 def setAffiliation(chat, afl, jid, jidFrom=TransportID, reason=None):
@@ -147,13 +152,6 @@ def handleOutgoingChatMessage(user, vkChat):
 		if not hasattr(user, "chats"):
 			user.chats = {}
 
-		# TODO: make this happen in the kernel, so we don't need to check it here
-		if not user.vk.userID:
-			logger.warning("groupchats: we didn't receive user id, trying again after 10 seconds (jid: %s)", user.source)
-			user.vk.getUserID()
-			utils.runThread(handleOutgoingChatMessage, (user, vkChat), delay=10)
-			return None
-
 		chatID = vkChat["chat_id"]
 		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
 		chat = createChat(user, chatJID)
@@ -267,13 +265,10 @@ class Chat(object):
 			chat: chat's jid
 		"""
 		if not self.raw_users:
-			vkChat = self.getVKChat(user, self.id)  # getting the chat users
-			if not vkChat and not self.invited:
-				logger.error("groupchats: damn vk didn't answer to the chat list "
-							"request, starting timer to try again (jid: %s)", user.source)
-				utils.runThread(self.initialize, (user, chat), delay=10)
-				return False
-			self.raw_users = vkChat.get("users")
+			vkChat = self.getVKChat(user, self.id)
+			if not vkChat:
+				raise RuntimeError("Unable to retrieve VK chat users list")
+			self.raw_users = vkChat["users"]
 
 		name = "@%s" % TransportID
 		setAffiliation(chat, "member", user.source)
@@ -365,8 +360,10 @@ class Chat(object):
 			if userObject:
 				source = userObject.source
 			# todo: FULL leave on error and try to create the chat again
-			logger.warning("groupchats: chat %s wasn't created well, so trying to create it again (jid: %s)", self.jid, source)
-			logger.warning("groupchats: is there any groupchat limit on the server?")
+			logger.warning("groupchats: chat %s wasn't created well,"
+				+ " so trying to create it again (jid: %s)."
+				+ "Is it possible that you have groupchat limit on the server?",
+				self.jid, source)
 			if retry:
 				# TODO: We repeat it twice on each message. We shouldn't.
 				self.handleMessage(user, vkChat, False)
@@ -528,11 +525,6 @@ def initChatExtension():
 	"""
 	Initializes the extension"
 	"""
-	global mod_xhtml
-	try:
-		import mod_xhtml
-	except ImportError:
-		mod_xhtml = None
 	if initChatsTable():
 		if isdef("CHAT_LIFETIME_LIMIT"):
 			cleanTheChatsUp()
