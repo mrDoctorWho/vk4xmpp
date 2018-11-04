@@ -83,24 +83,19 @@ def cache(func):
 	"""
 	def wrapper(self, uid, fields=None):
 		fields = fields or []
-		call = False
+		fieldsStr = ",".join(fields)
 		if uid in self.cache:
-			for field in fields:
-				if field not in self.cache[uid]:
-					call = True
-					break
+			if self.cache[uid]["fields"] == fieldsStr:
+				return self.cache[uid]
+
+		result = func(self, uid, fields)
+		result["fields"] = fieldsStr
+		if "uid" in result:
+			del result["uid"]
+		if uid in self.cache:
+			self.cache[uid].update(result)
 		else:
-			call = True
-		if call:
-			result = func(self, uid, fields)
-			if "uid" in result:
-				del result["uid"]
-			if uid in self.cache:
-				self.cache[uid].update(result)
-			else:
-				self.cache[uid] = result
-		else:
-			result = self.cache[uid]
+			self.cache[uid] = result
 		return result
 	wrapper.__name__ = func.__name__
 	return wrapper
