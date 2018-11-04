@@ -32,7 +32,7 @@ def execute(handler, list=(), log=True):
 	return result
 
 
-def runThread(func, args=(), name=None, att=3, delay=0):
+def runThread(func, args=(), name=None, delay=0):
 	"""
 	Runs a thread with custom args and name
 	Needed to reduce code
@@ -53,12 +53,7 @@ def runThread(func, args=(), name=None, att=3, delay=0):
 	name = name or func.__name__
 	name = str(name) + "-" + str(time.time())
 	thr.name = name
-	try:
-		thr.start()
-	except (threading.ThreadError):
-		if att:
-			return runThread(func, args, name, (att - 1), delay)
-		crashLog("runThread.%s" % name)
+	thr.start()
 	return thr
 
 
