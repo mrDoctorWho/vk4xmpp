@@ -87,6 +87,7 @@ def joinChat(chat, name, jidFrom, status=None):
 	prs = xmpp.Presence("%s/%s" % (chat, name), frm=jidFrom, status=status)
 	prs.setTag("c", {"node": TRANSPORT_CAPS_HASH, "ver": hash, "hash": "sha-1"},
 		xmpp.NS_CAPS)
+	prs.setTag("x", namespace=xmpp.NS_MUC)
 	sender(Component, prs)
 
 
@@ -287,23 +288,36 @@ class Chat(object):
 		"""
 		vkChat = self.getVKChat(userObject, self.id)
 		all_users = vkChat.get("users", [])
-		old_users = self.users.keys()
-		buddies = all_users + old_users
-		if TransportID in buddies:
-			buddies.remove(TransportID)
-		if userObject.vk.getUserID() in buddies:
-			buddies.remove(userObject.vk.getUserID())
+		everyone = all_users + self.users.keys()
+		# how would it get in there?
+		if TransportID in everyone:
+			logger.debug("removing transport from groupchat users list")
+			everyone.remove(TransportID)
+		if userObject.vk.getUserID() in everyone:
+			everyone.remove(userObject.vk.getUserID())
 
-		for user in buddies:
+		for user in everyone:
 			jid = vk2xmpp(user)
-			if user not in old_users:
+			userId = int(user)
+			existingUser = self.users.get(userId)
+			if not existingUser or existingUser.get("name") == "undefined":
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)",
 					user, self.jid, userObject.source)
 				# TODO: Transport MUST NOT request the name for each user it sees.
 				# It should be done with a list of users
 				# E.g. requesting a list of users and get a list of names
-				name = userObject.vk.getUserData(user)["name"]
-				self.users[int(user)] = {"name": name, "jid": jid}
+				userData = userObject.vk.getUserData(user)
+				try:
+					name = userData["name"]
+				except KeyError:
+					logger.error("groupchats: unable to get user name"
+						+ " for %s in chat %s, data: %s (jid: %s)",
+						user,
+						self.jid,
+						userData,
+						userObject.source)
+					name = "undefined"
+				self.users[userId] = {"name": name, "jid": jid}
 				setAffiliation(self.jid, "member", jid)
 				joinChat(self.jid, name, jid)
 

@@ -475,7 +475,7 @@ class VK(object):
 					peers.append(str(innerConversation["peer"]["id"]))
 		return peers
 
-	def getMessagesBulk(self, peers, messages=None, count=20, mid=0):
+	def getMessagesBulk(self, peers, count=20, mid=0):
 		"""
 		Receives messages for all the conversations' peers
 		25 is the maximum number of conversations we can receive in a single request
@@ -488,14 +488,17 @@ class VK(object):
 		Returns:
 			A list of VK Message objects
 		"""
-		messages = messages or []
 		step = 20
+		messages = []
 		if peers:
 			cursor = 0
 			for i in xrange(step, len(peers) + step, step):
 				tempPeers = peers[cursor:i]
 				users = ",".join(tempPeers)
-				response = self.method("execute.getMessagesBulk", {"users": users, "start_message_id": mid, "count": count}) or []
+				response = self.method("execute.getMessagesBulk",
+					{"users": users,
+					"start_message_id": mid,
+					"count": count})
 				for message in response:
 					# skipping count-only reponses
 					if len(message) > 1:
@@ -508,7 +511,8 @@ class VK(object):
 				else:
 					# not sure if that's okay
 					# VK is totally unpredictable now
-					logger.warning("No response for execute.getMessagesBulk! Users: %s, mid: %s", users, mid)
+					logger.warning("No response for execute.getMessagesBulk!"
+						+" Users: %s, mid: %s (jid: %s)", users, mid, self.source)
 				cursor += step
 		return messages
 

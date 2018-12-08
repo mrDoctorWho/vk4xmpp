@@ -82,13 +82,14 @@ def cache(func):
 				return self.cache[uid]
 
 		result = func(self, uid, fields)
-		result["fields"] = fieldsStr
-		if "uid" in result:
-			del result["uid"]
-		if uid in self.cache:
-			self.cache[uid].update(result)
-		else:
-			self.cache[uid] = result
+		if result:
+			result["fields"] = fieldsStr
+			if "uid" in result:
+				del result["uid"]
+			if uid in self.cache:
+				self.cache[uid].update(result)
+			else:
+				self.cache[uid] = result
 		return result
 	wrapper.__name__ = func.__name__
 	return wrapper
