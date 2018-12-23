@@ -61,10 +61,12 @@ def message_handler(cl, msg):
 
 	if msg.getType() == "chat" and source in Users:
 		user = Users[source]
-		if msg.getTag("composing"):
-			target = vk2xmpp(destination)
-			if target != TransportID:
+		target = vk2xmpp(destination)
+		# we don't want to do this for the transport, do we?
+		if target != TransportID:
+			if msg.getTag("composing", namespace=xmpp.NS_CHATSTATES):
 				user.vk.method("messages.setActivity", {"user_id": target, "type": "typing"})
+
 		if body:
 			answer = None
 			if jidTo == TransportID:
@@ -79,8 +81,15 @@ def message_handler(cl, msg):
 			else:
 				uID = jidTo.getNode()
 				with user.sync:
-					if user.vk.sendMessage(body, uID):
-						answer = reportReceived(msg, jidFrom, jidTo)
+					mid = None
+					# check if the client requested the message to be marked as read
+					if msg.getTag("markable", namespace=xmpp.NS_CHAT_MARKERS):
+						# if so, then we define "mid" that we need to mark as read
+						mid = msg.getID()
+					if user.sendMessage(body, uID, mid=mid):
+						# check if the client requested the message to be marked as received
+						if msg.getTag("request", namespace=xmpp.NS_RECEIPTS):
+							answer = reportReceived(msg, jidFrom, jidTo)
 			if answer:
 				sender(cl, answer)
 	executeHandlers("msg02", (msg,))

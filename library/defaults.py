@@ -52,4 +52,4 @@ allowBePublic = True
 TransportFeatures = {xmpp.NS_DELAY}
 
 # The features transport's users will advertise
-UserFeatures = {xmpp.NS_CHATSTATES, xmpp.NS_LAST}
+UserFeatures = {xmpp.NS_CHATSTATES, xmpp.NS_LAST, xmpp.NS_CHAT_MARKERS}

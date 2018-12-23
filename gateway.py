@@ -468,6 +468,8 @@ class VK(object):
 			A list of peer id strings
 		"""
 		peers = []
+		if not conversations:
+			logger.warning("no conversations for (jid: %s)", self.source)
 		for conversation in conversations:
 			if isinstance(conversation, dict):
 				innerConversation = conversation.get("conversation")
@@ -623,6 +625,8 @@ class User(object):
 	def __init__(self, source=""):
 		self.friends = {}
 		self.typing = {}
+		self.msgCache = {}  # the cache of associations vk mid: xmpp mid
+		self.lastMsgByUser = {}
 		self.source = source  # TODO: rename to jid
 
 		self.lastMsgID = 0
@@ -634,6 +638,12 @@ class User(object):
 		self.last_udate = time.time()
 		self.sync = threading.Lock()
 		logger.debug("User initialized (jid: %s)", self.source)
+
+	def sendMessage(self, body, id, mType="user_id", more={}, mid=0):
+		result = self.vk.sendMessage(body, id, mType, more)
+		if mid:
+			self.msgCache[result] = mid
+		return result
 
 	def connect(self, username=None, password=None, token=None):
 		"""
@@ -792,6 +802,7 @@ class User(object):
 				if not message["out"]:
 					Stats["msgin"] += 1
 					frm = message["uid"]
+					mid = message["mid"]
 					if frm in self.typing:
 						del self.typing[frm]
 					fromjid = vk2xmpp(frm)
@@ -813,7 +824,8 @@ class User(object):
 					else:
 						if self.settings.force_vk_date or init:
 							date = message["date"]
-						sendMessage(self.source, fromjid, escape("", body), date)
+						self.lastMsgByUser[frm] = mid
+						sendMessage(self.source, fromjid, escape("", body), date, mid=mid)
 		if messages:
 			newLastMsgID = messages[-1]["mid"]
 			if self.lastMsgID < newLastMsgID:
@@ -907,7 +919,7 @@ def sendPresence(destination, source, pType=None, nick=None,
 	sender(Component, presence)
 
 
-def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype="chat"):
+def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype="chat", mid=0):
 	"""
 	Sends message to destination from source
 	Args:
@@ -923,7 +935,15 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype
 	if timestamp:
 		timestamp = time.gmtime(timestamp)
 		msg.setTimestamp(time.strftime("%Y%m%dT%H:%M:%S", timestamp))
+	if mid:
+		msg.setID(mid)
 	executeHandlers("msg03", (msg, destination, source))
+	sender(Component, msg)
+
+
+def sendChatMarker(destination, source, mid, typ="displayed"):
+	msg = xmpp.Message(destination, frm=source)
+	msg.setTag(typ, {"id": mid}, xmpp.NS_CHAT_MARKERS)
 	sender(Component, msg)
 
 

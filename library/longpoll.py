@@ -33,6 +33,9 @@ CODE_FINE = 0
 CODE_ERROR = 1
 
 TYPE_MSG = 4
+TYPE_MSG_EDIT = 5
+TYPE_MSG_READ_IN = 6  # we read the message
+TYPE_MSG_READ_OUT = 7  # they read the message
 TYPE_PRS_IN = 8
 TYPE_PRS_OUT = 9
 TYPE_TYPING = 61
@@ -111,6 +114,12 @@ def processPollResult(user, data):
 					if not attachments and not chat:
 						message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
 					utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
+
+			elif typ == TYPE_MSG_READ_OUT:
+				uid, mid = evt
+				xmppMID = user.msgCache.get(mid)
+				if xmppMID:
+					sendChatMarker(user.source, vk2xmpp(uid), xmppMID)
 
 			elif typ == TYPE_PRS_IN:  # user has joined
 				uid = abs(evt[0])
