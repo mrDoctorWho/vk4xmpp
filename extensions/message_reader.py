@@ -3,7 +3,7 @@
 # © simpleApps, 2014 (16.12.14 14:54PM GMT) — 2015.
 
 GLOBAL_USER_SETTINGS["typingreader"] = {"label": "Mark my messages as read when I compose message", "value": 0}
-GLOBAL_USER_SETTINGS["read_on_displayed"] = {"label": "Mark my messages as read", "value": 0}
+GLOBAL_USER_SETTINGS["read_on_displayed"] = {"label": "Mark my messages as read when I read them", "value": 0}
 
 def typingreader_watch(msg):
 	jidFrom = msg.getFrom()

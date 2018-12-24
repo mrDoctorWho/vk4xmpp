@@ -49,7 +49,7 @@ AdditionalAbout = ""
 allowBePublic = True
 
 # The features transport will advertise
-TransportFeatures = {xmpp.NS_DELAY}
+TransportFeatures = {xmpp.NS_DELAY, xmpp.NS_CHATSTATES, xmpp.NS_LAST, xmpp.NS_CHAT_MARKERS, xmpp.NS_OOB}
 
 # The features transport's users will advertise
-UserFeatures = {xmpp.NS_CHATSTATES, xmpp.NS_LAST, xmpp.NS_CHAT_MARKERS}
+UserFeatures = TransportFeatures # we don't use them all, but it seems some clients don't query transports' users (?)
