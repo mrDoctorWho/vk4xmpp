@@ -12,7 +12,8 @@ WALL_COMMENT_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s?w=wall%(owner_i
 PHOTO_SIZES = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 STICKER_SIZES = ("photo_256", "photo_128", "photo_64")
 
-ATTACHMENT_REGEX = re.compile(r"^(Photo|Document|Sticker)\:\s(“.+?”\s—\s)?(?P<url>http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$)")
+ATTACHMENT_REGEX = re.compile(r"^(Photo|Document|Sticker)\:\s(“.+?”\s—\s)?"\
+	r"(?P<url>http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$)", re.UNICODE)
 
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
 GLOBAL_USER_SETTINGS["make_oob"] = {"value": 0, "label": "Allow OOB for attachments",
@@ -121,7 +122,7 @@ def attachments_msg03(msg, destination, source):
 		else:
 			user = Users.get(destination)
 		if user and user.settings.make_oob:
-			match = ATTACHMENT_REGEX.match(body)
+			match = ATTACHMENT_REGEX.match(body.encode("utf-8"))
 			if match:
 				link = match.group("url")
 				url = msg.setTag("x", namespace=xmpp.NS_OOB)
