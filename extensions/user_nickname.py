@@ -3,21 +3,20 @@
 # © simpleApps, 2015 (27.08.15 09:31AM GMT)
 
 """
-Implements XEP-0172: User Nickname (apparently, case 4.2)
+Implements XEP-0172: User Nickname (partially, case 4.2)
 """
 
-GLOBAL_USER_SETTINGS["add_nicknames_msg"] = {"value": 0, "label": "Add nickname to message stanzas from strangers"}
 GLOBAL_USER_SETTINGS["add_nicknames_prs"] = {"value": 0, "label": "Add nickname to presence stanzas"}
 
 
 def add_username(stanza, user, uid):
-	if uid != TransportID:
+	if uid == TransportID:
+		name = IDENTIFIER["name"]
+	else:
 		key = "name"
 		if user.settings.use_nicknames:
 			key = "screen_name"
 		name = user.vk.getUserData(uid)[key]
-	else:
-		name = IDENTIFIER["name"]
 	stanza.setTag("nick", namespace=xmpp.NS_NICK)
 	stanza.setTagData("nick", name)
 
@@ -25,13 +24,12 @@ def add_username(stanza, user, uid):
 def add_nickname_msg03(msg, destination, source):
 	if destination in Users and source != TransportID:  # That would be strange if user wasn't in Transport
 		user = Users[destination]
-		if user.settings.add_nicknames_msg:
-			uid = vk2xmpp(source)
-			strangers = getattr(user, "strangers", set([]))
-			if uid not in strangers and uid not in user.friends:
-				add_username(msg, user, uid)
-				strangers.add(uid)
-			user.strangers = strangers
+		uid = vk2xmpp(source)
+		strangers = getattr(user, "strangers", set([]))
+		if uid not in strangers and uid not in user.friends:
+			add_username(msg, user, uid)
+			strangers.add(uid)
+		user.strangers = strangers
 
 
 def add_nickname_prs02(prs, destination, source):
