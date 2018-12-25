@@ -9,7 +9,7 @@ VCARD_SEMAPHORE = threading.Semaphore()
 
 DESCRIPTION = "VK4XMPP Transport\n© simpleApps, 2013 — 2016."
 GITHUB_URL = "https://github.com/mrDoctorWho/vk4xmpp"
-BIRTHDAY = "30.09.2013"
+BIRTHDAY = "2013-09-30"
 
 KEY_NICKNAME = "NICKNAME"
 KEY_NAME = "FN"
@@ -120,6 +120,12 @@ def buildVcard(data, template=VCARD_TEMPLATE, fields=VCARD_FIELDS, user=None):
 		elif key == KEY_PHONE_HOME and value:
 			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
 			tel.setTagData(KEY_PHONE_HOME, value)
+
+		elif key == KEY_BDAY and value:
+			if value.count(".") == 1:
+				value += ".0001"  # the year of Jesus birth!
+			value = time.strftime("%Y-%m-%d", time.strptime(value, "%d.%m.%Y"))
+			vcard.setTagData(key, value)
 
 		elif value:
 			vcard.setTagData(key, value)
