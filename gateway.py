@@ -459,7 +459,7 @@ class VK(object):
 		return self.lists
 
 	@staticmethod
-	def getPeerIds(conversations):
+	def getPeerIds(conversations, source=None):
 		"""
 		Returns a list of peer ids that exist in the given conversations
 		Args:
@@ -469,7 +469,8 @@ class VK(object):
 		"""
 		peers = []
 		if not conversations:
-			logger.warning("no conversations for (jid: %s)", self.source)
+			logger.warning("no conversations for (jid: %s)", source)
+			return []
 		for conversation in conversations:
 			if isinstance(conversation, dict):
 				innerConversation = conversation.get("conversation")
@@ -518,7 +519,7 @@ class VK(object):
 				cursor += step
 		return messages
 
-	def getMessages(self, count=20, mid=0, uid=0):
+	def getMessages(self, count=20, mid=0, uid=0, filter_="all"):
 		"""
 		Gets the last messages list
 		Args:
@@ -528,12 +529,12 @@ class VK(object):
 			A list of VK Message objects
 		"""
 		if uid == 0:
-			conversations = self.method("messages.getConversations", {"count": count})
+			conversations = self.method("messages.getConversations", {"count": count, "filter": filter_})
 		else:
 			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
 		if isinstance(conversations, dict):
 			conversations = conversations.values()
-		peers = VK.getPeerIds(conversations)
+		peers = VK.getPeerIds(conversations, self.source)
 		return self.getMessagesBulk(peers, count=count, mid=mid)
 
 	# TODO: put this in the DB
@@ -709,13 +710,14 @@ class User(object):
 		runDatabaseQuery("update users set rosterSet=? where jid=?",
 			(self.rosterSet, self.source), True)
 
-	def initialize(self, force=False, send=True, resource=None):
+	def initialize(self, force=False, send=True, resource=None, first=False):
 		"""
 		Initializes user after the connection has been completed
 		Args:
 			force: force sending subscription presence
 			send: whether to send the init presence
 			resource: add resource in self.resources to prevent unneeded stanza sending
+			first: whether to initialize the user for the first time (during registration)
 		"""
 		logger.debug("User: beginning user initialization (jid: %s)", self.source)
 		Users[self.source] = self
@@ -731,7 +733,10 @@ class User(object):
 		if resource:
 			self.resources.add(resource)
 		utils.runThread(self.vk.getUserID)
-		self.sendMessages(True)
+		if first:
+			self.sendMessages(True, filter_="unread")
+		else:
+			self.sendMessages(True)
 		Poll.add(self)
 		utils.runThread(executeHandlers, ("evt05", (self,)))
 
@@ -779,7 +784,7 @@ class User(object):
 		if dist:
 			self.markRosterSet()
 
-	def sendMessages(self, init=False, messages=None, mid=0, uid=0):
+	def sendMessages(self, init=False, messages=None, mid=0, uid=0, filter_="all"):
 		"""
 		Sends messages from vk to xmpp and call message01 handlers
 		Args:
@@ -793,7 +798,7 @@ class User(object):
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID, uid)
+				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID, uid, filter_)
 			if not messages:
 				return None
 			messages = sorted(messages, sortMsg)

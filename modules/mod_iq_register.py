@@ -19,7 +19,7 @@ def initializeUser(user, cl, iq, kwargs):
 		result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _(str(e) + " Try logging in by token."))
 	else:
 		if connect:
-			user.initialize(resource=resource)
+			user.initialize(resource=resource, first=True)
 			executeHandlers("evt08", (source,))
 		else:
 			logger.error("user connection failed (jid: %s)" % source)
@@ -75,7 +75,7 @@ def register_handler(cl, iq):
 					result = None
 
 		elif query.getTag("remove"):
-			logger.debug("user %s want to remove me..." % source)
+			logger.debug("user %s wants to remove me..." % source)
 			if source in Users:
 				user = Users[source]
 				result = iq.buildReply("result")
