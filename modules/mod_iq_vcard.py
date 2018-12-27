@@ -123,7 +123,7 @@ def buildVcard(data, template=VCARD_TEMPLATE, fields=VCARD_FIELDS, user=None):
 
 		elif key == KEY_BDAY and value:
 			if value.count(".") == 1:
-				value += ".0001"  # the year of Jesus birth!
+				value += time.strftime("%Y")
 			value = time.strftime("%Y-%m-%d", time.strptime(value, "%d.%m.%Y"))
 			vcard.setTagData(key, value)
 

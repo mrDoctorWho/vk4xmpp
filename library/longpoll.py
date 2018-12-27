@@ -117,8 +117,10 @@ def processPollResult(user, data):
 
 			elif typ == TYPE_MSG_READ_OUT:
 				uid, mid = evt
-				xmppMID = user.msgCache.get(mid)
-				if xmppMID:
+				cache = user.msgCacheByUser.get(uid)
+				if cache:
+					xmppMID = cache["xmpp"]
+					cache.clear()
 					sendChatMarker(user.source, vk2xmpp(uid), xmppMID)
 
 			elif typ == TYPE_PRS_IN:  # user has joined

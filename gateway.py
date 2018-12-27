@@ -626,8 +626,8 @@ class User(object):
 	def __init__(self, source=""):
 		self.friends = {}
 		self.typing = {}
-		self.msgCache = {}  # the cache of associations vk mid: xmpp mid
-		self.lastMsgByUser = {}
+		self.msgCacheByUser = {}  # the cache of associations vk mid: xmpp mid
+		self.lastMsgByUser = {}  # the cache of last messages sent to user (user id: msg id)
 		self.source = source  # TODO: rename to jid
 
 		self.lastMsgID = 0
@@ -643,7 +643,7 @@ class User(object):
 	def sendMessage(self, body, id, mType="user_id", more={}, mid=0):
 		result = self.vk.sendMessage(body, id, mType, more)
 		if mid:
-			self.msgCache[result] = mid
+			self.msgCacheByUser[int(id)] = {"xmpp": mid, "vk": result}
 		return result
 
 	def connect(self, username=None, password=None, token=None):
