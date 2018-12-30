@@ -947,7 +947,7 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype
 
 
 def sendChatMarker(destination, source, mid, typ="displayed"):
-	msg = xmpp.Message(destination, frm=source)
+	msg = xmpp.Message(destination, typ="chat",frm=source)
 	msg.setTag(typ, {"id": mid}, xmpp.NS_CHAT_MARKERS)
 	sender(Component, msg)
 

@@ -83,9 +83,10 @@ def message_handler(cl, msg):
 				with user.sync:
 					mid = None
 					# check if the client requested the message to be marked as read
-					if msg.getTag("markable", namespace=xmpp.NS_CHAT_MARKERS):
+					# we don't check this currently due to chat markers not being carbon-able and poor client support
+					# if msg.getTag("markable", namespace=xmpp.NS_CHAT_MARKERS):
 						# if so, then we define "mid" that we need to mark as read
-						mid = msg.getID()
+					mid = msg.getID()
 					if user.sendMessage(body, uID, mid=mid):
 						# check if the client requested the message to be marked as received
 						if msg.getTag("request", namespace=xmpp.NS_RECEIPTS):
