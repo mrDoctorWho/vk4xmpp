@@ -18,7 +18,7 @@ def typingreader_watch(msg):
 				if user.settings.typingreader and msg.getTag("composing", namespace=xmpp.NS_CHATSTATES):
 					typingreader_markasread(user, lastMsgID)
 				if user.settings.read_on_displayed and (msg.getTag("displayed", namespace=xmpp.NS_CHAT_MARKERS)
-					or msg.getTag("active", xmpp.NS_CHATSTATES)):
+					or msg.getTag("active", namespace=xmpp.NS_CHATSTATES)):
 					typingreader_markasread(user, lastMsgID)
 
 
