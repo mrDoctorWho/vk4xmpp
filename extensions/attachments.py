@@ -125,6 +125,12 @@ def attachments_msg03(msg, destination, source):
 			match = ATTACHMENT_REGEX.match(body.encode("utf-8"))
 			if match:
 				link = match.group("url")
+				if link:
+					try:
+						link = urllib.urlopen(link).url
+					except Exception:
+						crashLog("attachments_msg03")
+						logger.error("unable to fetch real url for link %s and (jid: %s)", (link, user.source))
 				url = msg.setTag("x", namespace=xmpp.NS_OOB)
 				url.setTagData("url", link)
 				msg.setBody(link)
