@@ -9,7 +9,7 @@ VCARD_SEMAPHORE = threading.Semaphore()
 
 DESCRIPTION = "VK4XMPP Transport\n© simpleApps, 2013 — 2016."
 GITHUB_URL = "https://github.com/mrDoctorWho/vk4xmpp"
-BIRTHDAY = "2013-09-30"
+BIRTHDAY = "30.09.2013"
 
 KEY_NICKNAME = "NICKNAME"
 KEY_NAME = "FN"
