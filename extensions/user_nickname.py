@@ -16,7 +16,7 @@ def add_username(stanza, user, uid):
 		key = "name"
 		if user.settings.use_nicknames:
 			key = "screen_name"
-		name = user.vk.getUserData(uid)[key]
+		name = user.vk.getUserData(uid).get(key, "Unknown User: %s" % uid)
 	stanza.setTag("nick", namespace=xmpp.NS_NICK)
 	stanza.setTagData("nick", name)
 

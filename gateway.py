@@ -575,6 +575,7 @@ class VK(object):
 		return data
 
 	@utils.cache
+	@api.repeat(3, dict, RuntimeError)
 	def getUserData(self, uid, fields=None):
 		"""
 		Gets user data. Such as name, photo, etc
@@ -595,7 +596,8 @@ class VK(object):
 		if data:
 			data = data[0]
 			data["name"] = self.formatName(data)
-		return data
+			return data
+		raise RuntimeError("Unable to get the user's name")
 
 	def sendMessage(self, body, id, mType="user_id", more={}):
 		"""
@@ -1215,7 +1217,7 @@ def loop():
 	"""
 	while ALIVE:
 		try:
-			Component.iter(6)
+			Component.iter(1)
 		except Exception:
 			logger.critical("disconnected")
 			crashLog("component.iter")

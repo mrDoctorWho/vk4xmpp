@@ -53,9 +53,9 @@ def parseAttachments(self, msg, spacer=""):
 				if self.settings.parse_wall:
 					tid = current.get("to_id", 1)
 					if tid > 0:
-						name = "%s's" % self.vk.getUserData(tid)["name"]
+						name = "%s's" % self.vk.getUserData(tid).get("name", "Unknown User (%s)" % tid)
 					else:
-						name = "“%s”" % self.vk.getGroupData(tid)["name"]
+						name = "“%s”" % self.vk.getGroupData(tid).get("name", "Unknown Group (%s)" % tid)
 					body += "Post on %s wall:\n" % name
 					if current.get("text") or current.get("copy_text"):
 						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"] or current.get("copy_text"))) + "\n"

@@ -53,7 +53,7 @@ except ImportError:
 	logger.warning("vkapi: ujson wasn't loaded, using simplejson instead")
 
 
-def attemptTo(maxRetries, resultType, *errors):
+def repeat(maxRetries, resultType, *errors):
 	"""
 	Tries to execute function ignoring specified errors specified number of
 	times and returns specified result type on try limit.
@@ -110,7 +110,7 @@ class AsyncHTTPRequest(httplib.HTTPSConnection):
 		self.headers = headers or {}
 		self.created = time.time()
 
-	@attemptTo(REQUEST_RETRIES, None, *ERRORS)
+	@repeat(REQUEST_RETRIES, None, *ERRORS)
 	def open(self):
 		self.connect()
 		self.request(("POST" if self.data else "GET"), self.url, self.data,
@@ -193,7 +193,7 @@ class RequestProcessor(object):
 		request = urllib2.Request(url, data, headers)
 		return request
 
-	@attemptTo(REQUEST_RETRIES, tuple, *ERRORS)
+	@repeat(REQUEST_RETRIES, tuple, *ERRORS)
 	def post(self, url, data=None, urlencode=True):
 		"""
 		POST request

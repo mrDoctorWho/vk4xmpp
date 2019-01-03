@@ -397,7 +397,7 @@ class Chat(object):
 		return False
 
 	@staticmethod
-	@api.attemptTo(3, dict, RuntimeError)
+	@api.repeat(3, dict, RuntimeError)
 	def getVKChat(user, id):
 		"""
 		Get vk chat by id
