@@ -145,7 +145,7 @@ NS_WAITINGLIST		 = "http://jabber.org/protocol/waitinglist"					# XEP-0130
 NS_XHTML_IM			 = "http://jabber.org/protocol/xhtml-im"					# XEP-0071
 NS_XMPP_STREAMS		 = "urn:ietf:params:xml:ns:xmpp-streams"					# RFC 3920
 NS_PING				 = "urn:xmpp:ping"											# XEP-0199
-NS_CHAT_MARKERS		 = "urn:xmpp:chat-markers:0"								# XEP-0333
+NS_CHAT_MARKERS		= "urn:xmpp:chat-markers:0"						# XEP-0333
 
 NS_MUC_FILTER		 = "http://jabber.ru/muc-filter"
 
@@ -838,11 +838,11 @@ class Iq(Protocol):
 		if queryNS:
 			self.setQueryNS(queryNS)
 
-	def getQuery(self):
+	def getQuery(self, namespace=None):
 		"""
 		Returns the query node.
 		"""
-		return self.getTag("query")
+		return self.getTag("query", namespace=namespace)
 
 	def getQueryNS(self):
 		"""

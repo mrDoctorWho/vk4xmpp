@@ -54,7 +54,6 @@ class Dispatcher(PlugIn):
 		PlugIn.__init__(self)
 		self.handlers = {}
 		self._expected = {}
-		self.dc=False
 		self._defaultHandler = None
 		self._pendingExceptions = []
 		self._eventHandler = None

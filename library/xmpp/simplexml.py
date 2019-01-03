@@ -31,12 +31,14 @@ XML_ls = (
 	("'", "&apos;")
 )
 
+ENCODING = "utf-8"
+
+
 def XMLescape(body):
 	for char, edef in XML_ls:
 		body = body.replace(char, edef)
-	return body.strip()
+	return body
 
-ENCODING = "utf-8"
 
 def ustr(what):
 	"""

@@ -80,6 +80,8 @@ class Roster(PlugIn):
 		Subscription tracker. Used internally for setting items state in
 		internal roster representation.
 		"""
+		if not stanza or not stanza.getTag("query"):
+			raise NodeProcessed()
 		for item in stanza.getTag("query").getTags("item"):
 			jid = item.getAttr("jid")
 			if item.getAttr("subscription") == "remove":

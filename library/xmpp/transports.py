@@ -43,7 +43,7 @@ from .protocol import *
 
 # http://pydns.sourceforge.net
 try:
-	import dns
+	import DNS as dns
 except ImportError:
 	dns = None
 
@@ -51,8 +51,12 @@ DATA_RECEIVED = 'DATA RECEIVED'
 DATA_SENT = 'DATA SENT'
 DBG_CONNECT_PROXY = 'CONNECTproxy'
 
-BUFLEN = 2024
+BUFLEN = 8192
 SEND_INTERVAL = 0
+
+TCP_KEEPINTVL = 60
+TCP_KEEPIDLE = 60
+
 
 class SendSemaphore(object):
 
@@ -81,6 +85,7 @@ class SendSemaphore(object):
 	def __exit__(self, *args):
 		self.release()
 
+
 class error:
 	"""
 	An exception to be raised in case of low-level errors in methods of 'transports' module.
@@ -96,6 +101,23 @@ class error:
 		Serialize exception into pre-cached descriptive string.
 		"""
 		return self._comment
+
+
+def configureSocket(sock):
+	# see man(7) tcp
+	try:
+		# enable keepalive probes
+		sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+		# the interval between subsequential keepalive probes, regardless of what the connection has exchanged in the meantime
+		# overrides  tcp_keepalive_intvl
+		sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, TCP_KEEPINTVL)
+		# the interval between the last data packet sent (simple ACKs are not considered data) and the first keepalive probe;
+		# after the connection is marked to need keepalive, this counter is not used any further
+		# overrides tcp_keepalive_time
+		sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, TCP_KEEPIDLE)
+	except (AttributeError, OSError):
+		pass
+
 
 class TCPsocket(PlugIn):
 	"""
@@ -128,7 +150,7 @@ class TCPsocket(PlugIn):
 				if response.answers:
 					# Sort by priority, according to RFC 2782.
 					answers = sorted(response.answers, key=lambda a: a["data"][0])
-					(port, host) = answers[0]["data"][2:]
+					(port, host) = answers[0]["data"][2:][:2]
 					server = str(host), int(port)
 			except dns.DNSError:
 				self.DEBUG("An error occurred while looking up %s." % query, "warn")
@@ -200,6 +222,7 @@ class TCPsocket(PlugIn):
 			except Exception:
 				pass
 			else:
+				configureSocket(self._sock)
 				self.DEBUG("Successfully connected to remote host %s." % repr(server), "start")
 				return "ok"
 
@@ -260,18 +283,17 @@ class TCPsocket(PlugIn):
 			data = data.encode("utf-8")
 		elif not isinstance(data, str):
 			data = ustr(data).encode("utf-8")
-		with self._sequence:
-			try:
-				self._send(data)
-			except (Exception, socket.error):
-				self.DEBUG("Socket error while sending data.", "error")
-				self._owner.disconnected()
-			else:
-				if not data.strip():
-					data = repr(data)
-				self.DEBUG(data, "sent")
-				if hasattr(self._owner, "Dispatcher"):
-					self._owner.Dispatcher.Event("", DATA_SENT, data)
+		try:
+			self._send(data)
+		except (Exception, socket.error):
+			self.DEBUG("Socket error while sending data.", "error")
+			self._owner.disconnected()
+		else:
+			if not data.strip():
+				data = repr(data)
+			self.DEBUG(data, "sent")
+			if hasattr(self._owner, "Dispatcher"):
+				self._owner.Dispatcher.Event("", DATA_SENT, data)
 
 	def pending_data(self, timeout=0):
 		"""
