@@ -9,14 +9,15 @@ from printer import *
 VK_AUDIO_SEARCH_LINK = "https://vk.com/search?c[q]=%s&c[section]=audio"
 WALL_LINK = "https://vk.com/wall%(to_id)s_%(id)s"
 WALL_COMMENT_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s?w=wall%(owner_id)s3_%(post_id)s"
+
 PHOTO_SIZES = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 STICKER_SIZES = ("photo_256", "photo_128", "photo_64")
 
 ATTACHMENT_REGEX = re.compile(r"^(Photo|Document|Sticker)\:\s(“.+?”\s—\s)?"\
 	r"(?P<url>http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$)", re.UNICODE)
 
-GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 0, "label": "Parse wall attachments"}
-GLOBAL_USER_SETTINGS["make_oob"] = {"value": 0, "label": "Allow OOB for attachments",
+GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 1, "label": "Parse wall attachments"}
+GLOBAL_USER_SETTINGS["make_oob"] = {"value": 1, "label": "Allow OOB for attachments",
 	"desc": "Attach incoming files as attachments,\nso they would be displayed by your client (if supported)"}
 
 
