@@ -344,7 +344,10 @@ class Chat(object):
 		"""
 		A callback which called after attempt to create the chat
 		"""
-		chat = stanza.getFrom().getStripped()
+		if not frm:
+			logger.critical("no from in stanza! %s", stanza)
+			return
+		chat = frm.getStripped()
 		if xmpp.isResultNode(stanza):
 			self.created = True
 			logger.debug("groupchats: stanza \"result\" received from %s, "
@@ -469,7 +472,10 @@ def exterminateChats(user=None, chats=[]):
 			stanza: the result stanza
 			jid: the jid stanza's sent from (?)
 		"""
-		chat = stanza.getFrom().getStripped()
+		frm = stanza.getFrom()
+		if not frm:
+			logger.critical("no from in stanza! %s", stanza)
+			return
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)", chat, jid)
 		else:
