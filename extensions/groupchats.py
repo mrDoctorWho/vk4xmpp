@@ -344,6 +344,7 @@ class Chat(object):
 		"""
 		A callback which called after attempt to create the chat
 		"""
+		frm = stanza.getFrom()
 		if not frm:
 			logger.critical("no from in stanza! %s", stanza)
 			return
@@ -431,7 +432,12 @@ class Chat(object):
 		Gets user object by chat jid
 		"""
 		user = None
-		creator, id, domain = Chat.getParts(source)
+		parts = Chat.getParts(source)
+		if len(parts) == 3:
+			creator, id, domain = parts
+		else:
+			logger.error("groupchats: we didn't get all parts! parts: %s. (jid: %s)", repr(parts), source)
+			return None
 		if creator and domain == ConferenceServer:
 			user = Chat.getUserByID(creator)
 		if not user:
