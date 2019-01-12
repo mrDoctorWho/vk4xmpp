@@ -482,6 +482,7 @@ def exterminateChats(user=None, chats=[]):
 		if not frm:
 			logger.critical("no from in stanza! %s", stanza)
 			return
+		chat = frm.getStripped()
 		if xmpp.isResultNode(stanza):
 			logger.debug("groupchats: target exterminated! Yay! target:%s (jid: %s)", chat, jid)
 		else:

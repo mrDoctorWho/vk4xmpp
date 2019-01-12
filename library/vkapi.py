@@ -291,7 +291,6 @@ class APIBinding(RequestProcessor):
 	"""
 	Provides simple VK API binding
 	Translates VK errors to python exceptions
-	Allows to make a password authorization
 	"""
 	def __init__(self, token, debug=None, logline=""):
 		self.token = token
@@ -299,10 +298,22 @@ class APIBinding(RequestProcessor):
 		self.last = []
 		self.captcha = {}
 		self.lastMethod = ()
-		self.timeout = 1.00
+		self.delay = 1.00
 		# to use it in logs without showing the token
 		self.logline = logline
 		RequestProcessor.__init__(self)
+
+
+	def __delay(self):
+		"""
+		Delaying method execution to prevent "too fast" errors from happening
+		Typically VK allows us execution of 3 methods per second.
+		"""
+		self.last.append(time.time())
+		if len(self.last) > 2:
+			if (self.last.pop() - self.last.pop(0)) <= self.delay:
+				time.sleep(self.delay / METHOD_THROUGHPUT)
+				self.last = [time.time()]
 
 	def method(self, method, values=None, notoken=False):
 		"""
@@ -314,6 +325,7 @@ class APIBinding(RequestProcessor):
 		Returns:
 			The method execution result
 		"""
+		self.__delay()
 		url = "https://api.vk.com/method/%s" % method
 		values = values or {}
 		if not notoken:
@@ -326,14 +338,9 @@ class APIBinding(RequestProcessor):
 			self.captcha = {}
 
 		self.lastMethod = (method, values)
-		# prevent “too fast” errors
-		self.last.append(time.time())
-		if len(self.last) > 2:
-			if (self.last.pop() - self.last.pop(0)) <= self.timeout:
-				time.sleep(self.timeout / 3.0)
 
 		start = time.time()
-		if method in self.debug or self.debug == "all":
+		if self.debug == "all" or method in self.debug:
 			Print("SENT: method %s with values %s in thread: %s" % (method,
 				colorizeJSON(values), threading.currentThread().name))
 
@@ -391,12 +398,11 @@ class APIBinding(RequestProcessor):
 				# todo: where we going we NEED constants
 				elif eCode in (1, 6, 9, 100):
 					if eCode in (6, 9):   # 6 - too fast / 9 - flood control
-						self.timeout += 0.05
+						self.delay += 0.15
 						# logger doesn't seem to support %0.2f
 						logger.warning("vkapi: got code %s, increasing timeout to %0.2f (for: %s)" %
-							(eCode, self.timeout, self.logline))
-						# waiting a bit and trying to execute te method again
-						time.sleep(self.timeout)
+							(eCode, self.delay, self.logline))
+						# rying to execute te method again (it will sleep a while in __delay())
 						return self.method(method, values)
 					return {"error": eCode}
 				raise VkApiError(eMsg)
