@@ -44,6 +44,8 @@ ERRORS = (httplib.BadStatusLine,
 	socket.error,
 	ssl.SSLError)
 
+METHOD_THROUGHPUT = 3.0
+
 # Trying to use faster library usjon instead of simplejson
 try:
 	import ujson as json
