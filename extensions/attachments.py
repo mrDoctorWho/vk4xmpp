@@ -13,8 +13,7 @@ WALL_COMMENT_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s?w=wall%(owner_i
 PHOTO_SIZES = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
 STICKER_SIZES = ("photo_256", "photo_128", "photo_64")
 
-ATTACHMENT_REGEX = re.compile(r"^(Photo|Document|Sticker)\:\s(“.+?”\s—\s)?"\
-	r"(?P<url>http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+$)", re.UNICODE)
+ATTACHMENT_REGEX = re.compile(r"^(?P<type>Photo|Document|Sticker)\:\s(?P<name>“.+?”\s—\s)?(?P<url>http[s]?:\/\/[^\s]+)$", re.UNICODE)
 
 GLOBAL_USER_SETTINGS["parse_wall"] = {"value": 1, "label": "Parse wall attachments"}
 GLOBAL_USER_SETTINGS["make_oob"] = {"value": 1, "label": "Allow OOB for attachments",
@@ -126,14 +125,21 @@ def attachments_msg03(msg, destination, source):
 			match = ATTACHMENT_REGEX.match(body.encode("utf-8"))
 			if match:
 				link = match.group("url")
-				if link:
-					try:
-						link = urllib.urlopen(link).url
-					except Exception:
-						crashLog("attachments_msg03")
-						logger.error("unable to fetch real url for link %s and (jid: %s)", (link, user.source))
-				url = msg.setTag("x", namespace=xmpp.NS_OOB)
-				url.setTagData("url", link)
+				typ = match.group("type")
+				name = match.group("name")
+				if link and name:
+					# shorten links only for audio messages
+					# todo: is there a better way to detect them?
+					# probably having "psv4." in the domain might
+					# be considered as private storage and hence shouldn't be downloaded by us
+					if typ == "Document" and ".ogg" in name:
+						try:
+							link = urllib.urlopen(link).url
+						except Exception:
+							crashLog("attachments_msg03")
+							logger.error("unable to fetch real url for link %s and (jid: %s)", (link, user.source))
+				oob = msg.setTag("x", namespace=xmpp.NS_OOB)
+				oob.setTagData("url", link)
 				msg.setBody(link)
 
 
