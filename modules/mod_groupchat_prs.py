@@ -70,7 +70,7 @@ def handleChatPresences(source, prs):
 					if (time.gmtime().tm_mon, time.gmtime().tm_mday) == (4, 1):
 						setAffiliation(source, "outcast", jid, reason=_("Get the hell outta here!"))
 					else:
-						leaveChat(source, jid, _("I am not welcomed here"))
+						leaveChat(source, jid)
 
 				if (prs.getRole(), prs.getAffiliation()) == ("moderator", "owner"):
 					if jid != TransportID:
