@@ -22,6 +22,7 @@ THREAD_STACK_SIZE = 0
 VK_ACCESS = 69638
 USER_LIMIT = 0
 RUN_AS = None
+ALLOW_REGISTRATION = True
 
 IDENTIFIER = {"type": "vk", "category": "gateway", "name": "VK4XMPP Transport", "short": "VK4XMPP"}
 URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"

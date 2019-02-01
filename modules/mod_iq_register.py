@@ -38,6 +38,10 @@ def register_handler(cl, iq):
 			sender(cl, utils.buildIQError(iq, xmpp.ERR_NOT_ALLOWED, _("The gateway admins limited registrations, sorry.")))
 			raise xmpp.NodeProcessed()
 
+	if not ALLOW_REGISTRATION and source not in Users:
+		sender(cl, utils.buildIQError(iq, xmpp.ERR_NOT_ALLOWED, _("The gateway admins limited registrations, sorry.")))
+		raise xmpp.NodeProcessed()
+
 	if destination == TransportID and iq.getQueryChildren():
 		phone, password, use_password, token, result = None, None, None, None, None
 		query = iq.getTag("query")
@@ -91,7 +95,7 @@ def register_handler(cl, iq):
 
 
 def sendRegisterForm(cl, iq):
-	logger.debug("Send registration form to user (jid: %s)", iq.getFrom().getStripped())
+	logger.debug("Sending registration form to user (jid: %s)", iq.getFrom().getStripped())
 	form = utils.buildDataForm(fields=forms.Forms.getComlicatedForm(), data=[_("Fill the fields below")])
 	result = iq.buildReply("result")
 	result.setQueryPayload([form])
