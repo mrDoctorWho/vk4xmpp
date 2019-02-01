@@ -52,10 +52,12 @@ def parseAttachments(self, msg, spacer=""):
 			if type == "wall":
 				if self.settings.parse_wall:
 					tid = current.get("to_id", 1)
+					name_ = self.vk.getName(tid)
 					if tid > 0:
-						name = "%s's" % self.vk.getUserData(tid).get("name", "Unknown User (%s)" % tid)
+						name = "%s's" % name_
 					else:
-						name = "“%s”" % self.vk.getGroupData(tid).get("name", "Unknown Group (%s)" % tid)
+						name = "“%s”" % name_
+
 					body += "Post on %s wall:\n" % name
 					if current.get("text") or current.get("copy_text"):
 						body += spacer + uhtml(compile_eol.sub("\n" + spacer, current["text"] or current.get("copy_text"))) + "\n"
@@ -85,7 +87,7 @@ def parseAttachments(self, msg, spacer=""):
 			elif type == "wall_reply":
 				# TODO: What if it's a community? from_id will be negative.
 				# TODO: Remove "[idxxx|Name]," from the text or make it a link if XHTML is allowed
-				current["name"] = self.vk.getUserData(current["uid"])["name"]
+				current["name"] = self.vk.getName(current["uid"])
 				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
 				current["url"] = WALL_COMMENT_LINK % current
 

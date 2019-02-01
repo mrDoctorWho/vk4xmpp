@@ -249,7 +249,7 @@ class Chat(object):
 			runDatabaseQuery("insert into groupchats (jid, owner, user, last_used) values (?,?,?,?)",
 				(self.jid, TransportID, user.source, time.time()), True)
 
-		name = user.vk.getUserData(self.owner)["name"]
+		name = user.vk.getName(self.owner)
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 		# We join to the chat with the room owner's name to set the room subject from their name.
 		joinChat(self.jid, name, TransportID, "Lost in time.")
@@ -274,7 +274,7 @@ class Chat(object):
 		name = "@%s" % TransportID
 		setAffiliation(chat, "member", user.source)
 		if not self.invited:
-			inviteUser(chat, user.source, TransportID, user.vk.getUserData(self.owner)["name"])
+			inviteUser(chat, user.source, TransportID, user.vk.getName(self.owner))
 			logger.debug("groupchats: user has been invited to chat %s (jid: %s)", chat, user.source)
 			self.invited = True
 		self.setSubject(self.subject, self.creation_date)
@@ -306,10 +306,8 @@ class Chat(object):
 				# TODO: Transport MUST NOT request the name for each user it sees.
 				# It should be done with a list of users
 				# E.g. requesting a list of users and get a list of names
-				userData = userObject.vk.getUserData(user)
-				try:
-					name = userData["name"]
-				except KeyError:
+				name = userObject.vk.getName(user)
+				if not name:
 					logger.error("groupchats: unable to get user name"
 						+ " for %s in chat %s, data: %s (jid: %s)",
 						user,

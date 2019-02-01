@@ -599,6 +599,13 @@ class VK(object):
 			return data
 		raise RuntimeError("Unable to get the user's name")
 
+	def getName(self, id_):
+		if id_ > 0:
+			name = self.getUserData(id_).get("name", "Unknown user (id: %s)" % id_)
+		else:
+			name = self.getGroupData(id_).get("name", "Unknown group (id: %s)" % id_)
+		return name
+
 	def sendMessage(self, body, id, mType="user_id", more={}):
 		"""
 		Sends message to a VK user (or a chat)
