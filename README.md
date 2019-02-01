@@ -43,6 +43,7 @@ VK4XMPP представляет собой легковесный трансп�
 * XEP-0045 (Multi-User Chat)
 * XEP-0050 (Ad-Hoc Commands)
 * XEP-0054 (vcard-temp)
+* XEP-0066 (Out of Band Data)
 * XEP-0071 (XHTML-IM)
 * XEP-0077 (In-Band Registration)
 * XEP-0153 (vCard-Based Avatars)
@@ -53,6 +54,7 @@ VK4XMPP представляет собой легковесный трансп�
 * XEP-0158 (CAPTCHA Forms)
 * XEP-0184 (Message Delivery Receipts)
 * XEP-0199 (XMPP Ping)
+* XEP-0333 (Chat Markers)
 
 **Почему VK4XMPP**:
 
