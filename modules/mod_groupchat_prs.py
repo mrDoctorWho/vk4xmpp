@@ -60,7 +60,7 @@ def handleChatPresences(source, prs):
 		prs: xmpp.Presence object
 	"""
 	jid = prs.getJid() or ""
-	if "@" in jid:
+	if "@" in jid and prs.getType() != "unavailable":
 		user = Chat.getUserObject(source)
 		if user and source in getattr(user, "chats", {}):
 			chat = user.chats[source]
@@ -81,11 +81,13 @@ def handleChatPresences(source, prs):
 
 			# TODO: don't rewrite it every time we get a presence
 			if jid.split("/")[0] == user.source:
-				chat.owner_nickname = prs.getFrom().getResource()
-				runDatabaseQuery("update groupchats set nick=? where jid=? ", (chat.owner_nickname, source), set=True)
+				nick = prs.getFrom().getResource()
+				chat.owner_nickname = nick
+				runDatabaseQuery("update groupchats set nick=? where jid=? ", (nick, source), set=True)
+				logger.debug("mod_groupchat_prs: setting user nickname to: %s for chat %s and user: %s", nick, source, user.source)
 			raise xmpp.NodeProcessed()
 
-		elif user and prs.getType() != "unavailable":
+		elif user:
 			chat = createChat(user, source)
 			chat.invited = True  # assume the user's joined themselves
 
@@ -100,8 +102,8 @@ def presence_handler(cl, prs):
 		prs: the xmpp.Presence object
 	"""
 	source = prs.getFrom().getStripped()
-	status = prs.getStatus()
-	if status or prs.getType() == "error":
+	code = prs.getStatusCode()
+	if code or prs.getType() == "error":
 		handleChatErrors(source, prs)
 	handleChatPresences(source, prs)  # It won't be called if handleChatErrors was called in the first time
 

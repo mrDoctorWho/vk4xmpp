@@ -291,7 +291,6 @@ class Chat(object):
 		everyone = all_users + self.users.keys()
 		# how would it get in there?
 		if TransportID in everyone:
-			logger.debug("removing transport from groupchat users list")
 			everyone.remove(TransportID)
 		if userObject.vk.getUserID() in everyone:
 			everyone.remove(userObject.vk.getUserID())
@@ -300,7 +299,7 @@ class Chat(object):
 			jid = vk2xmpp(user)
 			userId = int(user)
 			existingUser = self.users.get(userId)
-			if not existingUser or existingUser.get("name") == "undefined":
+			if not existingUser:
 				logger.debug("groupchats: user %s has joined the chat %s (jid: %s)",
 					user, self.jid, userObject.source)
 				# TODO: Transport MUST NOT request the name for each user it sees.
