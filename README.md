@@ -120,7 +120,7 @@ VK4XMPP представляет собой легковесный трансп�
 
 * [Arch Linux](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-ArchLinux-с-Prosody)
 * [Gentoo](http://blog.stv-fian.ru/?p=375)
-* [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(для-серверов))
+* [Ubuntu/Debian/etc](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-сервер)
 
 
 <a name="configure"></a>Настройка jabber-серверов:
