@@ -125,7 +125,7 @@ VK4XMPP представляет собой легковесный трансп�
 
 <a name="configure"></a>Настройка jabber-серверов:
 
-* Ejabberd: [раз](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-(только-для-серверов)), [два](http://nixman.info/?p=2315)
+* Ejabberd: [раз](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-на-сервер), [два](http://nixman.info/?p=2315)
 * [Openfire](http://ky0uraku.livejournal.com/79921.html)
 * [Prosody](https://github.com/mrDoctorWho/vk4xmpp/wiki/Установка-VK4XMPP-на-Prosody)
 * [Generic](http://dsy.name/?q=vk4xmpp)
