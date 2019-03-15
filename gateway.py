@@ -1,13 +1,16 @@
 #!/usr/bin/env python2
 # coding: utf-8
 
-# vk4xmpp gateway, v3.0
+# vk4xmpp gateway, v3.6
 # © simpleApps, 2013 — 2018.
 # Program published under the MIT license.
 
+# Disclamer: be aware that this program's code may hurt your eyes or feelings.
+# You were warned.
+
 __author__ = "mrDoctorWho <mrdoctorwho@gmail.com>"
 __license__ = "MIT"
-__version__ = "3.5"
+__version__ = "3.6"
 
 import hashlib
 import logging
@@ -320,6 +323,7 @@ class VK(object):
 		return True
 
 	# TODO: move it the hell outta here
+	# wtf it's still doing here?
 	def makePoll(self):
 		"""
 		Returns:
@@ -502,15 +506,16 @@ class VK(object):
 					{"users": users,
 					"start_message_id": mid,
 					"count": count})
-				for message in response:
-					# skipping count-only reponses
-					if len(message) > 1:
-						if isinstance(message, list):
-							first = message[0]
-							# removing the unread count
-							if isinstance(first, (int, long)):
-								message.remove(first)
-							messages.extend(message)
+				if response:
+					for message in response:
+						# skipping count-only reponses
+						if len(message) > 1:
+							if isinstance(message, list):
+								first = message[0]
+								# removing the unread count
+								if isinstance(first, (int, long)):
+									message.remove(first)
+								messages.extend(message)
 				else:
 					# not sure if that's okay
 					# VK is totally unpredictable now

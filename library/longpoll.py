@@ -209,8 +209,8 @@ class Poll(object):
 			else:
 				try:
 					cls.__add(some_user)
-				except api.LongPollError:
-					logger.error("longpoll: failed to make poll (jid: %s)", some_user.source)
+				except api.LongPollError as e:
+					logger.debug("longpoll: failed to make poll: %s (jid: %s)", e.message, some_user.source)
 					cls.__addToBuffer(some_user)
 				except Exception:
 					crashLog("poll.add")
