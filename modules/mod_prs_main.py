@@ -30,12 +30,12 @@ def initializeUser(source, resource, prs):
 				"please register again."
 				" This incident will be reported.\nCause: %s") % returnExc())
 		logger.error("Failed to authenicate user! Error: %s (jid: %s)", e.message, source)
-	finally:
-		if source in USERS_ON_INIT:
-			USERS_ON_INIT.remove(source)
 	else:
 		user.initialize(send=True, resource=resource)  # probably we need to know resource a bit earlier than this time
 		utils.runThread(executeHandlers, ("prs01", (source, prs)))
+	finally:
+		if source in USERS_ON_INIT:
+			USERS_ON_INIT.remove(source)
 
 
 def presence_handler(cl, prs):
