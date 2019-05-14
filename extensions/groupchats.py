@@ -144,8 +144,10 @@ def handleOutgoingChatMessage(user, vkChat):
 	"""
 	Handles outging VK messages and sends them to XMPP
 	"""
+	# peer_id for newer APIs
+	chatID = vkChat.get("chat_id", 0)
 
-	if "chat_id" in vkChat:
+	if chatID:
 		# check if the groupchats support enabled in user's settings
 		if not user.settings.groupchats:
 			return None
@@ -153,7 +155,6 @@ def handleOutgoingChatMessage(user, vkChat):
 		if not hasattr(user, "chats"):
 			user.chats = {}
 
-		chatID = vkChat["chat_id"]
 		chatJID = "%s_chat#%s@%s" % (user.vk.userID, chatID, ConferenceServer)
 		chat = createChat(user, chatJID)
 		if not chat.initialized:
@@ -292,8 +293,8 @@ class Chat(object):
 		# how would it get in there?
 		if TransportID in everyone:
 			everyone.remove(TransportID)
-		if userObject.vk.getUserID() in everyone:
-			everyone.remove(userObject.vk.getUserID())
+		if userObject.vk.getUserPreferences()[0] in everyone:
+			everyone.remove(userObject.vk.getUserPreferences()[0])
 
 		for user in everyone:
 			jid = vk2xmpp(user)
@@ -368,7 +369,7 @@ class Chat(object):
 			body += parseAttachments(user, vkChat)
 			body += parseForwardedMessages(user, vkChat)
 			if body:
-				chatMessage(self.jid, body, vk2xmpp(vkChat["uid"]), None)
+				chatMessage(self.jid, body, vk2xmpp(vkChat["from_id"]), None)
 		else:
 			source = "unknown"
 			userObject = self.getUserObject(self.jid)
@@ -448,7 +449,7 @@ class Chat(object):
 	def getUserByID(id):
 		for jid, user in Users.iteritems():
 			if hasattr(user, "vk"):
-				if user.vk.getUserID() == id:
+				if user.vk.getUserPreferences()[0] == id:
 					return user
 		return None
 

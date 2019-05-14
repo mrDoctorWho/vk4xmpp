@@ -42,7 +42,7 @@ class AvatarHash(object):
 		return data
 
 	def sendPhotoRequest(self, user, uids):
-		data = user.vk.method("execute.getPhotos",
+		data = user.vk.method("execute.getPhotos_new",
 			{"users": self.join(uids), "size": PhotoSize}) or []
 		return data
 

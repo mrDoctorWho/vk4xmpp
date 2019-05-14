@@ -228,7 +228,7 @@ badChars = [x for x in xrange(32) if x not in (9, 10, 13)] + [57003, 65535]
 escape = re.compile("|".join(unichr(x) for x in badChars),
 	re.IGNORECASE | re.UNICODE | re.DOTALL).sub
 
-sortMsg = lambda first, second: first.get("mid", 0) - second.get("mid", 0)
+sortMsg = lambda first, second: first.get("id", 0) - second.get("id", 0)
 require = lambda name: os.path.exists("extensions/%s.py" % name)
 isdef = lambda var: var in globals()
 findUserInDB = lambda source: runDatabaseQuery("select * from users where jid=?", (source,), many=False)
@@ -261,14 +261,15 @@ class VK(object):
 		self.engine = None
 		self.cache = {}
 		self.permissions = 0
+		self.timezone = 0
 		logger.debug("VK initialized (jid: %s)", source)
 
 	def __str__(self):
-		return ("user id: %s; online: %s; token: %s" %
-			(self.userID, self.online, self.token))
+		return ("user id: %s; timezone: %s; online: %s; token: %s" %
+			(self.userID, self.timezone, self.online, self.token))
 
 	def init(self):
-		self.getUserID()
+		self.getUserPreferences()
 		self.getPermissions()
 
 	getToken = lambda self: self.engine.token
@@ -442,25 +443,16 @@ class VK(object):
 		"""
 		fields = fields or self.friends_fields
 		raw = self.method("friends.get", {"fields": str.join(",", fields)}) or {}
+		raw = raw.get("items", {})
 		friends = {}
 		for friend in raw:
-			uid = friend["uid"]
+			uid = friend["id"]
 			online = friend["online"]
 			name = self.formatName(friend)
 			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
 			for key in fields:
 				friends[uid][key] = friend.get(key)
 		return friends
-
-	def getLists(self):
-		"""
-		Receive the list of the user friends' groups
-		Returns:
-			a list of user friends groups
-		"""
-		if not self.lists:
-			self.lists = self.method("friends.getLists")
-		return self.lists
 
 	@staticmethod
 	def getPeerIds(conversations, source=None):
@@ -507,15 +499,15 @@ class VK(object):
 					"start_message_id": mid,
 					"count": count})
 				if response:
-					for message in response:
+					messages.extend(response[0].get("items", []))
 						# skipping count-only reponses
-						if len(message) > 1:
-							if isinstance(message, list):
-								first = message[0]
-								# removing the unread count
-								if isinstance(first, (int, long)):
-									message.remove(first)
-								messages.extend(message)
+						# if len(message) > 1:
+						# 	if isinstance(message, list):
+						# 		first = message[0]
+						# 		# removing the unread count
+						# 		if isinstance(first, (int, long)):
+						# 			message.remove(first)
+						# 		messages.extend(message)
 				else:
 					# not sure if that's okay
 					# VK is totally unpredictable now
@@ -543,15 +535,19 @@ class VK(object):
 		return self.getMessagesBulk(peers, count=count, mid=mid)
 
 	# TODO: put this in the DB
-	def getUserID(self):
+	def getUserPreferences(self):
 		"""
-		Receives the user id
+		Receives the user's id and timezone
 		Returns:
 			The current user id
 		"""
-		if not self.userID:
-			self.userID = self.method("execute.getUserID")
-		return self.userID
+		if not self.userID or not self.timezone:
+			data = self.method("users.get", {"fields": "timezone"})
+			if data:
+				data = data.pop()
+				self.timezone = data.get("timezone")
+				self.userID = data.get("id")
+		return (self.userID, self.timezone)
 
 	def getPermissions(self):
 		"""
@@ -562,6 +558,16 @@ class VK(object):
 		if not self.permissions:
 			self.permissions = self.method("account.getAppPermissions")
 		return self.permissions
+
+	def getLists(self):
+		"""
+		Receive the list of the user friends' groups
+		Returns:
+			a list of user friends groups
+		"""
+		if not self.lists:
+			self.lists = self.method("friends.getLists")
+		return self.lists
 
 	@utils.cache
 	def getGroupData(self, gid, fields=None):
@@ -746,7 +752,7 @@ class User(object):
 			self.sendInitPresence()
 		if resource:
 			self.resources.add(resource)
-		utils.runThread(self.vk.getUserID)
+		utils.runThread(self.vk.getUserPreferences)
 		if first:
 			self.sendMessages(True, filter_="unread")
 		else:
@@ -820,12 +826,13 @@ class User(object):
 				# check if message wasn't sent by our user
 				if not message["out"]:
 					Stats["msgin"] += 1
-					frm = message["uid"]
-					mid = message["mid"]
+					frm = message["user_id"]
+					mid = message["id"]
 					if frm in self.typing:
 						del self.typing[frm]
 					fromjid = vk2xmpp(frm)
-					body = uhtml(message["body"])
+					body = message["body"]
+					body = uhtml(body)
 					iter = Handlers["msg01"].__iter__()
 					for func in iter:
 						try:
@@ -846,11 +853,11 @@ class User(object):
 						self.lastMsgByUser[frm] = mid
 						sendMessage(self.source, fromjid, escape("", body), date, mid=mid)
 		if messages:
-			newLastMsgID = messages[-1]["mid"]
-			if self.lastMsgID < newLastMsgID:
-				self.lastMsgID = newLastMsgID
-				runDatabaseQuery("update users set lastMsgID=? where jid=?",
-					(newLastMsgID, self.source), True)
+			newLastMsgID = messages[-1]["id"]
+			# if self.lastMsgID < newLastMsgID:
+			self.lastMsgID = newLastMsgID
+			runDatabaseQuery("update users set lastMsgID=? where jid=?",
+				(newLastMsgID, self.source), True)
 
 	def updateTypingUsers(self, cTime):
 		"""

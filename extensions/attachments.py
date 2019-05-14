@@ -10,7 +10,7 @@ VK_AUDIO_SEARCH_LINK = "https://vk.com/search?c[q]=%s&c[section]=audio"
 WALL_LINK = "https://vk.com/wall%(to_id)s_%(id)s"
 WALL_COMMENT_LINK = "https://vk.com/wall%(owner_id)s_%(post_id)s?w=wall%(owner_id)s3_%(post_id)s"
 
-PHOTO_SIZES = ("src_xxxbig", "src_xxbig", "src_xbig", "src_big", "src", "url", "src_small")
+PHOTO_SIZES = ("photo_2560", "photo_1280", "photo_807", "photo_604", "photo_130", "photo_75")
 STICKER_SIZES = ("photo_256", "photo_128", "photo_64")
 
 ATTACHMENT_REGEX = re.compile(r"^(?P<type>Photo|Document|Sticker)\:\s(?P<name>“.+?”\s—\s)?(?P<url>http[s]?:\/\/[^\s]+)$", re.UNICODE)
@@ -87,7 +87,7 @@ def parseAttachments(self, msg, spacer=""):
 			elif type == "wall_reply":
 				# TODO: What if it's a community? from_id will be negative.
 				# TODO: Remove "[idxxx|Name]," from the text or make it a link if XHTML is allowed
-				current["name"] = self.vk.getName(current["uid"])
+				current["name"] = self.vk.getName(current["from_id"])
 				current["text"] = uhtml(compile_eol.sub("\n" + spacer, current["text"]))
 				current["url"] = WALL_COMMENT_LINK % current
 
@@ -105,7 +105,7 @@ def parseAttachments(self, msg, spacer=""):
 				current["desc"] += "%(views)d views" % current
 				current["time"] = "%d:%d" % (current["duration"] // 60, current["duration"] % 60)
 
-				body += "Video: %(title)s (%(desc)s, %(time)s min) — https://vk.com/video%(owner_id)s_%(vid)s" % current
+				body += "Video: %(title)s (%(desc)s, %(time)s min) — https://vk.com/video%(owner_id)s_%(id)s" % current
 
 			elif type in SIMPLE_ATTACHMENTS:
 				body += SIMPLE_ATTACHMENTS[type] % current

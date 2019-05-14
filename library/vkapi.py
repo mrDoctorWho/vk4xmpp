@@ -30,6 +30,8 @@ REQUEST_RETRIES = 3
 APP_ID = 3789129
 # VK APP scope
 SCOPE = 69638
+# VK API VERSION
+API_VERSION = "5.13"
 
 socket.setdefaulttimeout(SOCKET_TIMEOUT)
 
@@ -332,7 +334,7 @@ class APIBinding(RequestProcessor):
 		values = values or {}
 		if not notoken:
 			values["access_token"] = self.token
-		values["v"] = "3.0"
+		values["v"] = API_VERSION
 
 		if "key" in self.captcha:
 			values["captcha_sid"] = self.captcha["sid"]

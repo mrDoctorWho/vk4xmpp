@@ -112,7 +112,7 @@ def processPollResult(user, data):
 				chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
 				if not out:
 					if not attachments and not chat:
-						message = [{"out": 0, "uid": uid, "mid": mid, "date": date, "body": body}]
+						message = [{"out": 0, "user_id": uid, "id": mid, "date": date, "body": body}]
 					utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
 
 			elif typ == TYPE_MSG_READ_OUT:

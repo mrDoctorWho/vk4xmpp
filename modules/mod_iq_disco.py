@@ -134,7 +134,7 @@ def checkAPIToken(token):
 			raise api.AuthError("Auth failed!")
 		else:
 			vk.online = True
-			userID = vk.getUserID()
+			userID = vk.getUserPreferences()[0]
 			name = vk.getUserData(userID)
 			data = {"auth": auth, "name": name, "friends_count": len(vk.getFriends())}
 	except (api.VkApiError, Exception):
