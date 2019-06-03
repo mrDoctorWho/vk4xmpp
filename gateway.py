@@ -499,15 +499,11 @@ class VK(object):
 					"start_message_id": mid,
 					"count": count})
 				if response:
-					messages.extend(response[0].get("items", []))
-						# skipping count-only reponses
-						# if len(message) > 1:
-						# 	if isinstance(message, list):
-						# 		first = message[0]
-						# 		# removing the unread count
-						# 		if isinstance(first, (int, long)):
-						# 			message.remove(first)
-						# 		messages.extend(message)
+					for item in response:
+						item = item.get("items")
+						if not item:
+							continue
+						messages.extend(item)
 				else:
 					# not sure if that's okay
 					# VK is totally unpredictable now
@@ -527,10 +523,9 @@ class VK(object):
 		"""
 		if uid == 0:
 			conversations = self.method("messages.getConversations", {"count": count, "filter": filter_})
+			conversations = conversations.get("items")
 		else:
 			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
-		if isinstance(conversations, dict):
-			conversations = conversations.values()
 		peers = VK.getPeerIds(conversations, self.source)
 		return self.getMessagesBulk(peers, count=count, mid=mid)
 
@@ -854,10 +849,10 @@ class User(object):
 						sendMessage(self.source, fromjid, escape("", body), date, mid=mid)
 		if messages:
 			newLastMsgID = messages[-1]["id"]
-			# if self.lastMsgID < newLastMsgID:
-			self.lastMsgID = newLastMsgID
-			runDatabaseQuery("update users set lastMsgID=? where jid=?",
-				(newLastMsgID, self.source), True)
+			if self.lastMsgID < newLastMsgID:
+				self.lastMsgID = newLastMsgID
+				runDatabaseQuery("update users set lastMsgID=? where jid=?",
+					(newLastMsgID, self.source), True)
 
 	def updateTypingUsers(self, cTime):
 		"""
