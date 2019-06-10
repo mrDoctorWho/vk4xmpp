@@ -110,6 +110,10 @@ def processPollResult(user, data):
 				mid, flags, uid, date, subject, body, attachments = evt
 				out = flags & FLAG_OUT
 				chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
+				# there is no point to request messages if there's only a single emoji attachment
+				# we actually only need to request for new messages if there are complex attachments in it (e.g. photos)
+				if len(attachments) == 1 and "emoji" in attachments:
+					attachments = None
 				if not out:
 					if not attachments and not chat:
 						message = [{"out": 0, "user_id": uid, "id": mid, "date": date, "body": body}]

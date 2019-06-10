@@ -466,7 +466,7 @@ class VK(object):
 		peers = []
 		if not conversations:
 			logger.warning("no conversations for (jid: %s)", source)
-			return []
+			return peers
 		for conversation in conversations:
 			if isinstance(conversation, dict):
 				innerConversation = conversation.get("conversation")
@@ -525,7 +525,7 @@ class VK(object):
 			conversations = self.method("messages.getConversations", {"count": count, "filter": filter_})
 			conversations = conversations.get("items")
 		else:
-			conversations = {"unread_count": 1, "1": {"conversation": {"peer": {"id": uid}}}}
+			conversations = [{"conversation": {"peer": {"id": uid}}}]
 		peers = VK.getPeerIds(conversations, self.source)
 		return self.getMessagesBulk(peers, count=count, mid=mid)
 
