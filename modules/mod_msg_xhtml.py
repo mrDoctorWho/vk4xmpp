@@ -9,7 +9,11 @@ import mod_xhtml
 
 def xhtml_handler(cl, msg):
 	destination = msg.getTo().getStripped()
-	source = msg.getFrom().getStripped()
+	source = msg.getFrom()
+	if isinstance(source, (str, unicode)):
+		logger.warning("Received message did not contain a valid jid: %s", msg)
+		raise xmpp.NodeProcessed()
+	source = source.getStripped()
 	if source in Users and msg.getType() == "chat":
 		user = Users[source]
 		html = msg.getTag("html")

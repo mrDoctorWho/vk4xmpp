@@ -57,6 +57,10 @@ def message_handler(cl, msg):
 	jidTo = msg.getTo()
 	destination = jidTo.getStripped()
 	jidFrom = msg.getFrom()
+	if isinstance(jidFrom, (str, unicode)):
+		logger.warning("Received message did not contain a valid jid: %s", msg)
+		raise xmpp.NodeProcessed()
+
 	source = jidFrom.getStripped()
 
 	if msg.getType() == "chat" and source in Users:

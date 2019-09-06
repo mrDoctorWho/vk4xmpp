@@ -194,7 +194,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 420, 0
+	number, hash = 460, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -279,8 +279,10 @@ class VK(object):
 		Checks the token
 		"""
 		try:
-			int(self.engine.method("isAppUser"))
-		except (api.VkApiError, TypeError, AttributeError):
+			data = self.engine.method("users.get")
+			if not data:
+				raise RuntimeError("Unable to get data for user!")
+		except api.VkApiError:
 			logger.error("unable to check user's token, error: %s (user: %s)",
 				traceback.format_exc(), self.source)
 			return False
@@ -578,7 +580,8 @@ class VK(object):
 		data = self.method("groups.getById", {"group_id": abs(gid), "fields": str.join(",", fields)})
 		if data:
 			data = data[0]
-		return data
+			return data
+		raise RuntimeError("Unable to get group data")
 
 	@utils.cache
 	@api.repeat(3, dict, RuntimeError)
