@@ -25,9 +25,9 @@ RUN_AS = None
 ALLOW_REGISTRATION = True
 
 IDENTIFIER = {"type": "vk", "category": "gateway", "name": "VK4XMPP Transport", "short": "VK4XMPP"}
-URL_ACCEPT_APP = "http://jabberon.ru/vk4xmpp.html#%d"
-VK4XMPP_MONITOR_SERVER = "anon.xmppserv.ru"
-VK4XMPP_MONITOR_URL = "http://xmppserv.ru/xmpp-monitor/hosts.php"
+URL_ACCEPT_APP = "http://opiums.eu/vk4xmpp.html#%d"
+VK4XMPP_MONITOR_SERVER = "opiums.eu"
+VK4XMPP_MONITOR_URL = "http://torrent.opiums.eu/hosts_xmpp.php"
 CAPS_NODE = "https://simpleapps.ru/caps/vk4xmpp"
 
 USER_CAPS_HASH = None
