@@ -31,7 +31,7 @@ APP_ID = 3789129
 # VK APP scope
 SCOPE = 69638
 # VK API VERSION
-API_VERSION = "5.13"
+API_VERSION = "5.21"
 
 socket.setdefaulttimeout(SOCKET_TIMEOUT)
 
