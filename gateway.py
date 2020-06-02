@@ -514,7 +514,7 @@ class VK(object):
 				cursor += step
 		return messages
 
-	def getMessages(self, count=20, mid=0, uid=0, filter_="all"):
+	def getMessages(self, count=20, mid=0, uid=0, filter_="unread"):
 		"""
 		Gets the last messages list
 		Args:
@@ -802,7 +802,7 @@ class User(object):
 		if dist:
 			self.markRosterSet()
 
-	def sendMessages(self, init=False, messages=None, mid=0, uid=0, filter_="all"):
+	def sendMessages(self, init=False, messages=None, mid=0, uid=0, filter_="unread"):
 		"""
 		Sends messages from vk to xmpp and call message01 handlers
 		Args:
@@ -816,13 +816,15 @@ class User(object):
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID, uid, filter_)
+				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID+1, uid, filter_)
 			if not messages:
 				return None
 			messages = sorted(messages, sortMsg)
 			for message in messages:
 				# check if message wasn't sent by our user
 				if not message["out"]:
+					if self.lastMsgID >= message["id"]:
+						continue
 					Stats["msgin"] += 1
 					frm = message["user_id"]
 					mid = message["id"]
@@ -852,10 +854,9 @@ class User(object):
 						sendMessage(self.source, fromjid, escape("", body), date, mid=mid)
 		if messages:
 			newLastMsgID = messages[-1]["id"]
-			if self.lastMsgID < newLastMsgID:
-				self.lastMsgID = newLastMsgID
-				runDatabaseQuery("update users set lastMsgID=? where jid=?",
-					(newLastMsgID, self.source), True)
+			self.lastMsgID = newLastMsgID
+			runDatabaseQuery("update users set lastMsgID=? where jid=?",
+				(newLastMsgID, self.source), True)
 
 	def updateTypingUsers(self, cTime):
 		"""

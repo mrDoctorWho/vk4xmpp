@@ -117,7 +117,7 @@ def processPollResult(user, data):
 				if not out:
 					if not attachments and not chat:
 						message = [{"out": 0, "user_id": uid, "id": mid, "date": date, "body": body}]
-					utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
+					utils.runThread(user.sendMessages, (False, message, mid, uid), "sendMessages-%s" % user.source)
 
 			elif typ == TYPE_MSG_READ_OUT:
 				uid, mid = evt
