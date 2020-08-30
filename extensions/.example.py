@@ -3,7 +3,7 @@
 # © simpleApps, 2014.
 # This plugin contain all vk4xmpp plugin's API features
 # Rename it to "example.py" if you wanna test it
-# Please notice that plugins are working in globals() so names must be unique
+# Please notice that plugins are working in globals() so variable and function names must be unique
 
 ## Events (not finished yet so not sorted):
 # 01 - transport's start (threaded), no args
@@ -56,7 +56,7 @@ def evt04_handler(vk):
 	Parameters:
 		vk: VK class object
 	"""
-	print "Look at this man, he've got a captcha: %s. This image: %s is not for robots" % (vk.source, vk.engine.captcha["img"])
+	print "Look at this man, he's got a captcha: %s. This image: %s is not for robots" % (vk.source, vk.engine.captcha["img"])
 
 registerHandler("evt04", evt04_handler)
 
@@ -68,7 +68,7 @@ def evt05_handler(user):
 	Parameters:
 		user: User class object
 	"""
-	print "Hey, look who come to see us: %s" % user.source
+	print "Hey, look who came to see us: %s" % user.source
 
 registerHandler("evt05", evt05_handler)
 
@@ -119,11 +119,14 @@ def msg01_handler(user, message):
 	Parameters:
 		user: User class object
 		message: single message json object
-	Return values:
-		None: the function itself should send a message
-		str type: transport's core will add returned string to existing body
+	Returns:
+		A tuple of (status, body) where status indicates what to do with the body.
+		List of statuses:
+			* MSG_SKIP: message will be skipped and execution of other handlers stopped
+			* MSG_APPEND: message body will be appended with returning body
+			* MSG_APPEND: message body will be prepended with returning body
 	"""
-	return "\nmsg01_handler is awesome"
+	return (MSG_APPEND, "\nmsg01_handler is awesome")
 
 registerHandler("msg01", msg01_handler)
 

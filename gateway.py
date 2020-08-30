@@ -64,8 +64,6 @@ Config = args.config
 startTime = int(time.time())
 
 
-# not really required to be none, but the debugger requires them to be defined
-# and, come on, this is much better, isn't it?
 DatabaseFile = None
 TransportID = None
 Host = None
@@ -124,6 +122,17 @@ Stats = {"msgin": 0,  # from vk
 
 
 MAX_MESSAGES_PER_REQUEST = 20
+
+# Status code that indicates what to do with returning body from plugins
+MSG_SKIP = -1
+MSG_PREPEND = 0
+MSG_APPEND = 1
+
+# Timeout after which user is considered paused typing
+TYPING_TIMEOUT = 5
+
+# Timeout for friends updating
+FRIENDS_UPDATE_TIMEOUT = 300
 
 
 def runDatabaseQuery(query, args=(), set=False, many=True):
@@ -194,7 +203,7 @@ def getGatewayRev():
 	"""
 	Gets gateway revision using git or custom revision number
 	"""
-	number, hash = 460, 0
+	number, hash = 480, 0
 	shell = os.popen("git describe --always &"
 		"& git log --pretty=format:''").readlines()
 	if shell:
@@ -433,8 +442,7 @@ class VK(object):
 		del data["last_name"]
 		return name
 
-
-	def getFriends(self, fields=None):
+	def getFriends(self, fields=None, limit=MAX_FRIENDS):
 		"""
 		Executes the friends.get method and formats it in the key-value style
 		Example:
@@ -444,7 +452,7 @@ class VK(object):
 		Which will be added in the result values
 		"""
 		fields = fields or self.friends_fields
-		raw = self.method("friends.get", {"fields": str.join(",", fields)}) or {}
+		raw = self.method("friends.get", {"fields": str.join(",", fields), "count": limit}) or {}
 		raw = raw.get("items", {})
 		friends = {}
 		for friend in raw:
@@ -627,7 +635,7 @@ class VK(object):
 			The result of sending the message
 		"""
 		Stats["msgout"] += 1
-		values = {mType: id, "message": body, "type": 0}
+		values = {mType: id, "message": body, "type": 0, "random_id": int(time.time())}
 		values.update(more)
 		try:
 			result = self.method("messages.send", values)
@@ -807,18 +815,16 @@ class User(object):
 		Sends messages from vk to xmpp and call message01 handlers
 		Args:
 			init: needed to know if function called at init (add time or not)
-		Plugins notice (msg01):
-			If plugin returns None then message will not be sent by transport's core,
-				it shall be sent by plugin itself
-			Otherwise, if plugin returns string,
-				the message will be sent by transport's core
+			messages: a list of pre-defined messages that would be handled and sent (w/o requesting new ones)
+			mid: last message id
+			uid: user id
+			filter_: what filter to use (all/unread)
 		"""
 		with self.sync:
 			date = 0
 			if not messages:
-				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID+1, uid, filter_)
-			if not messages:
-				return None
+				messages = self.vk.getMessages(MAX_MESSAGES_PER_REQUEST, mid or self.lastMsgID, uid, filter_)
+
 			messages = sorted(messages, sortMsg)
 			for message in messages:
 				# check if message wasn't sent by our user
@@ -826,27 +832,28 @@ class User(object):
 					if self.lastMsgID >= message["id"]:
 						continue
 					Stats["msgin"] += 1
-					frm = message["user_id"]
+					frm = message["from_id"]
 					mid = message["id"]
-					if frm in self.typing:
-						del self.typing[frm]
+					self.removeTyping(frm)
 					fromjid = vk2xmpp(frm)
-					body = message["body"]
-					body = uhtml(body)
-					iter = Handlers["msg01"].__iter__()
-					for func in iter:
+					body = uhtml(message["text"])
+					iter_ = Handlers["msg01"].__iter__()
+					for func in iter_:
 						try:
-							result = func(self, message)
+							status, data = func(self, message)
 						except Exception:
-							result = ""
+							status, data = MSG_APPEND, ""
 							crashLog("handle.%s" % func.__name__)
 
-						if result is None:
-							for func in iter:
+						# got ignore status, continuing execution
+						if status == MSG_SKIP:
+							for func in iter_:
 								utils.execute(func, (self, message))
 							break
-						else:
-							body += result
+						elif status == MSG_APPEND:
+							body += data
+						elif status == MSG_PREPEND:
+							body = data + body
 					else:
 						if self.settings.force_vk_date or init:
 							date = message["date"]
@@ -854,9 +861,14 @@ class User(object):
 						sendMessage(self.source, fromjid, escape("", body), date, mid=mid)
 		if messages:
 			newLastMsgID = messages[-1]["id"]
-			self.lastMsgID = newLastMsgID
-			runDatabaseQuery("update users set lastMsgID=? where jid=?",
-				(newLastMsgID, self.source), True)
+			if newLastMsgID > self.lastMsgID:
+				self.lastMsgID = newLastMsgID
+				runDatabaseQuery("update users set lastMsgID=? where jid=?",
+					(newLastMsgID, self.source), True)
+
+	def removeTyping(self, frm):
+		if frm in self.typing:
+			del self.typing[frm]
 
 	def updateTypingUsers(self, cTime):
 		"""
@@ -867,7 +879,7 @@ class User(object):
 		"""
 		with self.sync:
 			for user, last in self.typing.items():
-				if cTime - last > 7:
+				if cTime - last > TYPING_TIMEOUT:
 					del self.typing[user]
 					sendMessage(self.source, vk2xmpp(user), typ="paused")
 
@@ -877,7 +889,7 @@ class User(object):
 		Compares the current friends list to the new list
 		Takes a corresponding action if any difference found
 		"""
-		if (cTime - self.last_udate) > 300 and not self.vk.engine.captcha:
+		if (cTime - self.last_udate) > FRIENDS_UPDATE_TIMEOUT and not self.vk.engine.captcha:
 			if self.settings.keep_online:
 				self.vk.setOnline()
 			else:
@@ -954,6 +966,7 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype
 		timestamp: message timestamp (XEP-0091)
 		typ: xmpp chatstates type (XEP-0085)
 		mtype: the message type
+		mid: message id
 	"""
 	msg = xmpp.Message(destination, body, mtype, frm=source)
 	msg.setTag(typ, namespace=xmpp.NS_CHATSTATES)
@@ -967,6 +980,14 @@ def sendMessage(destination, source, body=None, timestamp=0, typ="active", mtype
 
 
 def sendChatMarker(destination, source, mid, typ="displayed"):
+	"""
+	Sends a chat marker as per XEP-0333
+	Args:
+		destination: to whom send the marker
+		source: from who send the marker
+		mid: which message id should be marked as read
+		typ: marker type (displayed by default)
+	"""
 	msg = xmpp.Message(destination, typ="chat",frm=source)
 	msg.setTag(typ, {"id": mid}, xmpp.NS_CHAT_MARKERS)
 	sender(Component, msg)
@@ -1026,6 +1047,7 @@ def updateCron():
 			user.updateFriends(cTime)
 		time.sleep(2)
 
+
 def calcStats():
 	"""
 	Returns count(*) from users database
@@ -1084,9 +1106,9 @@ def checkPID():
 	if os.path.exists(pidFile):
 		old = rFile(pidFile)
 		if old:
-			Print("#-# Killing the previous instance: ", False)
 			old = int(old)
 			if pid != old:
+				Print("#-# Killing the previous instance: ", False)
 				try:
 					os.kill(old, signal.SIGTERM)
 					time.sleep(3)

@@ -116,8 +116,9 @@ def processPollResult(user, data):
 					attachments = None
 				if not out:
 					if not attachments and not chat:
-						message = [{"out": 0, "user_id": uid, "id": mid, "date": date, "body": body}]
-					utils.runThread(user.sendMessages, (False, message, mid, uid), "sendMessages-%s" % user.source)
+						message = [{"out": 0, "from_id": uid, "id": mid, "date": date, "text": body}]
+					# we substract 1 from msg id b/c VK now has reverse history so we need to ask what happened before this exact message
+					utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
 
 			elif typ == TYPE_MSG_READ_OUT:
 				uid, mid = evt

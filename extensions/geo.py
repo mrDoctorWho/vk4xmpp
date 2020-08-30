@@ -8,6 +8,7 @@ GoogleMapLink = "https://maps.google.com/maps?q=%s"
 
 def TimeAndRelativeDimensionInSpace(self, machine):
 	body = ""
+	result = (MSG_APPEND, "")
 	if machine.has_key("geo"):
 		t_machine = machine["geo"]
 		place = t_machine.get("place")
@@ -19,6 +20,7 @@ def TimeAndRelativeDimensionInSpace(self, machine):
 			body += _("\nCity: %s\n") % place["city"]
 		body += _("Coordinates: %s") % coordinates
 		body += "\n%s — Google Maps" % GoogleMapLink % urllib.quote(t_machine["coordinates"])
-	return body
+		result = (MSG_APPEND, body)
+	return result
 
 registerHandler("msg01", TimeAndRelativeDimensionInSpace)

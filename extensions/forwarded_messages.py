@@ -27,21 +27,23 @@ class TimezoneOffset(tzinfo):
 
 def parseForwardedMessages(self, msg, depth=0):
 	body = ""
-	if "fwd_messages" in msg:
+	result = (MSG_APPEND, "")
+	if msg.get("fwd_messages"):
 		spacer = BASE_SPACER * depth
 		body = "\n" + spacer
 		body += _("Forwarded messages:")
 		fwd_messages = sorted(msg["fwd_messages"], sortMsg)
 		for fwd in fwd_messages:
-			source = fwd["user_id"]
-			fwdBody = escape("", uhtml(compile_eol.sub("\n" + spacer + BASE_SPACER, fwd["body"])))
+			source = fwd["from_id"]
+			fwdBody = escape("", uhtml(compile_eol.sub("\n" + spacer + BASE_SPACER, fwd["text"])))
 			date = getUserDate(self, fwd["date"])
 			name = self.vk.getName(source)
 			body += "\n%s[%s] %s> %s" % (spacer + BASE_SPACER, date, name, fwdBody)
-			body += parseAttachments(self, fwd, spacer + (BASE_SPACER * 2))
+			body += parseAttachments(self, fwd, spacer + (BASE_SPACER * 2))[1]
 			if depth < MAXIMUM_FORWARD_DEPTH: 
-				body += parseForwardedMessages(self, fwd, (depth + 1))
-	return body
+				body += parseForwardedMessages(self, fwd, (depth + 1))[1]
+		result = (MSG_APPEND, body)
+	return result
 
 
 def getUserDate(user, timestamp):
@@ -62,6 +64,6 @@ def getUserDate(user, timestamp):
 
 
 if not isdef("MAXIMUM_FORWARD_DEPTH"):
-	MAXIMUM_FORWARD_DEPTH = 29
+	MAXIMUM_FORWARD_DEPTH = 33
 
 registerHandler("msg01", parseForwardedMessages)

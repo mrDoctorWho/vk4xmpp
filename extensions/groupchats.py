@@ -145,9 +145,9 @@ def handleOutgoingChatMessage(user, vkChat):
 	Handles outging VK messages and sends them to XMPP
 	"""
 	# peer_id for newer APIs
-	chatID = vkChat.get("chat_id", 0)
+	chatID = vkChat.get("peer_id", 0) - MIN_CHAT_ID
 
-	if chatID:
+	if chatID > 0:
 		# check if the groupchats support enabled in user's settings
 		if not user.settings.groupchats:
 			return None
@@ -173,8 +173,8 @@ def handleOutgoingChatMessage(user, vkChat):
 		if not chat.created:
 			time.sleep(1.5)
 		chat.handleMessage(user, vkChat)
-		return None
-	return ""
+		return (MSG_SKIP, "")
+	return (MSG_APPEND, "")
 
 
 def createChat(user, source):
@@ -365,9 +365,9 @@ class Chat(object):
 		"""
 		if self.created:
 			self.update(user, vkChat)
-			body = escape("", uhtml(vkChat["body"]))
-			body += parseAttachments(user, vkChat)
-			body += parseForwardedMessages(user, vkChat)
+			body = escape("", uhtml(vkChat["text"]))
+			body += parseAttachments(user, vkChat)[1]
+			body += parseForwardedMessages(user, vkChat)[1]
 			if body:
 				chatMessage(self.jid, body, vk2xmpp(vkChat["from_id"]), None)
 		else:

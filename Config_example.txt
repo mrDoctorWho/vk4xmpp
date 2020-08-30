@@ -68,6 +68,9 @@ URL_VCARD_NO_IMAGE = "https://raw.githubusercontent.com/mrDoctorWho/vk4xmpp/mast
 # Old users will be able to update their registration.
 ALLOW_REGISTRATION = True
 
+# Friends limit per user.
+MAX_FRIENDS = 5000
+
 #! Danger zone.
 #! Change the settings below ONLY IF YOU KNOW WHAT ARE YOU DOING! DEFAULT VALUES ARE RECOMMENDED!
 # You were warned.

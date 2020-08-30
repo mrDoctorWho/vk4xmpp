@@ -31,7 +31,7 @@ APP_ID = 3789129
 # VK APP scope
 SCOPE = 69638
 # VK API VERSION
-API_VERSION = "5.21"
+API_VERSION = "5.120"
 
 socket.setdefaulttimeout(SOCKET_TIMEOUT)
 
@@ -48,13 +48,28 @@ ERRORS = (httplib.BadStatusLine,
 
 METHOD_THROUGHPUT = 3.0
 
-# Trying to use faster library usjon instead of simplejson
+# VK API error codes
+UNKNOWN_ERROR = 1
+TOO_FAST_ERROR = 6
+FLOOD_CONTROL_ERROR = 9
+NOT_ALLOWED_ERROR = 7
+INTERNAL_SERVER_ERROR = 10
+RUNTIME_ERROR = 13
+CAPTCHA_NEEDED_ERROR = 14
+ACCESS_DENIED_ERROR = 15
+VALIDATION_REQUIRED_ERROR = 17
+WRONG_METHOD_OR_PARAM_ERROR = 100
+
+
+ERRNO_NETWORK_IS_UNREACHABLE = 101
+ERRNO_CONNECTION_RESET_BY_PEER = 104
+
+# Try to use faster library usjon instead of simplejson
 try:
 	import ujson as json
-	logger.debug("vkapi: using ujson instead of simplejson")
 except ImportError:
 	import json
-	logger.warning("vkapi: ujson wasn't loaded, using simplejson instead")
+
 
 
 def repeat(maxRetries, resultType, *errors):
@@ -82,10 +97,11 @@ def repeat(maxRetries, resultType, *errors):
 				else:
 					break
 			else:
+				logger.critical("network error: ")
 				errno = getattr(exc, "errno", 0)
-				if errno == 101:
+				if errno == ERRNO_NETWORK_IS_UNREACHABLE:
 					raise NetworkNotFound()
-				elif errno == 104:
+				elif errno == ERRNO_CONNECTION_RESET_BY_PEER:
 					raise NetworkError()
 				data = resultType()
 				logger.warning("vkapi: Error %s occurred on executing %s(*%s, **%s)",
@@ -99,6 +115,7 @@ def repeat(maxRetries, resultType, *errors):
 		return wrapper
 
 	return decorator
+
 
 
 class AsyncHTTPRequest(httplib.HTTPSConnection):
@@ -294,7 +311,7 @@ class PasswordLogin(RequestProcessor):
 class APIBinding(RequestProcessor):
 	"""
 	Provides simple VK API binding
-	Translates VK errors to python exceptions
+	Converts VK errors to Python exceptions
 	"""
 	def __init__(self, token, debug=None, logline=""):
 		self.token = token
@@ -302,7 +319,7 @@ class APIBinding(RequestProcessor):
 		self.last = []
 		self.captcha = {}
 		self.lastMethod = ()
-		self.delay = 1.00
+		self.delay = 1.25
 		# to use it in logs without showing the token
 		self.logline = logline
 		RequestProcessor.__init__(self)
@@ -311,7 +328,7 @@ class APIBinding(RequestProcessor):
 	def __delay(self):
 		"""
 		Delaying method execution to prevent "too fast" errors from happening
-		Typically VK allows us execution of 3 methods per second.
+		Typically VK allows execution of 3 methods per second.
 		"""
 		self.last.append(time.time())
 		if len(self.last) > 2:
@@ -321,7 +338,7 @@ class APIBinding(RequestProcessor):
 
 	def method(self, method, values=None, notoken=False):
 		"""
-		Issues a VK method
+		Executes a VK method
 		Args:
 			method: vk method
 			values: method parameters
@@ -378,30 +395,34 @@ class APIBinding(RequestProcessor):
 				logger.error("vkapi: error occured on executing method"
 					" (%s(%s), code: %s, msg: %s), (for: %s)" % (method, values, eCode, eMsg, self.logline))
 
-				if eCode == 7:  # not allowed
+
+				if eCode == NOT_ALLOWED_ERROR:  # not allowed
 					raise NotAllowed(eMsg)
 
-				elif eCode == 10:  # internal server error
+				elif eCode == INTERNAL_SERVER_ERROR:  # internal server error
 					raise InternalServerError(eMsg)
 
-				elif eCode == 13:  # runtime error
+				elif eCode == RUNTIME_ERROR:  # runtime error
 					raise RuntimeError(eMsg)
 
-				elif eCode == 14:  # captcha
+				elif eCode == CAPTCHA_NEEDED_ERROR:  # captcha
 					if "captcha_sid" in error:
 						self.captcha = {"sid": error["captcha_sid"], "img": error["captcha_img"]}
 						raise CaptchaNeeded()
 
-				elif eCode == 15:
+				elif eCode == ACCESS_DENIED_ERROR:
 					raise AccessDenied(eMsg)
 
-				elif eCode == 17:
+				elif eCode == VALIDATION_REQUIRED_ERROR:
 					raise ValidationRequired(eMsg)
 
 				# 1 - unknown error / 100 - wrong method or parameters loss
 				# todo: where we going we NEED constants
-				elif eCode in (1, 6, 9, 100):
-					if eCode in (6, 9):   # 6 - too fast / 9 - flood control
+				elif eCode in (UNKNOWN_ERROR,
+					TOO_FAST_ERROR,
+					FLOOD_CONTROL_ERROR,
+					WRONG_METHOD_OR_PARAM_ERROR):
+					if eCode in (TOO_FAST_ERROR, FLOOD_CONTROL_ERROR):
 						self.delay += 0.15
 						# logger doesn't seem to support %0.2f
 						logger.warning("vkapi: got code %s, increasing timeout to %0.2f (for: %s)" %

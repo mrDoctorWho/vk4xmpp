@@ -49,6 +49,9 @@ DefLang = "ru"
 AdditionalAbout = ""
 allowBePublic = True
 
+# Max friends per user
+MAX_FRIENDS = 5000
+
 # The features transport will advertise
 TransportFeatures = {xmpp.NS_DELAY, xmpp.NS_CHATSTATES, xmpp.NS_LAST, xmpp.NS_CHAT_MARKERS, xmpp.NS_OOB}
 
