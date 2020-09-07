@@ -150,7 +150,7 @@ def handleOutgoingChatMessage(user, vkChat):
 	if chatID > 0:
 		# check if the groupchats support enabled in user's settings
 		if not user.settings.groupchats:
-			return None
+			return (MSG_SKIP, "")
 
 		if not hasattr(user, "chats"):
 			user.chats = {}
@@ -166,7 +166,7 @@ def handleOutgoingChatMessage(user, vkChat):
 				chat.init(owner, chatID, chatJID, title, time.time(), users)
 		if not chat.created:
 			if chat.creation_failed:
-				return None
+				return (MSG_SKIP, "")
 			# we can add user, vkChat to the create() method to prevent losing or messing up the messages
 			chat.create(user)
 		# read the comments above the handleMessage function
