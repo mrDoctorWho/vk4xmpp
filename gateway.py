@@ -442,7 +442,7 @@ class VK(object):
 		del data["last_name"]
 		return name
 
-	def getFriends(self, fields=None, limit=MAX_FRIENDS):
+	def getFriends(self, fields=["online"], limit=MAX_FRIENDS):
 		"""
 		Executes the friends.get method and formats it in the key-value style
 		Example:
