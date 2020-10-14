@@ -345,6 +345,7 @@ class Chat(object):
 		frm = stanza.getFrom()
 		if not frm:
 			logger.critical("no from in stanza! %s", stanza)
+			self.creation_failed = True
 			return
 		chat = frm.getStripped()
 		if xmpp.isResultNode(stanza):
