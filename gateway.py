@@ -266,7 +266,7 @@ class VK(object):
 		self.userID = 0
 		self.methods = 0
 		self.lists = []
-		self.friends_fields = {"screen_name"}
+		self.friends_fields = {"screen_name", "online"}
 		self.engine = None
 		self.cache = {}
 		self.permissions = 0
@@ -442,7 +442,7 @@ class VK(object):
 		del data["last_name"]
 		return name
 
-	def getFriends(self, fields=["online"], limit=MAX_FRIENDS):
+	def getFriends(self, fields=None, limit=MAX_FRIENDS):
 		"""
 		Executes the friends.get method and formats it in the key-value style
 		Example:
