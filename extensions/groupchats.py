@@ -30,6 +30,7 @@ CHAT_CLEANUP_DELAY = 86400  # 24 hours
 MIN_CHAT_ID = 2000000000
 OWNER_FALLBACK = 210700286
 
+
 if not require("attachments") or not require("forwarded_messages"):
 	raise RuntimeError("extension 'groupchats' requires 'forwarded_messages' and 'attachments'")
 
@@ -406,6 +407,8 @@ class Chat(object):
 		Get vk chat by id
 		"""
 		chat = user.vk.method("messages.getChat", {"chat_id": id})
+		users = chat.get("users", [])
+		users = sorted(users[:CHAT_USERS_LIMIT])
 		if not chat:
 			raise RuntimeError("Unable to get a chat!")
 		return chat
@@ -448,7 +451,7 @@ class Chat(object):
 
 	@staticmethod
 	def getUserByID(id):
-		for jid, user in Users.iteritems():
+		for user in Users.values():
 			if hasattr(user, "vk"):
 				if user.vk.getUserPreferences()[0] == id:
 					return user
@@ -556,6 +559,8 @@ def initChatExtension():
 			cleanTheChatsUp()
 		else:
 			logger.warning("not starting chats cleaner because CHAT_LIFETIME_LIMIT is not set")
+	if not isdef("CHAT_USERS_LIMIT"):
+		CHAT_USERS_LIMIT = 50
 
 
 if isdef("ConferenceServer") and ConferenceServer:
