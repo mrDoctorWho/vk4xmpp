@@ -408,7 +408,7 @@ class Chat(object):
 		"""
 		chat = user.vk.method("messages.getChat", {"chat_id": id})
 		users = chat.get("users", [])
-		users = sorted(users[:CHAT_USERS_LIMIT])
+		users = sorted(users)[:CHAT_USERS_LIMIT]
 		if not chat:
 			raise RuntimeError("Unable to get a chat!")
 		return chat
@@ -560,6 +560,7 @@ def initChatExtension():
 		else:
 			logger.warning("not starting chats cleaner because CHAT_LIFETIME_LIMIT is not set")
 	if not isdef("CHAT_USERS_LIMIT"):
+		global CHAT_USERS_LIMIT
 		CHAT_USERS_LIMIT = 50
 
 
