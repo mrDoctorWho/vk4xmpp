@@ -270,7 +270,7 @@ class Chat(object):
 		if not self.raw_users:
 			vkChat = self.getVKChat(user, self.id)
 			if not vkChat:
-				raise RuntimeError("Unable to retrieve VK chat users list")
+				raise RuntimeError("Unable to retrieve VK chat users list for user %s with chat id: %s" % (user, self.id))
 			self.raw_users = vkChat["users"]
 
 		name = "@%s" % TransportID
@@ -407,10 +407,10 @@ class Chat(object):
 		Get vk chat by id
 		"""
 		chat = user.vk.method("messages.getChat", {"chat_id": id})
+		if not chat:
+			raise RuntimeError("Unable to get a chat! User: %s, id: %s" % (user, id))
 		users = chat.get("users", [])
 		users = sorted(users)[:CHAT_USERS_LIMIT]
-		if not chat:
-			raise RuntimeError("Unable to get a chat!")
 		return chat
 
 	@staticmethod

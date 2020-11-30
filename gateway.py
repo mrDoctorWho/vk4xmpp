@@ -388,17 +388,17 @@ class VK(object):
 				# But the user definitely must be removed.
 				# The question is: how?
 				# Should we completely exterminate them or just remove?
-				roster = False
+				remove = False
 				m = e.message
 				# TODO: Make new exceptions for each of the conditions below
 				if m == "User authorization failed: user revoke access for this token.":
-					roster = True
+					remove = True
 				elif m == "User authorization failed: invalid access_token.":
-					sendMessage(self.source, TransportID,
-						m + " Please, register again")
-				utils.runThread(removeUser, (self.source, roster))
+					sendMessage(self.source, TransportID, m + " Please, register again")
+				if remove:
+					utils.runThread(removeUser, (self.source, remove))
+					self.online = False
 				logger.error("VK: apiError %s (jid: %s)", m, self.source)
-				self.online = False
 			else:
 				return result
 			logger.error("VK: error %s occurred while executing"
@@ -457,7 +457,10 @@ class VK(object):
 		friends = {}
 		for friend in raw:
 			uid = friend["id"]
-			online = friend["online"]
+			online = friend.get("online")
+			if online is None:
+				logger.warning("No online for friend: %d (jid: %s)", friend, self.source)
+				online = False
 			name = self.formatName(friend)
 			friends[uid] = {"name": name, "online": online, "lists": friend.get("lists")}
 			for key in fields:
@@ -589,7 +592,7 @@ class VK(object):
 		if data:
 			data = data[0]
 			return data
-		raise RuntimeError("Unable to get group data")
+		raise RuntimeError("Unable to get group data for %d" % gid)
 
 	@utils.cache
 	@api.repeat(3, dict, RuntimeError)
@@ -602,6 +605,8 @@ class VK(object):
 		Returns:
 			The user information
 		"""
+		if uid < 0:
+			raise RuntimeError("Unable to get user name. User ids can't be negative: %d" % uid)
 		if not fields:
 			user = Users.get(self.source)
 			if user and uid in user.friends:
@@ -614,7 +619,7 @@ class VK(object):
 			data = data[0]
 			data["name"] = self.formatName(data)
 			return data
-		raise RuntimeError("Unable to get the user's name")
+		raise RuntimeError("Unable to get the user's name for %d"  % uid)
 
 	def getName(self, id_):
 		if id_ > 0:
@@ -930,6 +935,9 @@ class User(object):
 		logger.debug("retrying for user (jid: %s)", self.source)
 		if engine.retry():
 			self.reauth()
+
+	def __str__(self):
+		return "User(token=%s, source=%s, friends_count=%s)" % (self.vk.getToken(), self.source, len(self.friends))
 
 
 def sendPresence(destination, source, pType=None, nick=None,
