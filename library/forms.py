@@ -1,6 +1,7 @@
 # coding: utf-8
 
 from __main__ import URL_ACCEPT_APP, VK_ACCESS, _
+import xmpp
 
 URL_ACCEPT_APP = URL_ACCEPT_APP % VK_ACCESS
 
@@ -14,6 +15,7 @@ class Forms:
 		form.append({"var": "password", "type": "text-private",
 			"label": _("Access-token"),
 			"desc": _("Enter the access token")})
+		form.append({"var": "FORM_TYPE", "type": "hidden", "value": xmpp.NS_REGISTER})
 		return form
 
 	@classmethod
@@ -26,9 +28,7 @@ class Forms:
 		form.insert(1, {"var": "phone", "type": "text-single",
 			"label": _("Phone number"), "value": "+",
 			"desc": _("Enter phone number in format +71234567890")})
-		form.insert(2, {"var": "use_password", "type": "boolean", 
-			"label": _("Get access-token automatically"), 
+		form.insert(2, {"var": "use_password", "type": "boolean",
+			"label": _("Get access-token automatically"),
 			"desc": _("Tries to get access-token automatically. (It's recommended to use a token)")})
 		return form
-
- 
