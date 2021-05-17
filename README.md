@@ -4,6 +4,9 @@
 
 **[Fork Me](https://github.com/mrDoctorWho/vk4xmpp/fork) Now! Spread the project for great good!**
 
+**Donate**: 
+
+* Dogecoin: DEZWbJaCi47cY8ZGLh1oH7QXHx2ntEgp4X
 
 VK4XMPP Transport
 ======
