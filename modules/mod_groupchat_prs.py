@@ -21,11 +21,13 @@ def handleChatErrors(source, prs):
 	# and rejoin timer on 404, 503
 	destination = prs.getTo().getStripped()
 	error = prs.getErrorCode()
-	status = prs.getStatusCode()
+	status = int(prs.getStatusCode() or 0)
 	nick = prs.getFrom().getResource()
 	jid = prs.getJid()
 	errorType = prs.getTagAttr("error", "type")
 	user = Chat.getUserObject(source)
+	pType = prs.getType()
+
 	if user and source in getattr(user, "chats", {}):
 		chat = user.chats[source]
 		if chat.creation_failed:
@@ -46,9 +48,14 @@ def handleChatErrors(source, prs):
 				chat.owner_nickname = prs.getNick()
 				runDatabaseQuery("update groupchats where jid=? set nick=?",
 					(source, chat.owner_nickname), set=True)
-		elif error or status:
+		elif error or (status / 100 >= 3):
 			logger.debug("groupchats: presence error (error #%s, status #%s) "
 				"from source %s (jid: %s)" % (error, status, source, user.source if user else "unknown"))
+
+	if pType in ("available", None) and destination == TransportID:
+		if prs.getTag("x", namespace=xmpp.NS_MUC_USER):
+			raise xmpp.NodeProcessed()
+
 	raise xmpp.NodeProcessed()
 
 
@@ -82,9 +89,10 @@ def handleChatPresences(source, prs):
 			# TODO: don't rewrite it every time we get a presence
 			if jid.split("/")[0] == user.source:
 				nick = prs.getFrom().getResource()
-				chat.owner_nickname = nick
-				runDatabaseQuery("update groupchats set nick=? where jid=? ", (nick, source), set=True)
-				logger.debug("mod_groupchat_prs: setting user nickname to: %s for chat %s and user: %s", nick, source, user.source)
+				if chat.owner_nickname != nick:
+					chat.owner_nickname = nick
+					runDatabaseQuery("update groupchats set nick=? where jid=? ", (nick, source), set=True)
+					logger.debug("mod_groupchat_prs: setting user nickname to: %s for chat %s and user: %s", nick, source, user.source)
 			raise xmpp.NodeProcessed()
 
 		elif user:
@@ -93,8 +101,7 @@ def handleChatPresences(source, prs):
 
 
 
-@utils.safe
-def presence_handler(cl, prs):
+def presence_handler_groupchat(cl, prs):
 	"""
 	xmpppy presence callback
 	Args:
@@ -109,5 +116,6 @@ def presence_handler(cl, prs):
 
 
 MOD_TYPE = "presence"
-MOD_HANDLERS = ((presence_handler, "", "", True),)
+
+MOD_HANDLERS = ((presence_handler_groupchat, "", "", True),)
 MOD_FEATURES = []

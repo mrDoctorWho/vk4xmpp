@@ -535,7 +535,7 @@ class VK(object):
 			A list of VK Message objects
 		"""
 		if uid == 0:
-			conversations = self.method("messages.getConversations", {"count": count, "filter": filter_})
+			conversations = self.method("messages.getConversations", {"count": count, "filter": filter_}) or {}
 			conversations = conversations.get("items")
 		else:
 			conversations = [{"conversation": {"peer": {"id": uid}}}]

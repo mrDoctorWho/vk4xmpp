@@ -144,7 +144,7 @@ def vcard_handler(cl, iq):
 		destination = jidTo.getStripped()
 		result = iq.buildReply("result")
 
-		logger.debug("got vcard request to %s (jid: %s)", source, destination)
+		logger.debug("got vcard request to %s (jid: %s)", destination, source)
 		if destination == TransportID:
 			template = VCARD_TEMPLATE.copy()
 			template[KEY_URL] = GITHUB_URL

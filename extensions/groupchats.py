@@ -283,7 +283,7 @@ class Chat(object):
 		joinChat(chat, name, TransportID, "Lost in time.")  # let's rename ourselves
 		self.users[TransportID] = {"name": name, "jid": TransportID}
 
-	def update(self, userObject, vkChat):
+	def update(self, userObject):
 		"""
 		Updates chat users and sends messages
 		Uses two user lists to prevent losing of any of them
@@ -291,6 +291,7 @@ class Chat(object):
 		vkChat = self.getVKChat(userObject, self.id)
 		all_users = vkChat.get("users", [])
 		everyone = all_users + self.users.keys()
+		everyone = sorted(everyone)[:CHAT_USERS_LIMIT]
 		# how would it get in there?
 		if TransportID in everyone:
 			everyone.remove(TransportID)
@@ -331,7 +332,6 @@ class Chat(object):
 			self.setSubject(subject)
 		self.raw_users = all_users
 
-
 	def setSubject(self, subject, date=None):
 		"""
 		Changes the chat subject
@@ -366,7 +366,7 @@ class Chat(object):
 		Handle incoming (VK -> XMPP) messages
 		"""
 		if self.created:
-			self.update(user, vkChat)
+			self.update(user)
 			body = escape("", uhtml(vkChat["text"]))
 			body += parseAttachments(user, vkChat)[1]
 			body += parseForwardedMessages(user, vkChat)[1]
@@ -410,7 +410,7 @@ class Chat(object):
 		if not chat:
 			raise RuntimeError("Unable to get a chat! User: %s, id: %s" % (user, id))
 		users = chat.get("users", [])
-		users = sorted(users)[:CHAT_USERS_LIMIT]
+		chat["users"] = sorted(users)
 		return chat
 
 	@staticmethod
@@ -542,9 +542,10 @@ def cleanTheChatsUp():
 	chats = runDatabaseQuery("select jid, owner, last_used, user from groupchats")
 	result = []
 	for (jid, owner, last_used, user) in chats:
-		if (time.time() - last_used) >= utils.TimeMachine(CHAT_LIFETIME_LIMIT):
-			result.append((jid, owner, user))
-			logger.debug("groupchats: time for %s expired (jid: %s)", jid, user)
+		if jid and owner:
+			if (time.time() - last_used) >= utils.TimeMachine(CHAT_LIFETIME_LIMIT):
+				result.append((jid, owner, user))
+				logger.debug("groupchats: time for %s expired (jid: %s)", jid, user)
 	if result:
 		exterminateChats(chats=result)
 	utils.runThread(cleanTheChatsUp, delay=CHAT_CLEANUP_DELAY)
@@ -561,7 +562,7 @@ def initChatExtension():
 			logger.warning("not starting chats cleaner because CHAT_LIFETIME_LIMIT is not set")
 	if not isdef("CHAT_USERS_LIMIT"):
 		global CHAT_USERS_LIMIT
-		CHAT_USERS_LIMIT = 50
+		CHAT_USERS_LIMIT = 30
 
 
 if isdef("ConferenceServer") and ConferenceServer:
