@@ -20,7 +20,7 @@ def last_handler(cl, iq):
 	elif source in Users and id in Users[source].friends:
 		last = Users[source].vk.method("execute.getLastTime", {"uid": id}) or 0
 		last = int(time.time() - last)
-		name = Users[source].vk.getUserData(id).get("name", "Unknown")
+		name = Users[source].vk.getName(id)
 	else:
 		raise xmpp.NodeProcessed()
 	result = xmpp.Iq("result", to=jidFrom, frm=destination)

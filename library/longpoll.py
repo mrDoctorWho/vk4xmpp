@@ -107,7 +107,9 @@ def processPollResult(user, data):
 
 			if typ == TYPE_MSG:  # new message
 				message = None
-				mid, flags, uid, date, subject, body, attachments = evt
+				mid, flags, uid, date, body, subject, attachments = evt
+				if subject:
+					subject = subject.get("title")
 				out = flags & FLAG_OUT
 				chat = (uid > MIN_CHAT_UID)  # a groupchat always has uid > 2000000000
 				# there is no point to request messages if there's only a single emoji attachment
@@ -121,7 +123,7 @@ def processPollResult(user, data):
 					utils.runThread(user.sendMessages, (False, message, mid - 1, uid), "sendMessages-%s" % user.source)
 
 			elif typ == TYPE_MSG_READ_OUT:
-				uid, mid = evt
+				uid, mid, _ = evt
 				cache = user.msgCacheByUser.get(uid)
 				if cache:
 					xmppMID = cache["xmpp"]

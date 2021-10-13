@@ -258,7 +258,7 @@ class VK(object):
 	def __init__(self, token=None, source=None):
 		self.token = token
 		self.source = source
-		self.pollConfig = {"mode": 66, "wait": 30, "act": "a_check"}
+		self.pollConfig = {"mode": 66, "wait": 30, "act": "a_check", "version": 3}
 		self.pollServer = ""
 		self.pollInitialized = False
 		self.engine = None
@@ -595,7 +595,6 @@ class VK(object):
 		raise RuntimeError("Unable to get group data for %d" % gid)
 
 	@utils.cache
-	@api.repeat(3, dict, RuntimeError)
 	def getUserData(self, uid, fields=None):
 		"""
 		Gets user data. Such as name, photo, etc
@@ -622,11 +621,14 @@ class VK(object):
 		raise RuntimeError("Unable to get the user's name for %d"  % uid)
 
 	def getName(self, id_):
+		return self.getData(id_).get("name", "Unknown group (id: %s)" % id_)
+
+	def getData(self, id_, fields=None):
 		if id_ > 0:
-			name = self.getUserData(id_).get("name", "Unknown user (id: %s)" % id_)
+			data = self.getUserData(id_, fields)
 		else:
-			name = self.getGroupData(id_).get("name", "Unknown group (id: %s)" % id_)
-		return name
+			data = self.getGroupData(id_, fields) 
+		return data
 
 	def sendMessage(self, body, id, mType="user_id", more={}):
 		"""

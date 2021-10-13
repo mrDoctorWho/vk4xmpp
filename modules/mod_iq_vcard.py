@@ -9,7 +9,7 @@ VCARD_SEMAPHORE = threading.Semaphore()
 
 DESCRIPTION = "VK4XMPP Transport\n© simpleApps, 2013 — 2016."
 GITHUB_URL = "https://github.com/mrDoctorWho/vk4xmpp"
-BIRTHDAY = "30.09.2013"
+BIRTHDAY = "30.08.2013"
 
 KEY_NICKNAME = "NICKNAME"
 KEY_NAME = "FN"
@@ -38,13 +38,12 @@ VCARD_TEMPLATE = {KEY_NICKNAME: IDENTIFIER["short"],
 	KEY_DESC: DESCRIPTION,
 	KEY_PHOTO: URL_VCARD_NO_IMAGE,
 	KEY_URL: GITHUB_URL,
-	KEY_BDAY: None,
+	KEY_BDAY: BIRTHDAY,
 	KEY_CTRY: "United States",  # database.getCountriesById and database.getCitiesById
 	KEY_PHONE_HOME: None,
 	KEY_PHONE_MOBILE: None,
-	KEY_LOCALITY: "Los Angeles"  # you'd love it here (yeah, here...)
+	KEY_LOCALITY: {"title": "Los Angeles"}  # you'd love it here (yeah, here...)
 	}
-
 
 
 VCARD_FIELDS = {KEY_NICKNAME: "screen_name",
@@ -55,34 +54,10 @@ VCARD_FIELDS = {KEY_NICKNAME: "screen_name",
 				KEY_LOCALITY: "city",
 				KEY_PHONE_HOME: "home_phone",
 				KEY_PHONE_MOBILE: "mobile_phone",
-#				KEY_URL: "site",
+				KEY_URL: "site",
 				KEY_PHOTO: PhotoSize,
 				KEY_DESC: None,
 				}
-
-
-def getLocationString(id, key, user):
-	"""
-	Get country or city name by id
-	Args:
-		id: the id to get string for
-		key: whether to get country or city name
-		user: the User object
-	Returns:
-		Country/city name,
-	"""
-	if user:
-		if key == KEY_CTRY:
-			method = "database.getCountriesById"
-			arg = "country_ids"
-		else:
-			method = "database.getCitiesById"
-			arg = "city_ids"
-		data = user.vk.method(method, {arg: id})
-		if data:
-			data = data[0]
-			return data["name"]
-	return id
 
 
 def buildVcard(data, template=VCARD_TEMPLATE, fields=VCARD_FIELDS, user=None):
@@ -102,16 +77,10 @@ def buildVcard(data, template=VCARD_TEMPLATE, fields=VCARD_FIELDS, user=None):
 		if key == KEY_PHOTO:
 			photo = vcard.setTag(KEY_PHOTO)
 			photo.setTagData(KEY_BINVAL, utils.getLinkData(value))
-		# todo: find a proper way to handle this
-		elif key == KEY_URL:
-			if user:
-				vcard.setTagData(key, fields[key] % data)
-			else:
-				vcard.setTagData(key, fields[key])
 
 		elif key in (KEY_CTRY, KEY_LOCALITY) and value:
 			adr = vcard.getTag(KEY_ADR) or vcard.setTag(KEY_ADR)
-			adr.setTagData(key, getLocationString(value, key, user))
+			adr.setTagData(key, value.get("title"))
 
 		elif key == KEY_PHONE_MOBILE and value:
 			tel = vcard.getTag(KEY_TEL) or vcard.setTag(KEY_TEL)
@@ -127,7 +96,7 @@ def buildVcard(data, template=VCARD_TEMPLATE, fields=VCARD_FIELDS, user=None):
 			value = time.strftime("%Y-%m-%d", time.strptime(value, "%d.%m.%Y"))
 			vcard.setTagData(key, value)
 
-		elif value:
+		elif value and value != "None":
 			vcard.setTagData(key, value)
 	return vcard
 
@@ -147,8 +116,6 @@ def vcard_handler(cl, iq):
 		logger.debug("got vcard request to %s (jid: %s)", destination, source)
 		if destination == TransportID:
 			template = VCARD_TEMPLATE.copy()
-			template[KEY_URL] = GITHUB_URL
-			template[KEY_BDAY] = BIRTHDAY
 			vcard = buildVcard(template, template, template)
 			result.setPayload([vcard])
 
@@ -156,8 +123,8 @@ def vcard_handler(cl, iq):
 			user = Users[source]
 			if user.friends:
 				id = vk2xmpp(destination)
-				args = ("screen_name", "bdate", "city", "country", "contacts", "home_town", PhotoSize)  # todo: a feature to show the user's site instead of their URL?
-				data = user.vk.getUserData(id, args)
+				args = ("screen_name", "bdate", "city", "country", "contacts", "home_town", "site", PhotoSize)  # todo: a feature to show the user's site instead of their URL?
+				data = user.vk.getData(id, args)
 				data["id"] = id
 				if not user.settings.use_nicknames:
 					data["screen_name"] = data["name"]
