@@ -120,7 +120,7 @@ def sendGlobalMessage(body, subject, online):
 	else:
 		users = getUsersList()
 	for user in users:
-		sendAnnouncement(user, body, subject)
+		sendAnnouncement(user[0], body, subject)
 
 
 def checkAPIToken(token):
