@@ -7,7 +7,7 @@ The extension “groupchats” requires up to 3 fields in the main config:
 
 Bear in mind that there can be limits on the jabber server for conference per jid. Read the wiki for more details.
 
-2. CHAT_USERS_LIMIT — the limit of users per chat. 50 is the default.
+2. CHAT_USERS_LIMIT — the limit of users per chat. 30 is the default.
 
 3. CHAT_LIFETIME_LIMIT — the limit of the time after that chat considered inactive and will be removed. Time must be formatted as text and contain the time measurement variables after the digits.
 
