@@ -63,14 +63,22 @@ def register_handler(cl, iq):
 					logger.debug("user won't use a password (jid: %s)" % source)
 					token = password
 					password = None
-					# If not using a password, then we need to check if there a link or token. It's possible that user's wrong and that's a password.
-					match = api.token_exp.search(token)
-					if match:
-						token = match.group(0)
-					elif phone:
-						password = token
-					else:
-						result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _("Fill the fields!"))
+					# check if the supplied data is a link or a part of the link, instead of being a token
+					if "&" in token or "=" in token:
+						match = api.token_exp.search(token)
+						if match:
+							token = match.group(1)
+							# get rid of unnecessary data (if present)
+							token = token.split("&")[0]
+						else:
+							token = None
+					# fixme: if the user has their password
+					# starting with vk1, then we're doomed
+					elif not token.startswith("vk1"):
+						if phone:
+							password = token
+						elif token:
+							result = utils.buildIQError(iq, xmpp.ERR_NOT_AUTHORIZED, _("Fill the fields!"))
 
 				# If phone or password (token)
 				if token or (phone and password):

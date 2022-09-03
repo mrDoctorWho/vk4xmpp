@@ -37,7 +37,7 @@ socket.setdefaulttimeout(SOCKET_TIMEOUT)
 
 logger = logging.getLogger("vk4xmpp")
 
-token_exp = re.compile("(([\da-f]+){11,})", re.IGNORECASE)
+token_exp = re.compile(r"access_token\=(([0-9a-zA-Z\-\._]+))")
 
 ERRORS = (httplib.BadStatusLine,
 	urllib2.URLError,
